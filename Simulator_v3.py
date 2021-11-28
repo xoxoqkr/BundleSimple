@@ -37,7 +37,7 @@ divide_option = True  # True : 구성된 번들에 속한 고객들을 다시 �
 p2_set = True
 rider_p2 = 2 #1.5
 platform_p2 = 1.15  #1.3 p2_set이 False인 경우에는 p2만큼의 시간이 p2로 고정됨. #p2_set이 True인 경우에는 p2*dis(가게,고객)/speed 만큼이 p2시간으로 설정됨.
-customer_p2 = 1.5  #2
+customer_p2 = 1 #2
 obj_types = ['simple_max_s', 'max_s+probability', 'simple_over_lt','over_lt+probability']
 # order_p2 = [[1.5,2,3],[0.3,0.3,0.4]] #음식 별로 민감도가 차이남.
 wait_para = False  # True: 음식조리로 인한 대기시간 발생 #False : 음식 대기로 인한 대기시간 발생X
@@ -77,10 +77,10 @@ print('시나리오 확인2')
 for sc1 in scenarios:
     print(sc1.platform_recommend, sc1.rider_bundle_construct,sc1.obj_type)
 
-scenarios = scenarios[2:4]
+#scenarios = scenarios[2:4]
 #scenarios = [scenarios[8]]
 #scenarios = [scenarios[2]]
-#scenarios = [scenarios[2],scenarios[3],scenarios[4],scenarios[8]]
+scenarios = [scenarios[2],scenarios[3],scenarios[4],scenarios[8]]
 """
 scenarios = [scenarios[1]]*4
 
@@ -95,7 +95,7 @@ for sc3 in scenarios:
 rider_num = 0
 #exp_range = [0,2,3,4]*10 #인스턴스 1에러가 있음.
 exp_range = [0]*1 #인스턴스 1에러가 있음.
-instance_type = 'Instance_cluster' #'Instance_cluster' / 'Instance_random'
+instance_type = 'Instance_random' #'Instance_cluster' / 'Instance_random'
 #input('확인 {}'.format(len(scenarios)))
 
 rv_count = 0

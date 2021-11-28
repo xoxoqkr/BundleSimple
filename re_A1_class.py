@@ -81,14 +81,14 @@ class Rider(object):
         env.process(self.RunProcess(env, platform, customers, stores, self.p2, freedom= freedom, order_select_type = order_select_type, uncertainty = uncertainty))
         env.process(self.TaskSearch(env, platform, customers, p2=self.p2, order_select_type=order_select_type, uncertainty=uncertainty))
 
-    def RiderMoving(self, env, time):
+    def RiderMoving(self, env, time, info = '가게'):
         """
         라이더가 움직이는 시간의 env.time의 generator를 반환
         :param env: simpy.env
         :param time: 라이더가 움직이는 시간
         """
         yield env.timeout(time)
-        print('현재1 T:{} 라이더{} 가게도착'.format(int(env.now),self.name))
+        print('현재1 T:{} 라이더{} {} 도착'.format(int(env.now),self.name,info))
 
 
     def RunProcess(self, env, platform, customers, stores,p2 = 0, wait_time = 2, freedom = True, order_select_type = 'simple', uncertainty = False):
@@ -147,7 +147,7 @@ class Rider(object):
                         order.time_info[2] = env.now
                         order.time_info[8] = exp_store_arrive
                     else:#고객인 경우
-                        yield env.process(self.RiderMoving(env, move_t))
+                        yield env.process(self.RiderMoving(env, move_t, info = '고객'))
                         print('T: {} 라이더 {} 고객 {} 도착 서비스 종료'.format(int(env.now),self.name, node_info[0]))
                         order.time_info[3] = env.now
                         real_flt = round(order.time_info[3] - order.time_info[2],4)
@@ -248,7 +248,7 @@ class Rider(object):
                     bundle_task_names.append([task.index, dist])
                 bound_order_names.append([task.index, dist])
             else: #Step 1-3 : 에러 출력
-                print('F:OrderSelect-E1/task{}/선택 정보 {}/ 주문 채택시 onhand주문수:{} > {}:maxonhand'.format(task.name, task.picked, len(task.customers) + len(self.onhand) ,self.max_order_num))
+                print('F:OrderSelect-E1/task{}/선택 정보 {}/ 주문 채택시 onhand주문수:{} > {}:maxonhand'.format(task.index, task.picked, len(task.customers) + len(self.onhand) ,self.max_order_num))
         bound_order_names.sort(key=operator.itemgetter(1))
         #Step 2 : 라이더가 확인할 페이지를 결정
         rv = float(self.Rand.random(size=1)) #Step 2 - 1 : 확인할 페이지 확률 변수 rv 생성
@@ -272,17 +272,17 @@ class Rider(object):
         for task_info in considered_tasks:
             #3-1: FF나 TF인 경우
             task = platform.platform[task_info[0]]
+            print('task 정보/ 고객 {}/ 현재 경로 {}'.format(task.customers, self.route))
             mv_time = 0
             if len(self.route) > 0:
                 rev_route = [self.route[-1]]
                 print('경로 존재 {}'.format(rev_route))
             else:
                 rev_route = [self.visited_route[-1]]
-                #rev_route = [self.last_departure_loc]
                 print('경로 X :{}'.format(rev_route))
             rev_route += task.route
             for node_index in range(1, len(rev_route)):
-                print('bf {} -> {} af'.format(rev_route[node_index - 1][2], rev_route[node_index][2]))
+                print('bf {} -> {} af/ T:{}'.format(rev_route[node_index - 1][2], rev_route[node_index][2],Basic.distance(rev_route[node_index - 1][2], rev_route[node_index][2]) / self.speed))
                 mv_time += Basic.distance(rev_route[node_index - 1][2], rev_route[node_index][2]) / self.speed
                 if rev_route[node_index - 1][1] == 0:
                     mv_time += customers[rev_route[node_index - 1][0]].time_info[6]
@@ -303,21 +303,22 @@ class Rider(object):
                 best_route_info = self.ShortestRoute2(task, customers, p2=p2,uncertainty=uncertainty)  # task가 산입될 수 있는 가장 좋은 경로
                 # best_route_info = [rev_route, max(ftds), sum(ftds) / len(ftds), min(ftds), order_names, route_time]
                 if len(best_route_info) > 0:
-                    org_route_t = 0
                     if len(self.route) > 0:
-                        for index in range(1, len(self.route)):
-                            bf = self.route[index - 1][2]
-                            af = self.route[index][2]
-                            org_route_t += Basic.distance(bf, af)/ self.speed
+                        bf = self.route[-1][2]
+                        af = best_route_info[0][0][2]
+                        org_route_t = Basic.distance(bf, af)/ self.speed
                     else:
-                        org_route_t += Basic.distance(self.visited_route[-1][2],best_route_info[0][0][2])/ self.speed
+                        org_route_t = Basic.distance(self.visited_route[-1][2],best_route_info[0][0][2])/ self.speed
                         print('af {} -> {} bf'.format(self.visited_route[-1][2],best_route_info[0][0][2]))
                     if len(best_route_info) < 5:
                         input('best_route_info {} '.format(best_route_info))
-                    print('결로 정보 2{}'.format(best_route_info))
+                    print('경로 정보 2{}'.format(best_route_info))
                     print('시간 정보2  {} : {} : {}'.format(best_route_info[5], org_route_t, best_route_info[5]+ org_route_t))
+
                     benefit = round(task.fee / (best_route_info[5] +org_route_t),4)  # 이익 / 운행 시간
-                    scores.append([task.index] + best_route_info + [benefit] + ['rider'])
+                    benefit2 = round(task.fee / best_route_info[6],4)
+                    print('inc_t1:{}/inc_t2:{}'.format(best_route_info[5] +org_route_t, best_route_info[6]))
+                    scores.append([task.index] + best_route_info[:6] + [benefit2] + ['rider'])
                     print('번들:: 라이더#{}/경로 {} /리스트 확인 {}'.format(self.name, self.route, scores[-1]))
             scores.sort(key=operator.itemgetter(7), reverse=True)
         # Step 4 : task 선택
@@ -364,12 +365,16 @@ class Rider(object):
             else:
                 heading_node = [self.route[0][0] + M]
                 already_served_customer_names = []
+        prior_route = []
         for node_info in self.route[1:]: #현재 향하고 있는 노드는 도착해야함.
             if node_info[1] == 1:
                 order_names.append(node_info[0])
                 order_customers.append(customers[node_info[0]])
+                prior_route.append(node_info[0])
             else:
                 store_names.append(node_info[0] + M)
+                prior_route.append(node_info[0] + M)
+        org_route_time =  Basic.RouteTime(order_customers, prior_route, speed=self.speed, M=M, uncertainty=uncertainty, error = self.exp_error)
         #2:새로운 주문 추가
         for customer_name in order.customers:
             order_names.append(customer_name)
@@ -414,7 +419,7 @@ class Rider(object):
                             info = [name, 0, customers[name].store_loc, 0]
                         rev_route.append(info)
                     try:
-                        feasible_routes.append([rev_route, max(ftds), sum(ftds) / len(ftds), min(ftds), order_names, route_time])
+                        feasible_routes.append([rev_route, max(ftds), sum(ftds) / len(ftds), min(ftds), order_names, route_time, route_time - org_route_time])
                     except:
                         #input('대상 경로 {} 고객들 {} '.format(rev_route, order_names))
                         print('대상 경로 {} 고객들 {} '.format(rev_route, order_names))
@@ -513,6 +518,14 @@ class Rider(object):
             x_inc = (nodeB[0] - nodeA[0])*ratio
             y_inc = (nodeB[1] - nodeA[1])*ratio
             return [nodeA[0] + x_inc, nodeA[1] + y_inc]
+
+
+    def select_pr(self, t):
+        # t분 이내에 주문을 선택을 할 확률을 반환
+        mu = (1.0/self.search_lamda)*t
+        x = 0
+        return round(1 - poisson.pmf(x, mu),4) # 주문을 1번이상 수행할 확률
+
 
 class Store(object):
     """

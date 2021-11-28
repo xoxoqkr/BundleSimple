@@ -62,16 +62,6 @@ def RouteTime(orders, route, M = 1000, speed = 1, uncertainty = False, error = 1
                     time += exp_cook_time - time
                 #input('작동 확인1')
         #input('작동 확인2')
-        """
-        print('정보', bf, af, af - M)
-        print('고려 고객들', orders)
-        input('멈춤4')
-        if af < M : #customer process time #도착지가 고객인 경우
-            time += orders[af].time_info[7]
-        else: # store process time #도착지가 가게인 경우
-            input('멈춤5')
-            time += orders[af - M].time_info[6]        
-        """
     return time
 
 
