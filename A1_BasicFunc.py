@@ -365,14 +365,6 @@ def ReadRiderData(env, rider_data, Platform, Rider_dict, Customer_dict, Store_di
     return None
 
 
-def ReadCustomerData():
-    pass
-
-
-def ReadStoreData():
-    pass
-
-
 def UpdatePlatformByOrderSelection(platform, order_index):
     """
     선택된 주문과 겹치는 고객을 가지는 주문이 플랫폼에 존재한다면, 해당 주문을 삭제하는 함수.

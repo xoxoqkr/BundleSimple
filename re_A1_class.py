@@ -713,6 +713,7 @@ class scenario(object):
         self.rider_bundle_construct = False
         self.obj_type = 'simple_max_s'
         self.snapshots = []
+        self.search_type = 'enumerate'
 
 def WaitTimeCal1(exp_store_arrive_t, assign_t, exp_cook_time, cook_time, move_t = 0):
     exp_food_ready_t = assign_t + exp_cook_time

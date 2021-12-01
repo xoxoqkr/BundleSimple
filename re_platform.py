@@ -2,7 +2,7 @@
 import time
 import math
 from A2_Func import CountUnpickedOrders, CalculateRho, RequiredBreakBundleNum, BreakBundle, GenBundleOrder,  LamdaMuCalculate, NewCustomer
-from A3_two_sided import BundleConsideredCustomers, CountActiveRider,  ConstructFeasibleBundle_TwoSided
+from A3_two_sided import BundleConsideredCustomers, CountActiveRider,  ConstructFeasibleBundle_TwoSided, SearchRaidar
 import operator
 from Bundle_selection_problem import Bundle_selection_problem3, Bundle_selection_problem4
 import numpy
@@ -21,14 +21,15 @@ def distance(p1, p2):
 
 def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t = 1000,
                       divide_option = False,unserved_bundle_order_break = True, bundle_para = False,
-                      delete_para = True, obj_type = 'simple_max_s'):
+                      delete_para = True, obj_type = 'simple_max_s', search_type = 'enumerate'):
     yield env.timeout(5) #warm-up time
     while env.now <= end_t:
         if bundle_para == True:
             lamda1, lamda2, mu1, mu2 = LamdaMuCalculate(orders, riders, env.now, interval=interval, return_type='class')
             p = CalculateRho(lamda1, lamda2, mu1, mu2)
             if p > thres_p:
-                feasible_bundle_set, phi_b, d_matrix, s_b, D, lt_matrix = Bundle_Ready_Processs(env.now, platform, orders, riders, p2, interval, speed = riders[0].speed, bundle_permutation_option= True)
+                feasible_bundle_set, phi_b, d_matrix, s_b, D, lt_matrix = Bundle_Ready_Processs(env.now, platform, orders, riders, p2, interval,
+                                                                                                speed = riders[0].speed, bundle_permutation_option= True, search_type = search_type)
                 print('phi_b {}:{} d_matrix {}:{} s_b {}:{}'.format(len(phi_b), numpy.average(phi_b),
                                                                     d_matrix.shape, numpy.average(d_matrix),len(s_b),numpy.average(s_b),))
                 print('d_matrix : {}'.format(d_matrix))
@@ -115,7 +116,7 @@ def Calculate_Phi(rider, customers, bundle_infos, l=4):
 
 
 def Bundle_Ready_Processs(now_t, platform_set, orders, riders, p2,interval, bundle_permutation_option = False, speed = 1, min_pr = 0.05,
-                      unserved_bundle_order_break = True, considered_customer_type = 'new'):
+                      unserved_bundle_order_break = True, considered_customer_type = 'new', search_type = 'enumerate'):
     # 번들이 필요한 라이더에게 번들 계산.
     if considered_customer_type == 'new':
         considered_customers_names = NewCustomer(orders, now_t, interval=interval)
@@ -131,10 +132,13 @@ def Bundle_Ready_Processs(now_t, platform_set, orders, riders, p2,interval, bund
     for customer_name in considered_customers_names:
         start = time.time()
         target_order = orders[customer_name]
-        considered_customers = BundleConsideredCustomers(target_order, platform_set, riders, orders,
-                                                         bundle_search_variant=unserved_bundle_order_break,
-                                                         d_thres_option=True, speed=speed)
-        print('번들 탐색 대상 고객들 {}'.format(len(considered_customers)))
+        if search_type == 'enumerate':
+            considered_customers = BundleConsideredCustomers(target_order, platform_set, riders, orders,
+                                                             bundle_search_variant=unserved_bundle_order_break,
+                                                             d_thres_option=True, speed=speed)
+        else:
+            considered_customers = SearchRaidar(target_order, orders, platform_set)
+        print('T:{}/탐색타입:{} / 번들 탐색 대상 고객들 {}'.format(now_t, search_type, len(considered_customers)))
         thres = 1
         size3bundle = ConstructFeasibleBundle_TwoSided(target_order, considered_customers, 3, p2, speed=speed, bundle_permutation_option = bundle_permutation_option, thres= thres)
         size2bundle = ConstructFeasibleBundle_TwoSided(target_order, considered_customers, 2, p2, speed=speed,bundle_permutation_option=bundle_permutation_option , thres= thres)
