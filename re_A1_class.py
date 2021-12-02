@@ -215,9 +215,13 @@ class Rider(object):
                         self.b_select += 1
                         self.num_bundle_customer += len(order_info[5])
                     Basic.UpdatePlatformByOrderSelection(platform,order_info[0])  # 만약 개별 주문 선택이 있다면, 해당 주문이 선택된 번들을 제거.
-                #종류에 따른 다음 선택 시간 결정
+                #종류에 따른 다음 선택 시간 결정 :todo 라이더의 효율에 영향을 미침.
                 if self.bundle_construct == True and len(self.onhand) < self.max_order_num:
-                    next = self.Rand.poisson(self.search_lamda)/(onhand_slack + 1)
+                    pr = 1/(onhand_slack + 1)
+                    if pr > random.random():
+                        next = self.Rand.poisson(self.search_lamda)/(onhand_slack + 1)
+                    else:
+                        next = self.Rand.poisson(self.search_lamda)
                 else:
                     next = self.Rand.poisson(self.search_lamda)
                 print('다음 시간 {}'.format(next))
@@ -713,7 +717,7 @@ class scenario(object):
         self.rider_bundle_construct = False
         self.obj_type = 'simple_max_s'
         self.snapshots = []
-        self.search_type = 'enumerate'
+        self.search_type = 'heuristic'
 
 def WaitTimeCal1(exp_store_arrive_t, assign_t, exp_cook_time, cook_time, move_t = 0):
     exp_food_ready_t = assign_t + exp_cook_time

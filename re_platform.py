@@ -21,7 +21,7 @@ def distance(p1, p2):
 
 def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t = 1000,
                       divide_option = False,unserved_bundle_order_break = True, bundle_para = False,
-                      delete_para = True, obj_type = 'simple_max_s', search_type = 'enumerate'):
+                      delete_para = True, obj_type = 'simple_max_s', search_type = 'enumerate', print_fig = False):
     yield env.timeout(5) #warm-up time
     while env.now <= end_t:
         if bundle_para == True:
@@ -40,17 +40,47 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                 unique_bundles = []
                 for index in unique_bundle_indexs:
                     unique_bundles.append(feasible_bundle_set[index])
-                print('문제 풀이 결과 {} '.format(unique_bundles))
+                print('문제 풀이 결과 {} '.format(unique_bundles[:10]))
                 # 번들을 업로드
                 task_index = max(list(platform.platform.keys())) + 1
                 if len(unique_bundles) > 0:
                     #플랫폼에 새로운 주문을 추가하는 작업이 필요.
                     print('주문 수 {} :: 추가 주문수 {}'.format(len(platform.platform),len(unique_bundles)))
+                    x1 = []
+                    y1 = []
+                    x2 = []
+                    y2 = []
+                    #input('그림 확인 시작2')
                     for info in unique_bundles:
                         o = GenBundleOrder(task_index, info, orders, env.now)
                         o.old_info = info
                         platform.platform[task_index] = o
                         task_index += 1
+                        seq_x = []
+                        seq_y = []
+                        #print(o.route)
+                        for index in range(1, len(o.route)):
+                            start = o.route[index-1][2]
+                            end = [o.route[index][2][0] - o.route[index-1][2][0],
+                                   o.route[index][2][1] - o.route[index-1][2][1]]
+                            plt.arrow(start[0], start[1], end[0], end[1] ,width=0.2, length_includes_head = True)
+                        for ct_name in o.customers:
+                            x1.append(orders[ct_name].store_loc[0])
+                            y1.append(orders[ct_name].store_loc[1])
+                            x2.append(orders[ct_name].location[0])
+                            y2.append(orders[ct_name].location[1])
+                    plt.scatter(x1, y1, marker = 'o', color = 'k', label = 'store')
+                    plt.scatter(x2, y2, marker='x', color='m', label='customer')
+                    plt.legend()
+                    plt.axis([0,50,0,50])
+                    plt.title('T :{}/ Selected Bundle Size {}'.format(round(env.now,2), len(unique_bundles)))
+                    if print_fig == True:
+                        plt.show()
+                        print('그림 확인2')
+                    plt.close()
+                    #선택된 번들의 그래프 그리기
+
+
                     """
                     new_orders = PlatformOrderRevise4(unique_bundles, orders, platform, now_t=env.now,
                                                       unserved_bundle_order_break=unserved_bundle_order_break,
@@ -116,7 +146,7 @@ def Calculate_Phi(rider, customers, bundle_infos, l=4):
 
 
 def Bundle_Ready_Processs(now_t, platform_set, orders, riders, p2,interval, bundle_permutation_option = False, speed = 1, min_pr = 0.05,
-                      unserved_bundle_order_break = True, considered_customer_type = 'new', search_type = 'enumerate'):
+                      unserved_bundle_order_break = True, considered_customer_type = 'all', search_type = 'enumerate'):
     # 번들이 필요한 라이더에게 번들 계산.
     if considered_customer_type == 'new':
         considered_customers_names = NewCustomer(orders, now_t, interval=interval)
@@ -137,12 +167,12 @@ def Bundle_Ready_Processs(now_t, platform_set, orders, riders, p2,interval, bund
                                                              bundle_search_variant=unserved_bundle_order_break,
                                                              d_thres_option=True, speed=speed)
         else:
-            considered_customers = SearchRaidar(target_order, orders, platform_set)
+            considered_customers = SearchRaidar(target_order, orders, platform_set, now_t = now_t)
         print('T:{}/탐색타입:{} / 번들 탐색 대상 고객들 {}'.format(now_t, search_type, len(considered_customers)))
-        thres = 1
+        thres = 0.05
         size3bundle = ConstructFeasibleBundle_TwoSided(target_order, considered_customers, 3, p2, speed=speed, bundle_permutation_option = bundle_permutation_option, thres= thres)
         size2bundle = ConstructFeasibleBundle_TwoSided(target_order, considered_customers, 2, p2, speed=speed,bundle_permutation_option=bundle_permutation_option , thres= thres)
-        max_index = 2
+        max_index = 50
         tem_infos = []
         try:
             size3bundle.sort(key=operator.itemgetter(6))
@@ -201,13 +231,16 @@ def Bundle_Ready_Processs(now_t, platform_set, orders, riders, p2,interval, bund
     #info1 : [route, round(max(ftds), 2), round(sum(ftds) / len(ftds), 2), round(min(ftds), 2), order_names, round(route_time, 2)]
     info1_index = 0
     info2_index = 0
+    #input('D확인1 {}'.format(Feasible_bundle_set))
     for info1 in Feasible_bundle_set:
         for info2 in Feasible_bundle_set:
-            if info1_index > info2_index and len(info1[4]) + len(info2[4]) > len(list(set(info1[4] + info2[4]))):
+            if info1 != info2 and len(info1[4]) + len(info2[4]) != len(list(set(info1[4] + info2[4]))):
+                #print('b1 {}/ b2 {}/ b1+b2 {}'.format(info1[4],info2[4], list(set(info1[4] + info2[4]))))
                 D.append([Feasible_bundle_set.index(info1), Feasible_bundle_set.index(info2)])
             info2_index += 1
         info1_index += 1
     lt_vector = []
+    print('D확인2 {}'.format(D[:10]))
     for info in Feasible_bundle_set:
         bundle_names = info[4]
         over_t = []

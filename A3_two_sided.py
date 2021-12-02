@@ -6,6 +6,7 @@ import itertools
 from A1_BasicFunc import distance, ActiveRiderCalculator
 from A2_Func import BundleConsist
 import math
+import matplotlib.pyplot as plt
 
 def CountActiveRider(riders, t, min_pr = 0, t_now = 0, option = 'w'):
     """
@@ -91,7 +92,7 @@ def MIN_OD_pair(orders, q,s,):
 
 
 def ConstructFeasibleBundle_TwoSided(target_order, orders, s, p2, thres = 0.05, speed = 1, bundle_permutation_option = False, uncertainty = False,
-                                     platform_exp_error = 1, print_option = True):
+                                     platform_exp_error = 1, print_option = True, sort_index = 5):
     """
     Construct s-size bundle pool based on the customer in orders.
     And select n bundle from the pool
@@ -135,20 +136,22 @@ def ConstructFeasibleBundle_TwoSided(target_order, orders, s, p2, thres = 0.05, 
             b += tem_route_info
         #input('가능 번들 수 {} : 정보 d {} s {}'.format(len(b), d, s))
         comparable_b = []
+        sort_index = 6 # 5: route time, 6: s_b
         if len(b) > 0:
-            b.sort(key=operator.itemgetter(6))  # s_b 순으로 정렬  #target order를 포함하는 모든 번들에 대해서 s_b를 계산.
-            b_star = b[0][6]
+            #b.sort(key=operator.itemgetter(6))  # s_b 순으로 정렬  #target order를 포함하는 모든 번들에 대해서 s_b를 계산.
+            b.sort(key=operator.itemgetter(sort_index))
+            b_star = b[0][sort_index]
             ave = []
             for ele in b:
-                ave.append(ele[6])
-                if (ele[6] - b_star)/b_star <= thres: #percent loss 가 thres 보다 작아야 함.
+                ave.append(ele[sort_index])
+                if (ele[sort_index] - b_star)/b_star <= thres: #percent loss 가 thres 보다 작아야 함.
                     comparable_b.append(ele)
             print('평균 {}'.format(sum(ave)/len(ave)))
         return comparable_b
     else:
         return []
 
-def SearchRaidar(target, customers, platform, r1 = 15, theta = 90):
+def SearchRaidar(target, customers, platform, r1 = 10, theta = 80, now_t = 0):
     #Step 1: 가게 정리
     C_T = []
     for task_index in platform.platform:
@@ -167,6 +170,10 @@ def SearchRaidar(target, customers, platform, r1 = 15, theta = 90):
     thera_range = math.cos(math.pi * ((theta / 2) / 180))
     res_C_T = {}
     res_C_T[target.name] = customers[target.name]
+    x1 = [] #주문 가게 x
+    y1 = [] #주문 가게 y
+    x2 = [] #주문 고객 x
+    y2 = [] #주문 고객 y
     for customer in C_T:
         p2 = customer.location
         len_a = distance(p0, p1)
@@ -177,4 +184,19 @@ def SearchRaidar(target, customers, platform, r1 = 15, theta = 90):
         cos_c = (len_a ** 2 + len_b ** 2 - len_c ** 2) / (2 * len_a * len_b)
         if cos_c >= thera_range:
             res_C_T[customer.name] = customer
+            x1.append(customer.store_loc[0])
+            y1.append(customer.store_loc[1])
+            x2.append(customer.location[0])
+            y2.append(customer.location[1])
+    if len(res_C_T) > 1:
+        plt.scatter(x1, y1, color='k', label = 'Ct_store')
+        plt.scatter(x2, y2, marker = 'x' ,color='m',label = 'Ct_customer')
+        plt.scatter(target.store_loc[0], target.store_loc[1], color = 'r', label = 'target_store')
+        plt.scatter(target.location[0], target.location[1], marker = 'x' , color='c', label = 'target_customer')
+        plt.legend()
+        plt.axis([0, 50, 0, 50])
+        plt.title('T :{}/ Size Ct {}'.format(now_t, len(res_C_T)-1))
+        #plt.show()
+        plt.close()
+        #input('그림 확인')
     return res_C_T

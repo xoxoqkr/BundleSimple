@@ -38,7 +38,7 @@ store_max_range = 30
 divide_option = True  # True : 구성된 번들에 속한 고객들을 다시 개별 고객으로 나눔. False: 번들로 구성된 고객들은 번들로만 구성
 p2_set = True
 rider_p2 = 2 #1.5
-platform_p2 = 1.3  #1.3 p2_set이 False인 경우에는 p2만큼의 시간이 p2로 고정됨. #p2_set이 True인 경우에는 p2*dis(가게,고객)/speed 만큼이 p2시간으로 설정됨.
+platform_p2 = rider_p2*0.8  #1.3 p2_set이 False인 경우에는 p2만큼의 시간이 p2로 고정됨. #p2_set이 True인 경우에는 p2*dis(가게,고객)/speed 만큼이 p2시간으로 설정됨.
 customer_p2 = 1 #2
 obj_types = ['simple_max_s', 'max_s+probability', 'simple_over_lt','over_lt+probability']
 # order_p2 = [[1.5,2,3],[0.3,0.3,0.4]] #음식 별로 민감도가 차이남.
@@ -80,11 +80,14 @@ for sc1 in scenarios:
     print(sc1.platform_recommend, sc1.rider_bundle_construct,sc1.obj_type)
 
 #scenarios = scenarios[2:4]
-scenarios = [copy.deepcopy(scenarios[8]), copy.deepcopy(scenarios[8])]
-scenarios[0].search_type = 'enumerate'
-scenarios[1].search_type = 'heuristic'
+#scenarios = [copy.deepcopy(scenarios[8]), copy.deepcopy(scenarios[8])]
+#scenarios[0].search_type = 'enumerate'
+#scenarios[1].search_type = 'heuristic'
+#scenarios = [copy.deepcopy(scenarios[8])]
+#scenarios[0].search_type = 'heuristic'
+print_fig = False
 #input( '2::1 :{}/ 2:{}'.format(scenarios[0].search_type, scenarios[1].search_type) )
-#scenarios = [scenarios[2]]
+scenarios = [scenarios[2],scenarios[8]]
 #scenarios = [scenarios[2],scenarios[3],scenarios[4],scenarios[8]]
 """
 scenarios = [scenarios[1]]*4
@@ -97,10 +100,10 @@ print('시나리오 확인3')
 for sc3 in scenarios:
     print(sc3.platform_recommend, sc3.rider_bundle_construct,sc3.obj_type)
 #input('시나리오 확인')
-rider_num = 0
+rider_num = 7
 #exp_range = [0,2,3,4]*10 #인스턴스 1에러가 있음.
 exp_range = [0]*1 #인스턴스 1에러가 있음.
-instance_type = 'Instance_cluster' #'Instance_cluster' / 'Instance_random'
+instance_type = 'Instance_random' #'Instance_cluster' / 'Instance_random'
 #search_type = 'heuristic'
 #input('확인 {}'.format(len(scenarios)))
 
@@ -136,7 +139,8 @@ for ite in exp_range:#range(0, 1):
                                         platform_recommend = sc.platform_recommend, input_order_select_type = order_select_type, bundle_construct= sc.rider_bundle_construct,
                                         rider_num = rider_num, lamda_list=lamda_list, p2 = rider_p2, ite = rv_count))
         env.process(OrdergeneratorByCSV(env, sc.customer_dir, Orders, Store_dict, Platform2, p2_ratio = customer_p2,rider_speed= rider_speed))
-        env.process(Platform_process5(env, Platform2, Orders, Rider_dict, platform_p2,thres_p,interval, bundle_para= sc.platform_recommend, obj_type = sc.obj_type, search_type = sc.search_type))
+        env.process(Platform_process5(env, Platform2, Orders, Rider_dict, platform_p2,thres_p,interval, bundle_para= sc.platform_recommend, obj_type = sc.obj_type,
+                                      search_type = sc.search_type, print_fig = print_fig))
         env.run(run_time)
         res = ResultPrint(sc.name + str(ite), Orders, speed=rider_speed, riders = Rider_dict)
         sc.res.append(res)
