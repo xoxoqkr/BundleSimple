@@ -146,6 +146,7 @@ class Rider(object):
                         print('라이더 {} 음식{} 적재'.format(self.name, node_info[0]))
                         order.time_info[2] = env.now
                         order.time_info[8] = exp_store_arrive
+                        order.who_serve.append([self.name, int(env.now),0])
                     else:#고객인 경우
                         yield env.process(self.RiderMoving(env, move_t, info = '고객'))
                         print('T: {} 라이더 {} 고객 {} 도착 서비스 종료'.format(int(env.now),self.name, node_info[0]))
@@ -154,7 +155,7 @@ class Rider(object):
                         exp_flt = round(Basic.distance(order.location, order.store_loc)/self.speed,4)
                         if real_flt < exp_flt:
                             input('차이 {} ;고객 {};가게위치 {};고객 위치{};realFlt:{};expFlt:{}'.format(real_flt - exp_flt, order.name, order.store_loc, order.location, real_flt, exp_flt))
-                        order.who_serve.append([self.name, int(env.now)])
+                        order.who_serve.append([self.name, int(env.now),1])
                         try:
                             self.container.remove(node_info[0])
                             self.onhand.remove(node_info[0])
@@ -215,9 +216,13 @@ class Rider(object):
                         self.b_select += 1
                         self.num_bundle_customer += len(order_info[5])
                     Basic.UpdatePlatformByOrderSelection(platform,order_info[0])  # 만약 개별 주문 선택이 있다면, 해당 주문이 선택된 번들을 제거.
-                #종류에 따른 다음 선택 시간 결정
+                #종류에 따른 다음 선택 시간 결정 :todo 라이더의 효율에 영향을 미침.
                 if self.bundle_construct == True and len(self.onhand) < self.max_order_num:
-                    next = self.Rand.poisson(self.search_lamda)/(onhand_slack + 1)
+                    pr = 1/(onhand_slack + 1)
+                    if pr > random.random():
+                        next = self.Rand.poisson(self.search_lamda)/(onhand_slack + 1)
+                    else:
+                        next = self.Rand.poisson(self.search_lamda)
                 else:
                     next = self.Rand.poisson(self.search_lamda)
                 print('다음 시간 {}'.format(next))
@@ -266,6 +271,7 @@ class Rider(object):
             task = platform.platform[outer_task[0]]
             if len(task.customers) > 1:
                 nearest_bundle = page*l + out_count
+                print('nearest_bundle:',nearest_bundle)
                 break
             out_count += 1
         #Step 3 : 라이더가 각 task의 점수를 계산
@@ -294,6 +300,8 @@ class Rider(object):
             WagePerMin = round(task.fee / mv_time, 4)  # 분당 이익
             if type(task.route) == tuple:
                 task.route = list(task.route)
+            #if len(task.route) > 2:
+            #    WagePerMin += 10000
             scores.append([task.index,task.route, None, None, None, task.customers, None,WagePerMin,'platform'])
             print('시간 정보1  {} '.format(mv_time))
             print('시간 계산 경로1 {}'.format(rev_route))
@@ -327,6 +335,11 @@ class Rider(object):
             nearest_bundle_page = int(nearest_bundle / l) + 1
             self.snapshots.append(snapshot_info + [nearest_bundle, nearest_bundle_page])
             #[라이더 이름, 시간, 확인 페이지, 번들 수, 번들 최대 가치, 단건 주문 최대 가치, 가장 가까운 주문 정렬 순서, 가장 가까운 주문 정렬 순서 페이지]
+            print('스냅샷 {}'.format(self.snapshots[-1]))
+            print('T{} /라이더 {}/확인 페이지{}/번들 수{}/번들 최대 가치{}/단건 주문 최대 가치{}/타입{}'.format(round(self.env.now,4), self.snapshots[-1][0],
+                                                                                self.snapshots[-1][2],self.snapshots[-1][4],self.snapshots[-1][5],
+                                                                                self.snapshots[-1][6],self.snapshots[-1][7]))
+            print('가장 가까운 번들{}/번들 페이지:{}'.format(self.snapshots[-1][8],self.snapshots[-1][9]))
             print('현재 경로 {}'.format(self.route))
             print('점수들 {} '.format(scores[:3]))
             bundle_print = []
@@ -475,7 +488,7 @@ class Rider(object):
 
 
     def SnapShotSaver(self, infos, page, l=4):
-        # best_route_info = [rev_route, max(ftds), sum(ftds) / len(ftds), min(ftds), order_names, route_time]
+        # best_route_info = [task.index, rev_route, max(ftds), sum(ftds) / len(ftds), min(ftds), order_names, route_time, benefit]
         now_t = round(self.env.now,4)
         bundle_exist = 0
         single_values = [0]
@@ -713,7 +726,7 @@ class scenario(object):
         self.rider_bundle_construct = False
         self.obj_type = 'simple_max_s'
         self.snapshots = []
-        self.search_type = 'enumerate'
+        self.search_type = 'heuristic'
 
 def WaitTimeCal1(exp_store_arrive_t, assign_t, exp_cook_time, cook_time, move_t = 0):
     exp_food_ready_t = assign_t + exp_cook_time
