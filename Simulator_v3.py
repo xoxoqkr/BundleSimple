@@ -87,9 +87,7 @@ for sc1 in scenarios:
 #scenarios[0].search_type = 'heuristic'
 print_fig = False
 #input( '2::1 :{}/ 2:{}'.format(scenarios[0].search_type, scenarios[1].search_type) )
-scenarios = [scenarios[2],copy.deepcopy(scenarios[8]),copy.deepcopy(scenarios[8])]
-scenarios[1].search_type = 'enumerate'
-#scenarios = [scenarios[2]]
+scenarios = [scenarios[2],scenarios[8]]
 #scenarios = [scenarios[2],scenarios[3],scenarios[4],scenarios[8]]
 """
 scenarios = [scenarios[1]]*4
@@ -308,12 +306,12 @@ for sc in scenarios:
         else:
             res_info.append(sum(tem)/len(tem))
     if print_count == 0:
-        print('인스턴스종류;라이더수;번들구성;SC;플랫폼;라이더;obj;전체 고객;서비스된 고객;서비스율;평균LT;평균FLT;직선거리 대비 증가분;원래 O-D길이;라이더 수익 분산;LT분산;'
+        print('인스턴스종류;SC;플랫폼;라이더;obj;전체 고객;서비스된 고객;서비스율;평균LT;평균FLT;직선거리 대비 증가분;원래 O-D길이;라이더 수익 분산;LT분산;'
               'OD증가수;OD증가 분산;OD평균;수행된 번들 수;수행된번들크기평균')
     try:
         print(
-            '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{}'.format(
-                instance_type ,rider_num,sc.search_type, str(sc.name[0]), sc.platform_recommend,sc.rider_bundle_construct,sc.obj_type, res_info[0],res_info[1],
+            '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{}'.format(
+                instance_type , str(sc.name[0]), sc.platform_recommend,sc.rider_bundle_construct,sc.obj_type, res_info[0],res_info[1],
                 res_info[2], res_info[3], res_info[4], res_info[5], res_info[6], res_info[7], res_info[8],res_info[9],res_info[10],res_info[11],res_info[12],res_info[13]))
     except:
         print('시나리오 {} ITE {} 결과 없음'.format(sc.name, count))
