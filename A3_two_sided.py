@@ -30,8 +30,8 @@ def BundleConsideredCustomers(target_order, platform, riders, customers, speed =
     in_bundle_names = []
     for order_index in platform.platform:
         order = platform.platform[order_index]
-        if order.type == 'bundle':
-            in_bundle_names.append(order.customers)
+        if len(order.customers) > 1 or order.picked == True:
+            in_bundle_names += order.customers
     for customer_name in customers:
         customer = customers[customer_name]
         if customer.time_info[1] == None and customer.time_info[2] == None:
@@ -132,7 +132,8 @@ def ConstructFeasibleBundle_TwoSided(target_order, orders, s, p2, thres = 0.05, 
             if len(tem_route_info) > 0:
                 OD_pair_dist = MIN_OD_pair(orders, q, s)
                 for info in tem_route_info:
-                    info.append((OD_pair_dist - info[5] / s))
+                    #info.append((OD_pair_dist - info[5]) / s)
+                    info.append((info[5] / s))
             b += tem_route_info
         #input('가능 번들 수 {} : 정보 d {} s {}'.format(len(b), d, s))
         comparable_b = []
@@ -151,7 +152,18 @@ def ConstructFeasibleBundle_TwoSided(target_order, orders, s, p2, thres = 0.05, 
     else:
         return []
 
-def SearchRaidar(target, customers, platform, r1 = 10, theta = 80, now_t = 0):
+def SearchRaidar_heuristic(target, customers, platform, r1 = 10, theta = 90, now_t = 0, print_fig = False):
+    """
+    기준 고객을 중심으로 h,theta를 사용해 번들 연산이 가능한 고객을 만드는 과정
+    :param target:
+    :param customers:
+    :param platform:
+    :param r1:
+    :param theta:
+    :param now_t:
+    :param print_fig:
+    :return:
+    """
     #Step 1: 가게 정리
     C_T = []
     for task_index in platform.platform:
@@ -170,13 +182,9 @@ def SearchRaidar(target, customers, platform, r1 = 10, theta = 80, now_t = 0):
     thera_range = math.cos(math.pi * ((theta / 2) / 180))
     res_C_T = {}
     res_C_T[target.name] = customers[target.name]
-    x1 = [] #주문 가게 x
-    y1 = [] #주문 가게 y
-    x2 = [] #주문 고객 x
-    y2 = [] #주문 고객 y
+    len_a = distance(p0, p1)
     for customer in C_T:
         p2 = customer.location
-        len_a = distance(p0, p1)
         len_b = distance(p0, p2)
         if len_b > len_a or len_a == 0 or len_b == 0: #3개의 점이 필요하기 때문
             continue
@@ -184,19 +192,27 @@ def SearchRaidar(target, customers, platform, r1 = 10, theta = 80, now_t = 0):
         cos_c = (len_a ** 2 + len_b ** 2 - len_c ** 2) / (2 * len_a * len_b)
         if cos_c >= thera_range:
             res_C_T[customer.name] = customer
-            x1.append(customer.store_loc[0])
-            y1.append(customer.store_loc[1])
-            x2.append(customer.location[0])
-            y2.append(customer.location[1])
-    if len(res_C_T) > 1:
-        plt.scatter(x1, y1, color='k', label = 'Ct_store')
-        plt.scatter(x2, y2, marker = 'x' ,color='m',label = 'Ct_customer')
-        plt.scatter(target.store_loc[0], target.store_loc[1], color = 'r', label = 'target_store')
-        plt.scatter(target.location[0], target.location[1], marker = 'x' , color='c', label = 'target_customer')
-        plt.legend()
-        plt.axis([0, 50, 0, 50])
-        plt.title('T :{}/ Size Ct {}'.format(now_t, len(res_C_T)-1))
-        #plt.show()
-        plt.close()
-        #input('그림 확인')
+    return res_C_T
+
+
+def SearchRaidar_ellipse(target, customers, platform, r1 = 10, w = 1):
+    #Step 1: 가게 정리
+    res_C_T = {}
+    res_C_T[target.name] = customers[target.name]
+    middle = [min(target.store_loc[0], target.location[0]) + abs(target.store_loc[0] - target.location[0]) ,
+    min(target.store_loc[1], target.location[1]) + abs(target.store_loc[1] - target.location[1])]
+    for task_index in platform.platform:
+        task = platform.platform[task_index]
+        if len(task.customers) > 1:
+            continue
+        customer2 = customers[task.customers[0]]
+        dist0 = distance(target.store_loc, target.location)*w
+        dist1 = distance(target.store_loc, customer2.store_loc)
+        dist2 = distance(target.store_loc, customer2.location)
+        dist3 = distance(target.location, customer2.location)
+        dist4 = distance(middle, customer2.store_loc)
+        dist5 = distance(middle, customer2.location)
+        #if dist1 < r1 and (dist2 < dist0 and dist3 < dist0):
+        if dist1 < r1 and (dist4 < dist0 and dist5 < dist0):
+            res_C_T[customer2.name] = customers[customer2.name]
     return res_C_T

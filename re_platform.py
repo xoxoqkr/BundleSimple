@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 import time
 import math
+from A1_BasicFunc import PrintSearchCandidate
 from A2_Func import CountUnpickedOrders, CalculateRho, RequiredBreakBundleNum, BreakBundle, GenBundleOrder,  LamdaMuCalculate, NewCustomer
-from A3_two_sided import BundleConsideredCustomers, CountActiveRider,  ConstructFeasibleBundle_TwoSided, SearchRaidar
+from A3_two_sided import BundleConsideredCustomers, CountActiveRider,  ConstructFeasibleBundle_TwoSided, SearchRaidar_heuristic, SearchRaidar_ellipse
 import operator
 from Bundle_selection_problem import Bundle_selection_problem3, Bundle_selection_problem4
 import numpy
@@ -21,7 +22,8 @@ def distance(p1, p2):
 
 def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t = 1000,
                       divide_option = False,unserved_bundle_order_break = True, bundle_para = False,
-                      delete_para = True, obj_type = 'simple_max_s', search_type = 'enumerate', print_fig = False):
+                      delete_para = True, obj_type = 'simple_max_s', search_type = 'enumerate', print_fig = False,
+                      bundle_print_fig = False, bundle_infos = None,ellipse_w = 1.5, heuristic_theta = 100,heuristic_r1 = 10):
     yield env.timeout(5) #warm-up time
     while env.now <= end_t:
         if bundle_para == True:
@@ -29,7 +31,8 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
             p = CalculateRho(lamda1, lamda2, mu1, mu2)
             if p > thres_p:
                 feasible_bundle_set, phi_b, d_matrix, s_b, D, lt_matrix = Bundle_Ready_Processs(env.now, platform, orders, riders, p2, interval,
-                                                                                                speed = riders[0].speed, bundle_permutation_option= True, search_type = search_type)
+                                                                                                speed = riders[0].speed, bundle_permutation_option= True, search_type = search_type, print_fig = print_fig,
+                                                                                                ellipse_w = ellipse_w, heuristic_theta = heuristic_theta,heuristic_r1 = heuristic_r1)
                 print('phi_b {}:{} d_matrix {}:{} s_b {}:{}'.format(len(phi_b), numpy.average(phi_b),
                                                                     d_matrix.shape, numpy.average(d_matrix),len(s_b),numpy.average(s_b),))
                 print('d_matrix : {}'.format(d_matrix))
@@ -52,6 +55,14 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                     y2 = []
                     #input('그림 확인 시작2')
                     for info in unique_bundles:
+                        #input('info 확인{}'.format(info))
+                        ods = 0
+                        for customer_name in info[4]:
+                            ods += distance(orders[customer_name].location,orders[customer_name].store_loc)/riders[0].speed
+                        bundle_infos['size'].append(len(info[4]))
+                        bundle_infos['length'].append(info[5])
+                        bundle_infos['od'].append(ods)
+                        #bundle_infos.append([len(info[4]), info[5], ods])
                         o = GenBundleOrder(task_index, info, orders, env.now)
                         o.old_info = info
                         platform.platform[task_index] = o
@@ -69,14 +80,18 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                             y1.append(orders[ct_name].store_loc[1])
                             x2.append(orders[ct_name].location[0])
                             y2.append(orders[ct_name].location[1])
+                        #if bundle_infos != None:
+                        #    bundle_infos.append([len(o.customers),])
                     plt.scatter(x1, y1, marker = 'o', color = 'k', label = 'store')
                     plt.scatter(x2, y2, marker='x', color='m', label='customer')
                     plt.legend()
                     plt.axis([0,50,0,50])
-                    plt.title('T :{}/ Selected Bundle Size {}'.format(round(env.now,2), len(unique_bundles)))
-                    if print_fig == True:
+                    title = 'ST;{};T;{};;Selected Bundle Size;{}'.format(search_type,round(env.now,2), len(unique_bundles))
+                    plt.title(title)
+                    if bundle_print_fig == True:
+                        plt.savefig(title+'.png',dpi = 1000)
                         plt.show()
-                        print('그림 확인2')
+                        input('계산된 번들 확인')
                     plt.close()
                     #선택된 번들의 그래프 그리기
 
@@ -96,9 +111,10 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                 Break_the_bundle(platform, orders, org_bundle_num, rev_bundle_num)
         yield env.timeout(interval)
         if bundle_para == True and delete_para == True:
+            #input('경로 지우기')
             delete_task_names = []
             for task_name in platform.platform:
-                if len(platform.platform[task_name].customers) > 1 and platform.platform[task_name].picked == False:
+                if len(platform.platform[task_name].customers) > 1 : # and platform.platform[task_name].picked == False:
                     delete_task_names.append(task_name)
             for task_name in delete_task_names:
                 del platform.platform[task_name]
@@ -146,7 +162,8 @@ def Calculate_Phi(rider, customers, bundle_infos, l=4):
 
 
 def Bundle_Ready_Processs(now_t, platform_set, orders, riders, p2,interval, bundle_permutation_option = False, speed = 1, min_pr = 0.05,
-                      unserved_bundle_order_break = True, considered_customer_type = 'all', search_type = 'enumerate'):
+                      unserved_bundle_order_break = True, considered_customer_type = 'all', search_type = 'enumerate', print_fig = False,
+                          ellipse_w = 1.5, heuristic_theta = 100,heuristic_r1 = 10):
     # 번들이 필요한 라이더에게 번들 계산.
     if considered_customer_type == 'new':
         considered_customers_names = NewCustomer(orders, now_t, interval=interval)
@@ -159,17 +176,51 @@ def Bundle_Ready_Processs(now_t, platform_set, orders, riders, p2,interval, bund
     #sorted_dict = sorted(weight2.items(), key=lambda item: item[1])
     #print('C!@ T {} // 과거 예상 라이더 선택 순서{}'.format(now_t, sorted_dict))
     Feasible_bundle_set = []
+    BundleCheck = []
+    for index in platform_set.platform:
+        task = platform_set.platform[index]
+        if len(task.customers) > 1:
+            BundleCheck.append([index, len(task.customers)])
+            print('Index;{};Cts;{};picked;{};'.format(index, task.customers, task.picked))
+    if len(BundleCheck) > 0:
+        input('T {};;번들 존재{}'.format(now_t, BundleCheck))
     for customer_name in considered_customers_names:
         start = time.time()
         target_order = orders[customer_name]
+        """
+        enumerate_C_T = BundleConsideredCustomers(target_order, platform_set, riders, orders,
+                                                             bundle_search_variant=unserved_bundle_order_break,
+                                                             d_thres_option=True, speed=speed)
+        searchRaidar_heuristic_C_T = SearchRaidar_heuristic(target_order, orders, platform_set, theta = heuristic_theta,r1= heuristic_r1,now_t = now_t)
+        searchRaidarEllipse_C_T = SearchRaidar_ellipse(target_order, orders, platform_set, w = ellipse_w)        
+        """
+        #input('image 확인')
+        if search_type == 'enumerate':
+            enumerate_C_T = BundleConsideredCustomers(target_order, platform_set, riders, orders,
+                                                      bundle_search_variant=unserved_bundle_order_break,
+                                                      d_thres_option=True, speed=speed)
+            considered_customers = enumerate_C_T
+        elif search_type == 'heuristic':
+            searchRaidar_heuristic_C_T = SearchRaidar_heuristic(target_order, orders, platform_set, theta=heuristic_theta,
+                                                      r1=heuristic_r1, now_t=now_t)
+            considered_customers = searchRaidar_heuristic_C_T
+        else:
+            searchRaidarEllipse_C_T = SearchRaidar_ellipse(target_order, orders, platform_set, w=ellipse_w)
+            considered_customers = searchRaidarEllipse_C_T
+        if print_fig == True:
+            PrintSearchCandidate(target_order, enumerate_C_T, now_t = now_t, titleinfo= 'enumerate')
+            PrintSearchCandidate(target_order, searchRaidar_heuristic_C_T, now_t = now_t,titleinfo='Raidar')
+            PrintSearchCandidate(target_order, searchRaidarEllipse_C_T, now_t = now_t,titleinfo='Ellipse')
+        """
         if search_type == 'enumerate':
             considered_customers = BundleConsideredCustomers(target_order, platform_set, riders, orders,
                                                              bundle_search_variant=unserved_bundle_order_break,
                                                              d_thres_option=True, speed=speed)
         else:
-            considered_customers = SearchRaidar(target_order, orders, platform_set, now_t = now_t)
+            considered_customers = SearchRaidar(target_order, orders, platform_set, now_t = now_t, print_fig = print_fig)
+        """
         print('T:{}/탐색타입:{} / 번들 탐색 대상 고객들 {}'.format(now_t, search_type, len(considered_customers)))
-        thres = 0.05
+        thres = 0.01
         size3bundle = ConstructFeasibleBundle_TwoSided(target_order, considered_customers, 3, p2, speed=speed, bundle_permutation_option = bundle_permutation_option, thres= thres)
         size2bundle = ConstructFeasibleBundle_TwoSided(target_order, considered_customers, 2, p2, speed=speed,bundle_permutation_option=bundle_permutation_option , thres= thres)
         max_index = 50

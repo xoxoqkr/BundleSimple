@@ -8,7 +8,7 @@ import itertools
 import random
 import time
 import numpy
-
+import matplotlib.pyplot as plt
 
 class Order(object):
     def __init__(self, order_name, customer_names, route, order_type, fee = 0, parameter_info = [0,0,0]):
@@ -78,6 +78,8 @@ class Rider(object):
         self.bundle_count = []
         self.snapshots = []
         self.next_search_time2 = env.now
+        self.onhand_bundle = []
+        self.rider_select_print_fig = False
         env.process(self.RunProcess(env, platform, customers, stores, self.p2, freedom= freedom, order_select_type = order_select_type, uncertainty = uncertainty))
         env.process(self.TaskSearch(env, platform, customers, p2=self.p2, order_select_type=order_select_type, uncertainty=uncertainty))
 
@@ -161,6 +163,8 @@ class Rider(object):
                             self.onhand.remove(node_info[0])
                             self.served.append(node_info[0])
                             self.income += order.fee
+                            if node_info in self.onhand_bundle:
+                                self.onhand_bundle.remove(node_info[0])
                         except:
                             print('방문 경로 {}/ 현재 지점 {} / 노드 정보 {}'.format(self.visited_route, self.route[0], node_info))
                             input('라이더 {} / 현재 컨테이너::{}/들고 있는 주문::{}/대상 주문::{}'.format(self.name, self.container,self.onhand,node_info[0]))
@@ -198,7 +202,7 @@ class Rider(object):
     def TaskSearch(self, env, platform, customers, p2=0, order_select_type='simple', uncertainty=False, score_type = 'simple'):
         while int(env.now) < self.end_t:
             onhand_slack = self.max_order_num - len(self.onhand)
-            if env.now >= self.next_search_time2 and onhand_slack > 0:
+            if env.now >= self.next_search_time2 and (onhand_slack > 0 or len(self.onhand_bundle) == 0):
                 if self.bundle_construct == True: #FT/ TT
                     #주문 고르기 #번들 생성 가능하도록
                     order_info, self_bundle = self.OrderSelect(platform, customers, p2=p2, uncertainty=uncertainty)
@@ -210,6 +214,52 @@ class Rider(object):
                 #선택된 번들 반영 부분
                 if order_info != None:
                     platform.platform[order_info[0]].picked = True
+                    if self.rider_select_print_fig == True:
+                        input('주문 선택')
+                        selected_task = platform.platform[order_info[0]]
+                        x1 = []
+                        y1 = []
+                        x2 = []
+                        y2 = []
+                        # 1 현재 위치 그리기
+                        plt.scatter(self.last_departure_loc[0], self.last_departure_loc[1], marker='*', color='b', label='current_loc')
+                        #2 선택한 번들 위치 그리기
+                        #3 확인
+                        for index in range(1, len(order_info[1])):
+                            start = order_info[1][index - 1][2]
+                            end = [order_info[1][index][2][0] - order_info[1][index - 1][2][0],
+                                   order_info[1][index][2][1] - order_info[1][index - 1][2][1]]
+                            plt.arrow(start[0], start[1], end[0], end[1], width=0.2, length_includes_head=True)
+                        for ct_name in order_info[5]:
+                            x1.append(customers[ct_name].store_loc[0])
+                            y1.append(customers[ct_name].store_loc[1])
+                            x2.append(customers[ct_name].location[0])
+                            y2.append(customers[ct_name].location[1])
+                        """
+                        for index in range(1, len(selected_task.route)):
+                            start = selected_task.route[index - 1][2]
+                            end = [selected_task.route[index][2][0] - selected_task.route[index - 1][2][0],
+                                   selected_task.route[index][2][1] - selected_task.route[index - 1][2][1]]
+                            plt.arrow(start[0], start[1], end[0], end[1], width=0.2, length_includes_head=True)                        
+                        for ct_name in selected_task.customers:
+                            x1.append(customers[ct_name].store_loc[0])
+                            y1.append(customers[ct_name].store_loc[1])
+                            x2.append(customers[ct_name].location[0])
+                            y2.append(customers[ct_name].location[1])
+                        """
+                        # if bundle_infos != None:
+                        #    bundle_infos.append([len(o.customers),])
+                        plt.scatter(x1, y1, marker='o', color='k', label='store')
+                        plt.scatter(x2, y2, marker='x', color='m', label='customer')
+                        plt.legend()
+                        plt.axis([0, 50, 0, 50])
+                        title = 'RiderBundle {} ;Rider {};T {}'.format(self.bundle_construct,self.name, round(env.now, 2))
+                        plt.title(title)
+                        #plt.savefig(title + '.png', dpi=1000)
+                        plt.show()
+                        input('라이더 선택 확인2')
+                        plt.close()
+                        #target_customer, res_C_T, now_t = 0, titleinfo = 'None'
                     #print('F:TaskSearch/라이더#:{}/order_info:{}'.format(self.name, order_info))
                     self.OrderPick(order_info, order_info[1], customers, env.now,route_revise_option=self.bundle_construct, self_bundle = self_bundle)  # 라우트 결정 후
                     if order_info[8] == 'platform' and len(order_info[5]) > 1:
@@ -219,7 +269,7 @@ class Rider(object):
                 #종류에 따른 다음 선택 시간 결정 :todo 라이더의 효율에 영향을 미침.
                 if self.bundle_construct == True and len(self.onhand) < self.max_order_num:
                     pr = 1/(onhand_slack + 1)
-                    if pr > random.random():
+                    if pr < random.random():
                         next = self.Rand.poisson(self.search_lamda)/(onhand_slack + 1)
                     else:
                         next = self.Rand.poisson(self.search_lamda)
@@ -462,6 +512,7 @@ class Rider(object):
         if len(names) > 1:
             self.bundles_infos.append(route)
             self.bundle_count.append(len(names))
+            self.onhand_bundle = names
         for name in names:
             customers[name].time_info[1] = now_t
             customers[name].who_picked.append([self.name, now_t,self_bundle,'single'])
@@ -727,6 +778,8 @@ class scenario(object):
         self.obj_type = 'simple_max_s'
         self.snapshots = []
         self.search_type = 'heuristic'
+        self.durations = []
+        self.bundle_snapshots = {'size': [],'length':[],'od':[]}
 
 def WaitTimeCal1(exp_store_arrive_t, assign_t, exp_cook_time, cook_time, move_t = 0):
     exp_food_ready_t = assign_t + exp_cook_time

@@ -6,6 +6,7 @@ import csv
 import numpy.random
 import time
 import re_A1_class
+import matplotlib.pyplot as plt
 
 def distance(p1, p2):
     """
@@ -151,7 +152,7 @@ def RiderGenerator(env, Rider_dict, Platform, Store_dict, Customer_dict, capacit
 
 def RiderGeneratorByCSV(env, csv_dir, Rider_dict, Platform, Store_dict, Customer_dict, working_duration = 120, exp_WagePerHr = 9000 ,input_speed = None,
                         input_capacity = None, platform_recommend = False, input_order_select_type = None, bundle_construct = False, rider_num = 5,
-                        lamda_list = None, p2 = 1.5, ite = 1):
+                        lamda_list = None, p2 = 1.5, ite = 1, rider_select_print_fig = False):
     """
     Generate the rider until t <= runtime and rider_num<= gen_num
     :param env: simpy environment
@@ -197,6 +198,9 @@ def RiderGeneratorByCSV(env, csv_dir, Rider_dict, Platform, Store_dict, Customer
                                    capacity = capacity, freedom=freedom, order_select_type = order_select_type, wait_para =wait_para, \
                                       uncertainty = uncertainty, exp_error = exp_error, platform_recommend = platform_recommend,
                                          bundle_construct= bundle_construct, lamda= lamda, p2 = p2, ite = ite)
+        single_rider.rider_select_print_fig = rider_select_print_fig
+        if platform_recommend == False:
+            single_rider.onhand_bundle = [-1,-1,-1]
         single_rider.exp_wage = exp_WagePerHr
         Rider_dict[name] = single_rider
         interval = data[interval_index]
@@ -565,3 +569,32 @@ def SaveInstanceAsCSV(Rider_dict, Orders,Store_dict, instance_name = '' ):
             wr.writerow(info)
         f.close()
         name_index += 1
+
+
+def PrintSearchCandidate(target_customer, res_C_T, now_t = 0, titleinfo = 'None'):
+    x1 = [] #주문 가게 x
+    y1 = [] #주문 가게 y
+    x2 = [] #주문 고객 x
+    y2 = [] #주문 고객 y
+    for customer_name in res_C_T:
+        customer = res_C_T[customer_name]
+        x1.append(customer.store_loc[0])
+        y1.append(customer.store_loc[1])
+        x2.append(customer.location[0])
+        y2.append(customer.location[1])
+    if len(x1) > 1:
+        plt.scatter(x1, y1, color='k', label = 'Store')
+        plt.scatter(x2, y2, marker = 'x' ,color='m',label = 'Customer')
+        plt.scatter(target_customer.store_loc[0], target_customer.store_loc[1], color = 'r', label = 'BaseStore')
+        plt.scatter(target_customer.location[0], target_customer.location[1], marker = 'x' , color='c', label = 'BaseCustomer')
+        plt.legend()
+        plt.axis([0, 50, 0, 50])
+        title = '{} T;{};Base;{};CtSize{}'.format(titleinfo, now_t, target_customer.name ,len(res_C_T)-1)
+        plt.title(title)
+        #plt.savefig('test.png')
+        #print(title)
+        #print(type(title))
+        plt.savefig('save_fig/'+title+'.png', dpi = 300)
+        #plt.show()
+        plt.close()
+        #input('그림 확인')

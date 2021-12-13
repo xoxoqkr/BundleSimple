@@ -513,7 +513,7 @@ def ResultPrint(name, customers, speed = 1, riders = None):
             if OD_ratio > 1.0:
                 OD_ratios.append(OD_ratio - 1.0)
             if flt < mflt:
-                input('고객 확인; 고객 {}; 실제FLT{}; 최소FLT{}; 선택 이력{}; 시간정보 {}'.format(customer.name, flt, mflt, customer.who_picked, customer.time_info))
+                print('고객 확인; 고객 {}; 실제FLT{}; 최소FLT{}; 선택 이력{}; 시간정보 {}'.format(customer.name, flt, mflt, customer.who_picked, customer.time_info))
     customer_lead_time_var = np.var(TLT)
     try:
         served_ratio = round(len(TLT)/len(customers),2)
