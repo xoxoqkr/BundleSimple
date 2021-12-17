@@ -3,7 +3,7 @@ import time
 import math
 from A1_BasicFunc import PrintSearchCandidate
 from A2_Func import CountUnpickedOrders, CalculateRho, RequiredBreakBundleNum, BreakBundle, GenBundleOrder,  LamdaMuCalculate, NewCustomer
-from A3_two_sided import BundleConsideredCustomers, CountActiveRider,  ConstructFeasibleBundle_TwoSided, SearchRaidar_heuristic, SearchRaidar_ellipse
+from A3_two_sided import BundleConsideredCustomers, CountActiveRider,  ConstructFeasibleBundle_TwoSided, SearchRaidar_heuristic, SearchRaidar_ellipse, SearchRaidar_ellipseMJ
 import operator
 from Bundle_selection_problem import Bundle_selection_problem3, Bundle_selection_problem4
 import numpy
@@ -196,31 +196,32 @@ def Bundle_Ready_Processs(now_t, platform_set, orders, riders, p2,interval, bund
         """
         #input('image 확인')
         if search_type == 'enumerate':
+            #input('확인')
             enumerate_C_T = BundleConsideredCustomers(target_order, platform_set, riders, orders,
                                                       bundle_search_variant=unserved_bundle_order_break,
                                                       d_thres_option=True, speed=speed)
             considered_customers = enumerate_C_T
+            if print_fig == True:
+                PrintSearchCandidate(target_order, enumerate_C_T, now_t=now_t, titleinfo=search_type)
         elif search_type == 'heuristic':
             searchRaidar_heuristic_C_T = SearchRaidar_heuristic(target_order, orders, platform_set, theta=heuristic_theta,
                                                       r1=heuristic_r1, now_t=now_t)
             considered_customers = searchRaidar_heuristic_C_T
-        else:
+            if print_fig == True:
+                PrintSearchCandidate(target_order, searchRaidar_heuristic_C_T, now_t=now_t, titleinfo=search_type)
+        elif search_type == 'ellipse':
             searchRaidarEllipse_C_T = SearchRaidar_ellipse(target_order, orders, platform_set, w=ellipse_w)
             considered_customers = searchRaidarEllipse_C_T
-        if print_fig == True:
-            PrintSearchCandidate(target_order, enumerate_C_T, now_t = now_t, titleinfo= 'enumerate')
-            PrintSearchCandidate(target_order, searchRaidar_heuristic_C_T, now_t = now_t,titleinfo='Raidar')
-            PrintSearchCandidate(target_order, searchRaidarEllipse_C_T, now_t = now_t,titleinfo='Ellipse')
-        """
-        if search_type == 'enumerate':
-            considered_customers = BundleConsideredCustomers(target_order, platform_set, riders, orders,
-                                                             bundle_search_variant=unserved_bundle_order_break,
-                                                             d_thres_option=True, speed=speed)
+            if print_fig == True:
+                PrintSearchCandidate(target_order, searchRaidarEllipse_C_T, now_t=now_t, titleinfo=search_type)
         else:
-            considered_customers = SearchRaidar(target_order, orders, platform_set, now_t = now_t, print_fig = print_fig)
-        """
+            searchRaidarEllipseMJ_C_T = SearchRaidar_ellipseMJ(target_order, orders, platform_set, delta=ellipse_w)
+            considered_customers = searchRaidarEllipseMJ_C_T
+            if print_fig == True:
+                PrintSearchCandidate(target_order, searchRaidarEllipseMJ_C_T, now_t=now_t, titleinfo=search_type)
+        print('번들 대상 고객 확인')
         print('T:{}/탐색타입:{} / 번들 탐색 대상 고객들 {}'.format(now_t, search_type, len(considered_customers)))
-        thres = 0.01
+        thres = 0.1
         size3bundle = ConstructFeasibleBundle_TwoSided(target_order, considered_customers, 3, p2, speed=speed, bundle_permutation_option = bundle_permutation_option, thres= thres)
         size2bundle = ConstructFeasibleBundle_TwoSided(target_order, considered_customers, 2, p2, speed=speed,bundle_permutation_option=bundle_permutation_option , thres= thres)
         max_index = 50

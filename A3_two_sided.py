@@ -110,7 +110,7 @@ def ConstructFeasibleBundle_TwoSided(target_order, orders, s, p2, thres = 0.05, 
     """
     d = []
     for customer_name in orders:
-        if customer_name != target_order.name:
+        if customer_name != target_order.name and orders[customer_name].time_info[1] == None and orders[customer_name].cancel == False:
             d.append(customer_name)
     if len(d) > s - 1:
         M = itertools.permutations(d, s - 1)
@@ -214,5 +214,24 @@ def SearchRaidar_ellipse(target, customers, platform, r1 = 10, w = 1):
         dist5 = distance(middle, customer2.location)
         #if dist1 < r1 and (dist2 < dist0 and dist3 < dist0):
         if dist1 < r1 and (dist4 < dist0 and dist5 < dist0):
+            res_C_T[customer2.name] = customers[customer2.name]
+    return res_C_T
+
+
+def SearchRaidar_ellipseMJ(target, customers, platform, delta = 5):
+    #Step 1: 가게 정리
+    res_C_T = {}
+    res_C_T[target.name] = customers[target.name]
+    for task_index in platform.platform:
+        task = platform.platform[task_index]
+        if len(task.customers) > 1:
+            continue
+        customer2 = customers[task.customers[0]]
+        dist0 = distance(target.store_loc, target.location)
+        dist1 = distance(target.store_loc, customer2.store_loc)
+        dist2 = distance(target.location, customer2.store_loc)
+        dist3 = distance(target.store_loc, customer2.location)
+        dist4 = distance(target.location, customer2.location)
+        if dist1 + dist2 <= dist0 + delta and dist3 + dist4 <= dist0 +delta:
             res_C_T[customer2.name] = customers[customer2.name]
     return res_C_T

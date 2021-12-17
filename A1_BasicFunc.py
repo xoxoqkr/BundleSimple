@@ -152,7 +152,7 @@ def RiderGenerator(env, Rider_dict, Platform, Store_dict, Customer_dict, capacit
 
 def RiderGeneratorByCSV(env, csv_dir, Rider_dict, Platform, Store_dict, Customer_dict, working_duration = 120, exp_WagePerHr = 9000 ,input_speed = None,
                         input_capacity = None, platform_recommend = False, input_order_select_type = None, bundle_construct = False, rider_num = 5,
-                        lamda_list = None, p2 = 1.5, ite = 1, rider_select_print_fig = False):
+                        lamda_list = None, p2 = 1.5, ite = 1, rider_select_print_fig = False, mix_ratio = None):
     """
     Generate the rider until t <= runtime and rider_num<= gen_num
     :param env: simpy environment
@@ -199,6 +199,9 @@ def RiderGeneratorByCSV(env, csv_dir, Rider_dict, Platform, Store_dict, Customer
                                       uncertainty = uncertainty, exp_error = exp_error, platform_recommend = platform_recommend,
                                          bundle_construct= bundle_construct, lamda= lamda, p2 = p2, ite = ite)
         single_rider.rider_select_print_fig = rider_select_print_fig
+        if mix_ratio != None and name < rider_num*mix_ratio:
+            single_rider.bundle_construct = True
+        #input('확인 {}'.format(single_rider.bundle_construct))
         if platform_recommend == False:
             single_rider.onhand_bundle = [-1,-1,-1]
         single_rider.exp_wage = exp_WagePerHr
@@ -594,7 +597,7 @@ def PrintSearchCandidate(target_customer, res_C_T, now_t = 0, titleinfo = 'None'
         #plt.savefig('test.png')
         #print(title)
         #print(type(title))
-        plt.savefig('save_fig/'+title+'.png', dpi = 300)
-        #plt.show()
+        #plt.savefig('save_fig/'+title+'.png', dpi = 300)
+        plt.show()
         plt.close()
         #input('그림 확인')

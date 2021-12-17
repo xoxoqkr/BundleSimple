@@ -196,7 +196,8 @@ class Rider(object):
                     print('남은 경로 {}'.format(self.route))
             else:
                 self.empty_serach_count += 1
-                yield env.timeout(2.1*self.check_t)
+                self.next_search_time2 = round(env.now,4) - 0.001
+                yield env.timeout(self.check_t)
 
 
     def TaskSearch(self, env, platform, customers, p2=0, order_select_type='simple', uncertainty=False, score_type = 'simple'):
@@ -212,6 +213,7 @@ class Rider(object):
                 else:
                     order_info = None
                 #선택된 번들 반영 부분
+                empty_t = 1000
                 if order_info != None:
                     platform.platform[order_info[0]].picked = True
                     if self.rider_select_print_fig == True:
@@ -266,13 +268,17 @@ class Rider(object):
                         self.b_select += 1
                         self.num_bundle_customer += len(order_info[5])
                     Basic.UpdatePlatformByOrderSelection(platform,order_info[0])  # 만약 개별 주문 선택이 있다면, 해당 주문이 선택된 번들을 제거.
+
                 #종류에 따른 다음 선택 시간 결정 :todo 라이더의 효율에 영향을 미침.
-                if self.bundle_construct == True and len(self.onhand) < self.max_order_num:
+                if self.bundle_construct == True:
                     pr = 1/(onhand_slack + 1)
                     if pr < random.random():
                         next = self.Rand.poisson(self.search_lamda)/(onhand_slack + 1)
                     else:
                         next = self.Rand.poisson(self.search_lamda)
+                elif len(self.onhand) < self.max_order_num:
+                    next = self.check_t #order_end_time
+                    pass
                 else:
                     next = self.Rand.poisson(self.search_lamda)
                 print('다음 시간 {}'.format(next))
@@ -780,6 +786,7 @@ class scenario(object):
         self.search_type = 'heuristic'
         self.durations = []
         self.bundle_snapshots = {'size': [],'length':[],'od':[]}
+        self.mix_ratio = None
 
 def WaitTimeCal1(exp_store_arrive_t, assign_t, exp_cook_time, cook_time, move_t = 0):
     exp_food_ready_t = assign_t + exp_cook_time
