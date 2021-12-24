@@ -471,7 +471,9 @@ def GenBundleOrder(order_index, bundie_info, customer_set, now_t, M = 1000, plat
         customer_set[customer_name].in_bundle_time = now_t
         pool = np.random.normal(customer.cook_info[1][0], customer.cook_info[1][1] * platform_exp_error, 1000)
         customer_set[customer_name].platform_exp_cook_time = random.choice(pool)
+        customer_set[customer_name].in_bundle_t = now_t
     o = A1_Class.Order(order_index, bundie_info[4], route, 'bundle', fee=fee, parameter_info=bundie_info[7:10])
+    o.gen_t = now_t
     o.olf_info = bundie_info
     o.average_ftd = bundie_info[2]
     return o
@@ -496,7 +498,23 @@ def ResultPrint(name, customers, speed = 1, riders = None):
     FLT = []
     MFLT = []
     OD_ratios = []
+    b1 = [] #14
+    b2 = [] # 15
+    b3 = [] #16
+    b4 = [] #17
+    b5 = [] #18
+    p1 = [] #18 #19
+    p2 = [] #19 #20
+    p3 = [] # 20 #21
+    p4 = [] #22
+    r1 = [] #23
+    r2 = [] #24
+    r3 = [] #25
+    r4 = [] #26
+    r5 = [] #27
     for customer_name in customers:
+        if customer_name == 0 :
+            continue
         customer = customers[customer_name]
         if customer.time_info[3] != None:
             lt = customer.time_info[3] - customer.time_info[0]
@@ -514,6 +532,24 @@ def ResultPrint(name, customers, speed = 1, riders = None):
                 OD_ratios.append(OD_ratio - 1.0)
             if flt < mflt:
                 print('고객 확인; 고객 {}; 실제FLT{}; 최소FLT{}; 선택 이력{}; 시간정보 {}'.format(customer.name, flt, mflt, customer.who_picked, customer.time_info))
+            if customer.in_bundle_t > 0:
+                b1.append(customer.in_bundle_t - customer.time_info[0])
+                b2.append(customer.time_info[1] - customer.in_bundle_t)
+                b3.append(customer.time_info[2] - customer.time_info[1])
+                b4.append(customer.time_info[3] - customer.time_info[2])
+                b5.append(customer.time_info[3] - customer.time_info[2] - mflt)
+            else:
+                if customer.time_info[3] - customer.time_info[2] - mflt > 0.001:
+                    r1.append(max(0,customer.rider_bundle_t - customer.time_info[0]))
+                    r2.append(customer.time_info[1] - customer.rider_bundle_t)
+                    r3.append(customer.time_info[2] - customer.time_info[1])
+                    r4.append(customer.time_info[3] - customer.time_info[2])
+                    r5.append(customer.time_info[3] - customer.time_info[2] - mflt)
+                else:
+                    p1.append(customer.time_info[1] - customer.time_info[0])
+                    p2.append(customer.time_info[2] - customer.time_info[1])
+                    p3.append(customer.time_info[3] - customer.time_info[2])
+                    p4.append(customer.time_info[3] - customer.time_info[2] - mflt)
     customer_lead_time_var = np.var(TLT)
     try:
         served_ratio = round(len(TLT)/len(customers),2)
@@ -526,9 +562,44 @@ def ResultPrint(name, customers, speed = 1, riders = None):
         else:
             OD_ratio_value = None
             ave_OD_ratio_value = None
+        if len(b1) > 0:
+            ave_b1 = np.average(b1)
+            ave_b2 = np.average(b2)
+            ave_b3 = np.average(b3)
+            ave_b4 = np.average(b4)
+            ave_b5 = np.average(b5)
+        else:
+            ave_b1 = 0
+            ave_b2 = 0
+            ave_b3 = 0
+            ave_b4 = 0
+            ave_b5 = 0
+        if len(p1) > 0:
+            ave_p1 = np.average(p1)
+            ave_p2 = np.average(p2)
+            ave_p3 = np.average(p3)
+            ave_p4 = np.average(p4)
+        else:
+            ave_p1 = 0
+            ave_p2 = 0
+            ave_p3 = 0
+            ave_p4 = 0
+        if len(r1) > 0:
+            ave_r1 = np.average(r1)
+            ave_r2 = np.average(r2)
+            ave_r3 = np.average(r3)
+            ave_r4 = np.average(r4)
+            ave_r5 = np.average(r5)
+        else:
+            ave_r1 = 0
+            ave_r2 = 0
+            ave_r3 = 0
+            ave_r4 = 0
+            ave_r5 = 0
         print('시나리오 명 {} 전체 고객 {} 중 서비스 고객 {}/ 서비스율 {}/ 평균 LT :{}/ 평균 FLT : {}/직선거리 대비 증가분 : {}'.format(name, len(customers), len(TLT),served_ratio,av_TLT,
                                                                              av_FLT, av_MFLT))
-        return [len(customers), len(TLT),served_ratio,av_TLT,av_FLT, av_MFLT, round(sum(MFLT)/len(MFLT),2), rider_income_var,customer_lead_time_var,len(OD_ratios),OD_ratio_value,ave_OD_ratio_value,len(done_bundle),ave_done_bundle]
+        return [len(customers), len(TLT),served_ratio,av_TLT,av_FLT, av_MFLT, round(sum(MFLT)/len(MFLT),2), rider_income_var,customer_lead_time_var,len(OD_ratios),OD_ratio_value,ave_OD_ratio_value,len(done_bundle),ave_done_bundle,
+                ave_b1,ave_b2,ave_b3,ave_b4,ave_b5,ave_p1,ave_p2,ave_p3,ave_p4,ave_r1,ave_r2,ave_r3,ave_r4,ave_r5]
     except:
         print('TLT 수:  {}'.format(len(TLT)))
         return None

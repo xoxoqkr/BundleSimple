@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import numpy as np
 
 import A1_BasicFunc as Basic
 from scipy.stats import poisson
@@ -21,6 +22,7 @@ class Order(object):
         self.fee = fee
         self.parameter_info = parameter_info
         self.old_info = None
+        self.gen_t = 0
 
 
 class Rider(object):
@@ -197,13 +199,76 @@ class Rider(object):
             else:
                 self.empty_serach_count += 1
                 self.next_search_time2 = round(env.now,4) - 0.001
+                self.OrderSelect_module(self.env, platform, customers, p2 = self.p2)
                 yield env.timeout(self.check_t)
+
+
+    def OrderSelect_module(self,env, platform, customers, p2=0, order_select_type='simple', uncertainty=False, score_type = 'simple'):
+        if self.bundle_construct == True:  # FT/ TT
+            # 주문 고르기 #번들 생성 가능하도록
+            order_info, self_bundle = self.OrderSelect(platform, customers, p2=p2, uncertainty=uncertainty)
+        elif len(self.onhand) == 0:  # FF/ TF
+            # 플랫폼에 있는 주문만 고르기
+            order_info, self_bundle = self.OrderSelect(platform, customers, p2=p2, uncertainty=uncertainty)
+        else:
+            order_info = None
+        # 선택된 번들 반영 부분
+        empty_t = 1000
+        if order_info != None:
+            platform.platform[order_info[0]].picked = True
+            if self.rider_select_print_fig == True:
+                input('주문 선택')
+                selected_task = platform.platform[order_info[0]]
+                x1 = []
+                y1 = []
+                x2 = []
+                y2 = []
+                # 1 현재 위치 그리기
+                plt.scatter(self.last_departure_loc[0], self.last_departure_loc[1], marker='*', color='b',
+                            label='current_loc')
+                # 2 선택한 번들 위치 그리기
+                # 3 확인
+                for index in range(1, len(order_info[1])):
+                    start = order_info[1][index - 1][2]
+                    end = [order_info[1][index][2][0] - order_info[1][index - 1][2][0],
+                           order_info[1][index][2][1] - order_info[1][index - 1][2][1]]
+                    plt.arrow(start[0], start[1], end[0], end[1], width=0.2, length_includes_head=True)
+                for ct_name in order_info[5]:
+                    x1.append(customers[ct_name].store_loc[0])
+                    y1.append(customers[ct_name].store_loc[1])
+                    x2.append(customers[ct_name].location[0])
+                    y2.append(customers[ct_name].location[1])
+                # if bundle_infos != None:
+                #    bundle_infos.append([len(o.customers),])
+                plt.scatter(x1, y1, marker='o', color='k', label='store')
+                plt.scatter(x2, y2, marker='x', color='m', label='customer')
+                plt.legend()
+                plt.axis([0, 50, 0, 50])
+                title = 'RiderBundle {} ;Rider {};T {}'.format(self.bundle_construct, self.name, round(env.now, 2))
+                plt.title(title)
+                # plt.savefig(title + '.png', dpi=1000)
+                plt.show()
+                input('라이더 선택 확인2')
+                plt.close()
+                # target_customer, res_C_T, now_t = 0, titleinfo = 'None'
+            # print('F:TaskSearch/라이더#:{}/order_info:{}'.format(self.name, order_info))
+            self.OrderPick(order_info, order_info[1], customers, env.now, route_revise_option=self.bundle_construct,
+                           self_bundle=self_bundle)  # 라우트 결정 후
+            if order_info[8] == 'platform' and len(order_info[5]) > 1:
+                self.b_select += 1
+                self.num_bundle_customer += len(order_info[5])
+            elif order_info[8] == 'rider':
+                for customer_name in platform.platform[order_info[0]].customers:
+                    customers[customer_name].rider_bundle_t = env.now
+            Basic.UpdatePlatformByOrderSelection(platform, order_info[0])  # 만약 개별 주문 선택이 있다면, 해당 주문이 선택된 번들을 제거.
 
 
     def TaskSearch(self, env, platform, customers, p2=0, order_select_type='simple', uncertainty=False, score_type = 'simple'):
         while int(env.now) < self.end_t:
             onhand_slack = self.max_order_num - len(self.onhand)
             if env.now >= self.next_search_time2 and (onhand_slack > 0 or len(self.onhand_bundle) == 0):
+                self.OrderSelect_module(self.env, platform, customers, p2=p2)
+                """
                 if self.bundle_construct == True: #FT/ TT
                     #주문 고르기 #번들 생성 가능하도록
                     order_info, self_bundle = self.OrderSelect(platform, customers, p2=p2, uncertainty=uncertainty)
@@ -237,18 +302,6 @@ class Rider(object):
                             y1.append(customers[ct_name].store_loc[1])
                             x2.append(customers[ct_name].location[0])
                             y2.append(customers[ct_name].location[1])
-                        """
-                        for index in range(1, len(selected_task.route)):
-                            start = selected_task.route[index - 1][2]
-                            end = [selected_task.route[index][2][0] - selected_task.route[index - 1][2][0],
-                                   selected_task.route[index][2][1] - selected_task.route[index - 1][2][1]]
-                            plt.arrow(start[0], start[1], end[0], end[1], width=0.2, length_includes_head=True)                        
-                        for ct_name in selected_task.customers:
-                            x1.append(customers[ct_name].store_loc[0])
-                            y1.append(customers[ct_name].store_loc[1])
-                            x2.append(customers[ct_name].location[0])
-                            y2.append(customers[ct_name].location[1])
-                        """
                         # if bundle_infos != None:
                         #    bundle_infos.append([len(o.customers),])
                         plt.scatter(x1, y1, marker='o', color='k', label='store')
@@ -268,7 +321,7 @@ class Rider(object):
                         self.b_select += 1
                         self.num_bundle_customer += len(order_info[5])
                     Basic.UpdatePlatformByOrderSelection(platform,order_info[0])  # 만약 개별 주문 선택이 있다면, 해당 주문이 선택된 번들을 제거.
-
+                """
                 #종류에 따른 다음 선택 시간 결정 :todo 라이더의 효율에 영향을 미침.
                 if self.bundle_construct == True:
                     pr = 1/(onhand_slack + 1)
@@ -278,7 +331,6 @@ class Rider(object):
                         next = self.Rand.poisson(self.search_lamda)
                 elif len(self.onhand) < self.max_order_num:
                     next = self.check_t #order_end_time
-                    pass
                 else:
                     next = self.Rand.poisson(self.search_lamda)
                 print('다음 시간 {}'.format(next))
@@ -294,6 +346,7 @@ class Rider(object):
         scores = []
         bound_order_names = []
         bundle_task_names = []
+        time_check = []
         for index in platform.platform:
             task = platform.platform[index]
             duplicated_para = False
@@ -310,6 +363,7 @@ class Rider(object):
                 bound_order_names.append([task.index, dist])
             else: #Step 1-3 : 에러 출력
                 print('F:OrderSelect-E1/task{}/선택 정보 {}/ 주문 채택시 onhand주문수:{} > {}:maxonhand'.format(task.index, task.picked, len(task.customers) + len(self.onhand) ,self.max_order_num))
+
         bound_order_names.sort(key=operator.itemgetter(1))
         #Step 2 : 라이더가 확인할 페이지를 결정
         rv = float(self.Rand.random(size=1)) #Step 2 - 1 : 확인할 페이지 확률 변수 rv 생성
@@ -332,6 +386,8 @@ class Rider(object):
             out_count += 1
         #Step 3 : 라이더가 각 task의 점수를 계산
         for task_info in considered_tasks:
+            tem_time_check = []
+            rider_bundle = False
             #3-1: FF나 TF인 경우
             task = platform.platform[task_info[0]]
             print('task 정보/ 고객 {}/ 현재 경로 {}'.format(task.customers, self.route))
@@ -346,11 +402,12 @@ class Rider(object):
             for node_index in range(1, len(rev_route)):
                 print('bf {} -> {} af/ T:{}'.format(rev_route[node_index - 1][2], rev_route[node_index][2],Basic.distance(rev_route[node_index - 1][2], rev_route[node_index][2]) / self.speed))
                 mv_time += Basic.distance(rev_route[node_index - 1][2], rev_route[node_index][2]) / self.speed
-                if rev_route[node_index - 1][1] == 0:
-                    mv_time += customers[rev_route[node_index - 1][0]].time_info[6]
+                if rev_route[node_index][1] == 0:
+                    mv_time += customers[rev_route[node_index][0]].time_info[6]
+                    tem_time_check.append(round(self.env.now - customers[rev_route[node_index][0]].time_info[0],4))
                 else:
                     try:
-                        mv_time += customers[rev_route[node_index - 1][0]].time_info[7]
+                        mv_time += customers[rev_route[node_index][0]].time_info[7]
                     except:
                         pass
             WagePerMin = round(task.fee / mv_time, 4)  # 분당 이익
@@ -383,8 +440,30 @@ class Rider(object):
                     benefit2 = round(task.fee / best_route_info[6],4)
                     print('inc_t1:{}/inc_t2:{}'.format(best_route_info[5] +org_route_t, best_route_info[6]))
                     scores.append([task.index] + best_route_info[:6] + [benefit2] + ['rider'])
+                    if WagePerMin < benefit2:
+                        rider_bundle = True
                     print('번들:: 라이더#{}/경로 {} /리스트 확인 {}'.format(self.name, self.route, scores[-1]))
-            scores.sort(key=operator.itemgetter(7), reverse=True)
+            if sum(tem_time_check) > 0:
+                time_check.append([scores[-1][7]] + [customers[rev_route[node_index][0]].store_loc]+ [round(numpy.mean(tem_time_check),4)] + [tem_time_check]+ [rev_route[0][2]] )
+                if len(tem_time_check) > 1:
+                    time_check[-1].insert(1,'B')
+                elif rider_bundle == True:
+                    time_check[-1].insert(1, 'R')
+                else:
+                    time_check[-1].insert(1, 'S')
+                #input('확인{}'.format(time_check[-1]))
+            else:
+                time_check.append([scores[-1][7]] + ['N',[-1,-1],0] + [tem_time_check,[-1,-1]])
+        scores.sort(key=operator.itemgetter(7), reverse=True)
+        time_check.sort(key=operator.itemgetter(0), reverse=True)
+        ave_wait = []
+        for info in time_check:
+            ave_wait += info[3]
+        if sum(ave_wait) > 0:
+            print('T;{};라이더;{};현위치;{};평균대기;{};선택;{}정보;{}'.format(int(self.env.now), self.name,time_check[0][5] ,round(numpy.mean(ave_wait),4), time_check[0][3] ,time_check))
+        else:
+            #input('T;{};라이더;{};평균대기;{};선택;{};정보;{}'.format(int(self.env.now), self.name, 0, None, time_check))
+            pass
         # Step 4 : task 선택
         if len(scores) > 0:
             snapshot_info = self.SnapShotSaver(scores, page,l)
@@ -713,7 +792,7 @@ class Store(object):
 
 class Customer(object):
     def __init__(self, env, name, input_location, store = 0, store_loc = (25, 25),end_time = 60, ready_time=0, service_time=0,
-                 fee = 2500, p2 = 15, cooking_time = (2,5), cook_info = (None, None), platform = None):
+                 fee = 2500, p2 = 15, cooking_time = (2,5), cook_info = (None, None), platform = None, unit_fee = 110, fee_type = 'linear'):
         self.name = name  # 각 고객에게 unique한 이름을 부여할 수 있어야 함. dict의 key와 같이
         self.time_info = [round(env.now, 2), None, None, None, None, end_time, ready_time, service_time, None]
         # [0 :발생시간, 1: 차량에 할당 시간, 2:차량에 실린 시간, 3:목적지 도착 시간,
@@ -723,7 +802,11 @@ class Customer(object):
         self.store = store
         self.type = 'single_order'
         self.min_FLT = p2 #Basic.distance(input_location, store_loc) #todo: 고객이 기대하는 FLT 시간.
-        self.fee = fee + 150*Basic.distance(input_location, store_loc)
+        self.fee = fee + 110*Basic.distance(input_location, store_loc) #원래 150원
+        if fee_type == 'linear':
+            self.fee = fee + unit_fee * max(0 , Basic.distance(input_location, store_loc)-10)  # 원래 150원
+        else:
+            self.fee = fee + unit_fee * Basic.distance(input_location, store_loc)
         self.ready_time = None #가게에서 음식이 조리 완료된 시점
         self.who_serve = []
         self.distance = Basic.distance(input_location, store_loc)
@@ -742,6 +825,8 @@ class Customer(object):
         self.cancel = False
         self.rider_bundle = [None, None]
         self.who_picked = []
+        self.in_bundle_t = 0
+        self.rider_bundle_t = 0
         env.process(self.CustomerLeave(env, platform))
 
 

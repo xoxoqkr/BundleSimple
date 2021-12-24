@@ -304,7 +304,7 @@ def ReadCSV(csv_dir, interval_index = None):
         datas[-1].append(0)
     return datas
 
-def OrdergeneratorByCSV(env, csv_dir, orders, stores, platform = None, p2_ratio = None, rider_speed = 1):
+def OrdergeneratorByCSV(env, csv_dir, orders, stores, platform = None, p2_ratio = None, rider_speed = 1, unit_fee = 110, fee_type = 'linear'):
     """
     Generate customer order
     :param env: Simpy Env
@@ -335,7 +335,7 @@ def OrdergeneratorByCSV(env, csv_dir, orders, stores, platform = None, p2_ratio 
         #order = A1_Class.Customer(env, name, input_location, store=store_num, store_loc=store_loc, p2=p2,
         #                       cooking_time=cook_time, cook_info=[cook_time_type, cooking_time])
         order = re_A1_class.Customer(env, name, input_location, store=store_num, store_loc=store_loc, p2=p2,
-                               cooking_time=cook_time, cook_info=[cook_time_type, cooking_time], platform = platform)
+                               cooking_time=cook_time, cook_info=[cook_time_type, cooking_time], platform = platform, unit_fee = unit_fee, fee_type = fee_type)
         orders[name] = order
         stores[store_num].received_orders.append(orders[name])
         interval = data[interval_index]

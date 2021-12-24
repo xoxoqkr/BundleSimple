@@ -88,9 +88,12 @@ def MIN_OD_pair(orders, q,s,):
             after = tem_route[index]
             route_dist += distance(before, after)
         OD_pair_dist.append(route_dist)
-    return min(OD_pair_dist)
+    p2p_dist = 0
+    for order_name in orders:
+        p2p_dist += distance(orders[order_name].store_loc,orders[order_name].location)
+    return min(OD_pair_dist), p2p_dist
 
-
+#todo: 번들 생성 관련자
 def ConstructFeasibleBundle_TwoSided(target_order, orders, s, p2, thres = 0.05, speed = 1, bundle_permutation_option = False, uncertainty = False,
                                      platform_exp_error = 1, print_option = True, sort_index = 5):
     """
@@ -130,10 +133,11 @@ def ConstructFeasibleBundle_TwoSided(target_order, orders, s, p2, thres = 0.05, 
             #feasible_routes.append([route, round(max(ftds),2), round(sum(ftds)/len(ftds),2), round(min(ftds),2), order_names, round(route_time,2)])
             #print('계산{} :: {}'.format(q, tem_route_info))
             if len(tem_route_info) > 0:
-                OD_pair_dist = MIN_OD_pair(orders, q, s)
+                OD_pair_dist, p2p_dist = MIN_OD_pair(orders, q, s)
                 for info in tem_route_info:
                     #info.append((OD_pair_dist - info[5]) / s)
-                    info.append((info[5] / s))
+                    #info.append((info[5] / s))
+                    info.append((info[5]/p2p_dist)/s)
             b += tem_route_info
         #input('가능 번들 수 {} : 정보 d {} s {}'.format(len(b), d, s))
         comparable_b = []
