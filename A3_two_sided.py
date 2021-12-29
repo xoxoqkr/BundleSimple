@@ -131,7 +131,7 @@ def ConstructFeasibleBundle_TwoSided(target_order, orders, s, p2, thres = 0.05, 
             #input('확인 1 {} : 확인2 {}'.format(subset_orders, time_thres))
             tem_route_info = BundleConsist(subset_orders, orders, p2, speed = speed, bundle_permutation_option= bundle_permutation_option, time_thres= time_thres, uncertainty = uncertainty, platform_exp_error = platform_exp_error, feasible_return = True)
             #feasible_routes.append([route, round(max(ftds),2), round(sum(ftds)/len(ftds),2), round(min(ftds),2), order_names, round(route_time,2)])
-            #print('계산{} :: {}'.format(q, tem_route_info))
+            print('계산{} :: {}'.format(q, tem_route_info))
             if len(tem_route_info) > 0:
                 OD_pair_dist, p2p_dist = MIN_OD_pair(orders, q, s)
                 for info in tem_route_info:

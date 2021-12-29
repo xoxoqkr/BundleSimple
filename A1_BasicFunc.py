@@ -87,7 +87,7 @@ def FLT_Calculate(customer_in_order, customers, route, p2, except_names , M = 10
     for order_name in names:
         if order_name not in except_names:
             #rev_p2 = p2
-            rev_p2 = customers[order_name].p2*p2 + customers[order_name].time_info[6]
+            rev_p2 = customers[order_name].p2*p2 + customers[order_name].time_info[6] + customers[order_name].time_info[7] #todo : 시간에 민감한 부분.
             #input('p2 확인 1 :: {}'.format(rev_p2))
             if customers[order_name].time_info[2] != None:
                 #print('FLT 고려 대상 {} 시간 정보 {}'.format(order_name,customers[order_name].time_info))
@@ -304,7 +304,7 @@ def ReadCSV(csv_dir, interval_index = None):
         datas[-1].append(0)
     return datas
 
-def OrdergeneratorByCSV(env, csv_dir, orders, stores, platform = None, p2_ratio = None, rider_speed = 1, unit_fee = 110, fee_type = 'linear'):
+def OrdergeneratorByCSV(env, csv_dir, orders, stores, platform = None, p2_ratio = None, rider_speed = 1, unit_fee = 110, fee_type = 'linear', service_time_diff = False):
     """
     Generate customer order
     :param env: Simpy Env
@@ -339,6 +339,8 @@ def OrdergeneratorByCSV(env, csv_dir, orders, stores, platform = None, p2_ratio 
         orders[name] = order
         stores[store_num].received_orders.append(orders[name])
         interval = data[interval_index]
+        if service_time_diff == True:
+            order.time_info[7] = int(data[12]/2) #서비스 시간에 서로 다른 값을 넣기.
         if interval > 0:
             yield env.timeout(interval)
         else:

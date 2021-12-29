@@ -126,6 +126,7 @@ class Rider(object):
                     print('T: {} 라이더 : {} 노드 {} 이동 시작 예상 시간{}'.format(int(env.now), self.name, node_info, move_t))
                     if node_info[1] == 0: #가게인 경우
                         exp_store_arrive = env.now + move_t
+                        move_t += order.time_info[6]
                         if order.type == 'single_order':
                             pool = numpy.random.normal(order.cook_info[1][0], order.cook_info[1][1] * self.exp_error, 1000)
                             order.rider_exp_cook_time = random.choice(pool)
@@ -157,6 +158,8 @@ class Rider(object):
                         order.time_info[3] = env.now
                         real_flt = round(order.time_info[3] - order.time_info[2],4)
                         exp_flt = round(Basic.distance(order.location, order.store_loc)/self.speed,4)
+                        yield env.timeout(order.time_info[7]) #todo: 고객의 시간 발생.
+                        order.time_info[4] = env.now
                         if real_flt < exp_flt:
                             input('차이 {} ;고객 {};가게위치 {};고객 위치{};realFlt:{};expFlt:{}'.format(real_flt - exp_flt, order.name, order.store_loc, order.location, real_flt, exp_flt))
                         order.who_serve.append([self.name, int(env.now),1])

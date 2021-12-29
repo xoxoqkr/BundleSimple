@@ -27,6 +27,7 @@ global scenario_indexs
 global exp_range
 global unit_fee
 global fee_type
+global service_time_diff
 # Parameter define
 interval = 5
 run_time = 180
@@ -109,10 +110,10 @@ rider_select_print_fig = False
 #scenarios[5].search_type = 'enumerate'
 #scenarios[6].search_type = 'ellipse'
 #scenarios[7].search_type = 'ellipse'
-#scenarios = [scenarios[2],copy.deepcopy(scenarios[8])]
-scenarios = [copy.deepcopy(scenarios[8])]
-scenarios[0].search_type = heuristic_type
-#scenarios[1].search_type = heuristic_type
+scenarios = [scenarios[2],copy.deepcopy(scenarios[8])]
+#scenarios = [copy.deepcopy(scenarios[8])]
+#scenarios[0].search_type = heuristic_type
+scenarios[1].search_type = heuristic_type
 if mix_ratios != None:
     for ratio in mix_ratios:
         test_sc = copy.deepcopy(scenarios[1])
@@ -171,7 +172,7 @@ for ite in exp_range:#range(0, 1):
         env.process(RiderGeneratorByCSV(env, sc.rider_dir,  Rider_dict, Platform2, Store_dict, Orders, input_speed = rider_speed, input_capacity= rider_capacity,
                                         platform_recommend = sc.platform_recommend, input_order_select_type = order_select_type, bundle_construct= sc.rider_bundle_construct,
                                         rider_num = rider_num, lamda_list=lamda_list, p2 = rider_p2, rider_select_print_fig = rider_select_print_fig,ite = rv_count, mix_ratio = sc.mix_ratio))
-        env.process(OrdergeneratorByCSV(env, sc.customer_dir, Orders, Store_dict, Platform2, p2_ratio = customer_p2,rider_speed= rider_speed, unit_fee = unit_fee, fee_type = fee_type))
+        env.process(OrdergeneratorByCSV(env, sc.customer_dir, Orders, Store_dict, Platform2, p2_ratio = customer_p2,rider_speed= rider_speed, unit_fee = unit_fee, fee_type = fee_type, service_time_diff = service_time_diff))
         env.process(Platform_process5(env, Platform2, Orders, Rider_dict, platform_p2,thres_p,interval, bundle_para= sc.platform_recommend, obj_type = sc.obj_type,
                                       search_type = sc.search_type, print_fig = print_fig, bundle_print_fig = bundle_print_fig, bundle_infos = bundle_infos,
                                       ellipse_w = ellipse_w, heuristic_theta = heuristic_theta,heuristic_r1 = heuristic_r1))
@@ -409,18 +410,18 @@ for sc in scenarios:
     #input(res_info)
     if print_count == 0:
         head = '인스턴스종류;SC;번들탐색방식;연산시간(sec);플랫폼;라이더;라이더수;obj;전체 고객;서비스된 고객;서비스율;평균LT;평균FLT;직선거리 대비 증가분;원래 O-D길이;라이더 수익 분산;LT분산;' \
-               'OD증가수;OD증가 분산;OD평균;수행된 번들 수;수행된번들크기평균;b1;b2;b3;b4;b5;p1;p2;p3;p4;r1;r2;r3;r4;r5;제안된 번들수;라이더평균운행시간;라이더수수료;size;length;ods;ellipse_w; heuristic_theta; heuristic_r1;rider_ratio'
+               'OD증가수;OD증가 분산;OD평균;수행된 번들 수;수행된번들크기평균;b1;b2;b3;b4;b5;p1;p2;p3;p4;r1;r2;r3;r4;r5;평균서비스시간;라이더평균운행시간;제안된 번들수;라이더수수료;size;length;ods;ellipse_w; heuristic_theta; heuristic_r1;rider_ratio'
         #print('인스턴스종류;SC;번들탐색방식;연산시간(sec);플랫폼;라이더;obj;전체 고객;서비스된 고객;서비스율;평균LT;평균FLT;직선거리 대비 증가분;원래 O-D길이;라이더 수익 분산;LT분산;'
         #     'OD증가수;OD증가 분산;OD평균;수행된 번들 수;수행된번들크기평균;제안된 번들수;size;length;ods')
         print(head)
         f3.write(head + '\n')
     ave_duration = sum(sc.durations)/len(sc.durations)
     try:
-        tem_data = '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};'.format(
+        tem_data = '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};'.format(
                 instance_type , str(sc.name[0]),sc.search_type, ave_duration,sc.platform_recommend,sc.rider_bundle_construct,rider_num,sc.obj_type, res_info[0],res_info[1],
                 res_info[2], res_info[3], res_info[4], res_info[5], res_info[6], res_info[7], res_info[8],res_info[9],res_info[10],res_info[11],res_info[12],res_info[13],
-            res_info[14], res_info[15], res_info[16],res_info[17], res_info[18], res_info[19],res_info[20],res_info[21],res_info[22],res_info[23], res_info[24],res_info[25],res_info[26],res_info[27],res_info[28],
-            offered_bundle_num,res_info[29], res_info[30], res_info[31],res_info[32],ellipse_w, heuristic_theta, heuristic_r1, sc.mix_ratio)
+            res_info[14], res_info[15], res_info[16],res_info[17], res_info[18], res_info[19],res_info[20],res_info[21],res_info[22],res_info[23], res_info[24],res_info[25],res_info[26],res_info[27],res_info[28],res_info[29],
+            offered_bundle_num,res_info[30], res_info[31], res_info[32],res_info[33],ellipse_w, heuristic_theta, heuristic_r1, sc.mix_ratio)
         """
         print(
             '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{}'.format(
