@@ -82,6 +82,7 @@ class Rider(object):
         self.next_search_time2 = env.now
         self.onhand_bundle = []
         self.rider_select_print_fig = False
+        self.rider_wait2 = []
         env.process(self.RunProcess(env, platform, customers, stores, self.p2, freedom= freedom, order_select_type = order_select_type, uncertainty = uncertainty))
         env.process(self.TaskSearch(env, platform, customers, p2=self.p2, order_select_type=order_select_type, uncertainty=uncertainty))
 
@@ -145,7 +146,21 @@ class Rider(object):
                             self.bundle_store_wait.append(wait_at_store)
                         else:
                             self.single_store_wait.append(wait_at_store)
-                        yield env.process(stores[store_name].Cook(env, order, order.cook_info[0], manual_cook_time = 0.1)) & env.process(self.RiderMoving(env, move_t))
+                        cal_cook_time = max(0.001, (order.time_info[1] + order.actual_cook_time) - env.now)
+                        expPickUpT = env.now + move_t
+                        #yield env.process(stores[store_name].Cook(env, order, order.cook_info[0], manual_cook_time = cal_cook_time)) & env.process(self.RiderMoving(env, move_t))
+                        yield order.cooking_process & env.process(self.RiderMoving(env, move_t))
+                        if expPickUpT < env.now:
+                            self.rider_wait2.append(env.now -expPickUpT)
+                            order.rider_wait3 = env.now - expPickUpT
+                        elif expPickUpT == env.now:
+                            order.food_wait2.append(expPickUpT - env.now)
+                            order.food_wait3 = env.now - (order.cook_start_time + order.actual_cook_time)
+                        else: #완전 일치.ㅎㅎ
+                            print('현재T{};음식 조리 시작{};음식 조리시간{};음식조리 완료 시간{} expPickUpT{}'.format(env.now,order.cook_start_time, order.actual_cook_time,order.cook_start_time + order.actual_cook_time,expPickUpT))
+                            order.rider_wait3 = 0
+                            order.food_wait3 = 0
+                            input('확인')
                         print('T:{} 라이더{} 고객{}을 위해 가게 {} 도착'.format(int(env.now), self.name, customers[node_info[0]].name,customers[node_info[0]].store))
                         self.container.append(node_info[0])
                         print('라이더 {} 음식{} 적재'.format(self.name, node_info[0]))
@@ -255,7 +270,7 @@ class Rider(object):
                 plt.close()
                 # target_customer, res_C_T, now_t = 0, titleinfo = 'None'
             # print('F:TaskSearch/라이더#:{}/order_info:{}'.format(self.name, order_info))
-            self.OrderPick(order_info, order_info[1], customers, env.now, route_revise_option=self.bundle_construct,
+            self.OrderPick(env, order_info, order_info[1], customers, env.now, route_revise_option=self.bundle_construct,
                            self_bundle=self_bundle)  # 라우트 결정 후
             if order_info[8] == 'platform' and len(order_info[5]) > 1:
                 self.b_select += 1
@@ -525,7 +540,7 @@ class Rider(object):
             else:
                 store_names.append(node_info[0] + M)
                 prior_route.append(node_info[0] + M)
-        org_route_time =  Basic.RouteTime(order_customers, prior_route, speed=self.speed, M=M, uncertainty=uncertainty, error = self.exp_error)
+        org_route_time =  Basic.RouteTime(order_customers, prior_route, speed=self.speed, M=M, uncertainty=uncertainty, error = self.exp_error, now_t = self.env.now)
         #2:새로운 주문 추가
         for customer_name in order.customers:
             order_names.append(customer_name)
@@ -557,7 +572,7 @@ class Rider(object):
                     # input('멈춤5')
                     #route_time = Basic.RouteTime(order_customers, route, speed=speed, M=M)
                     print('시간 계산 경로 2 {}'.format(route_part))
-                    route_time = Basic.RouteTime(order_customers, list(route_part), speed=self.speed, M=M, uncertainty=uncertainty, error = self.exp_error)
+                    route_time = Basic.RouteTime(order_customers, list(route_part), speed=self.speed, M=M, uncertainty=uncertainty, error = self.exp_error, now_t = self.env.now)
                     #feasible_routes.append([route, max(ftds), sum(ftds) / len(ftds), min(ftds), order_names, route_time])
                     #route_time = Basic.RouteTime(order_customers, list(route_part), speed=speed, M=M)
                     rev_route = []
@@ -588,7 +603,7 @@ class Rider(object):
             return []
 
 
-    def OrderPick(self, order_info, route, customers, now_t, route_revise_option = 'simple', self_bundle = None):
+    def OrderPick(self, env, order_info, route, customers, now_t, route_revise_option = 'simple', self_bundle = None):
         """
         수행한 order에 대한 경로를 차량 경로self.route에 반영하고, onhand에 해당 주문을 추가.
         @param order: class order
@@ -602,12 +617,15 @@ class Rider(object):
             self.bundle_count.append(len(names))
             self.onhand_bundle = names
         for name in names:
-            customers[name].time_info[1] = now_t
-            customers[name].who_picked.append([self.name, now_t,self_bundle,'single'])
+            customer = customers[name]
+            customer.time_info[1] = now_t
+            customer.who_picked.append([self.name, now_t,self_bundle,'single'])
+            if 0< customer.dp_cook_time < 15:
+                customer.cooking_process = env.process(customer.CookingFirst(env, customer.actual_cook_time))
             if len(names) > 1:
-                customers[name].inbundle = True
-                customers[name].type = 'bundle'
-                customers[name].who_picked[-1][3] = 'bundle'
+                customer.inbundle = True
+                customer.type = 'bundle'
+                customer.who_picked[-1][3] = 'bundle'
             #print('주문 {}의 고객 {} 가게 위치{} 고객 위치{}'.format(order.index, name, customers[name].store_loc, customers[name].location))
         #print('선택된 주문의 고객들 {} / 추가 경로{}'.format(names, route))
         if route[0][1] != 0:
@@ -695,6 +713,7 @@ class Store(object):
         self.ready_order = []
         self.loaded_order = []
         self.capacity = capacity
+        self.FRT = [0]
         env.process(self.StoreRunner(env, platform, capacity = capacity, print_para= print_para))
 
 
@@ -778,9 +797,10 @@ class Store(object):
             elif cooking_time_type == 'random':
                 cooking_time = random.randrange(1,self.order_ready_time)
             elif cooking_time_type == 'uncertainty':
-                cooking_time = customer.cook_time
+                cooking_time = random.choice(self.FRT)
             else:
                 cooking_time = 0.001
+            #customer.actual_cook_time = cooking_time
             print('T :{} 가게 {}, {} 분 후 주문 {} 조리 완료'.format(int(env.now),self.name,cooking_time,customer.name))
             if manual_cook_time == None:
                 yield env.timeout(cooking_time)
@@ -791,7 +811,7 @@ class Store(object):
             customer.food_ready = True
             customer.ready_time = env.now
             self.ready_order.append(customer)
-            #print('T',int(env.now),"기다리는 중인 고객들",self.ready_order)
+
 
 class Customer(object):
     def __init__(self, env, name, input_location, store = 0, store_loc = (25, 25),end_time = 60, ready_time=0, service_time=0,
@@ -830,7 +850,15 @@ class Customer(object):
         self.who_picked = []
         self.in_bundle_t = 0
         self.rider_bundle_t = 0
+        self.cook_start_time = 0
+        self.cook_finish_time = 0
+        self.actual_cook_time = 0
+        self.dp_cook_time = 0
+        self.food_wait2 = []
         env.process(self.CustomerLeave(env, platform))
+        self.cooking_process = None
+        self.rider_wait3 = None
+        self.food_wait3 = None
 
 
     def CustomerLeave(self, env, platform):
@@ -845,6 +873,15 @@ class Customer(object):
             self.cancel = True
         else:
             pass
+
+
+    def CookingFirst(self,env,time):
+        print('음식 {} 선 조리 시작/ T{}'.format(self.name,int(env.now)))
+        self.cook_start_time = env.now
+        yield env.timeout(time)
+        self.cook_finish_time = env.now
+        print('음식 {} 조리 완료/ T{}'.format(self.name, int(env.now)))
+        #input('조리 경과 확인')
 
 
 class Platform_pool(object):

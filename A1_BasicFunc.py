@@ -19,7 +19,7 @@ def distance(p1, p2):
     return round(euc_dist,4)
 
 
-def RouteTime(orders, route, M = 1000, speed = 1, uncertainty = False, error = 1):
+def RouteTime(orders, route, M = 1000, speed = 1, uncertainty = False, error = 1, sync_output_para= False, now_t = 0, bywho = 'Rider'):
     """
     Time to move the route with speed
     :param orders: order in route
@@ -30,6 +30,7 @@ def RouteTime(orders, route, M = 1000, speed = 1, uncertainty = False, error = 1
     time = 0
     locs = {}
     names = []
+    un_sync_t = [0,0] #[차량 대기 시간, 음식 대기 시간]
     if type(orders) == dict:
         for order_name in orders:
             locs[order_name + M] = [orders[order_name].store_loc, 'store', orders[order_name].time_info[6]]
@@ -54,16 +55,44 @@ def RouteTime(orders, route, M = 1000, speed = 1, uncertainty = False, error = 1
             for order in orders:
                 if order.name == af - M:
                     target = order
+                    break
             #print(2, bf, af, time,target.cook_info,uncertainty)
-            if uncertainty == True and target.cook_info[0] == 'uncertainty': #todo : 추가 시간이 발생할 수 있음을 반영
+            if target.cook_start_time > 0: #todo: 이미 조리 시작된 음식
+                if bywho == 'Rider':
+                    slack_t = (target.cook_start_time + target.actual_cook_time) - (now_t + time)
+                else:
+                    slack_t = (target.cook_start_time + target.dp_cook_time) - (now_t + time)
+                if slack_t > 0:
+                    time += slack_t
+                    un_sync_t[0] += slack_t
+                else:
+                    un_sync_t[1] += -slack_t
+                    pass#음식이 기다리는 상황
+            else: #todo: 아직 조리 시작 되지 X음식.
+                if bywho == 'Rider':
+                    slack_t = target.dp_cook_time - time
+                else:
+                    slack_t = target.actual_cook_time - time
+                if slack_t > 0:
+                    time += slack_t
+                    un_sync_t[0] += slack_t
+                else:
+                    un_sync_t[1] += -slack_t
+                    pass #음식이 기다리는 시간이 발생.
+            """
+            if (uncertainty == True and target.cook_info[0] == 'uncertainty'): #todo : 가게인 경우 추가 시간이 발생할 수 있음을 반영
                 pool = numpy.random.normal(target.cook_info[1][0], target.cook_info[1][1]*error, 1000)
                 exp_cook_time = random.choice(pool)
                 if exp_cook_time > time:
                     #print('추가시간', exp_cook_time - time)
                     time += exp_cook_time - time
-                #input('작동 확인1')
+                #input('작동 확인1')            
+            """
         #input('작동 확인2')
-    return time
+    if sync_output_para == True:
+        return time, un_sync_t
+    else:
+        return time
 
 
 def FLT_Calculate(customer_in_order, customers, route, p2, except_names , M = 1000, speed = 1, now_t = 0, uncertainty = False, exp_error = 1):
@@ -99,7 +128,7 @@ def FLT_Calculate(customer_in_order, customers, route, p2, except_names , M = 10
                 s = route.index(order_name + M)
                 e = route.index(order_name)
                 try:
-                    ftd = RouteTime(customer_in_order, route[s: e + 1], speed=speed, M=M, uncertainty=uncertainty, error = exp_error)
+                    ftd = RouteTime(customer_in_order, route[s: e + 1], speed=speed, M=M, uncertainty=uncertainty, error = exp_error, now_t = now_t)
                 except:
                     ftd = 1000
                     print('경로 {}, s:{}, e :{}'.format(route,s,e))
@@ -215,7 +244,8 @@ def RiderGeneratorByCSV(env, csv_dir, Rider_dict, Platform, Store_dict, Customer
             break
 
 
-def GenerateStoreByCSV(env, csv_dir, platform,Store_dict):
+def GenerateStoreByCSV(env, csv_dir, platform,Store_dict, mus = [5,10,15], std_ratio = 0.2):
+    #mus = [11.5,13.5,15.5]
     datas = ReadCSV(csv_dir)
     for data in datas:
         #['name', 'start_loc_x', 'start_loc_y', 'order_ready_time', 'capacity', 'slack']
@@ -225,6 +255,12 @@ def GenerateStoreByCSV(env, csv_dir, platform,Store_dict):
         capacity = data[4]
         slack = data[5]
         store = re_A1_class.Store(env, platform, name, loc=loc, order_ready_time=order_ready_time, capacity=capacity, print_para=False, slack = slack)
+        if name <= 4: #
+            store.FRT = numpy.random.normal(mus[0], mus[0]*std_ratio, 1000)
+        elif name <= 10:
+            store.FRT = numpy.random.normal(mus[1], mus[1]*std_ratio, 1000)
+        else:
+            store.FRT = numpy.random.normal(mus[2], mus[2] * std_ratio, 1000)
         Store_dict[name] = store
 
 
@@ -336,6 +372,11 @@ def OrdergeneratorByCSV(env, csv_dir, orders, stores, platform = None, p2_ratio 
         #                       cooking_time=cook_time, cook_info=[cook_time_type, cooking_time])
         order = re_A1_class.Customer(env, name, input_location, store=store_num, store_loc=store_loc, p2=p2,
                                cooking_time=cook_time, cook_info=[cook_time_type, cooking_time], platform = platform, unit_fee = unit_fee, fee_type = fee_type)
+        order.actual_cook_time = random.choice(stores[store_num].FRT)
+        order.dp_cook_time = 5*(1 + order.actual_cook_time//5)
+        if order.dp_cook_time >= 15:
+            order.cooking_process = env.process(order.CookingFirst(env, order.actual_cook_time)) #todo : 15분 이상 음식은 미리 조리 시작
+        print('T {} 음식 {} 조리 확인/ 시간 {}'.format(int(env.now), order.name,order.actual_cook_time))
         orders[name] = order
         stores[store_num].received_orders.append(orders[name])
         interval = data[interval_index]
@@ -485,7 +526,7 @@ def ResultSave(Riders, Customers, title = 'Test', sub_info = 'None', type_name =
         rider_infos.append(info)
     customer_header = ['고객 이름', '생성 시점', '라이더 선택 시점','가게 출발 시점','고객 도착 시점','가게 도착 시점','음식조리시간','음식 음식점 대기 시간'
         ,'라이더 가게 대기시간1','라이더 가게 대기시간2','수수료', '수행 라이더 정보', '직선 거리','p2(민감정도)','번들여부','조리시간','기사 대기 시간'
-        ,'번들로 구성된 시점', '취소','LT', 'FLT', '라이더 번들 여부','라이더 번들 LT']
+        ,'번들로 구성된 시점', '취소','LT', 'FLT', '라이더 번들 여부','라이더 번들 LT','조리 시작 시간','조리소요시간','가게에서 소요 시간','고객에게서 소요 시간','차량 대기 시간', '음식 대기 시간']
     customer_infos = [sub, customer_header]
     for customer_name in Customers:
         customer = Customers[customer_name]
@@ -505,6 +546,7 @@ def ResultSave(Riders, Customers, title = 'Test', sub_info = 'None', type_name =
         else:
             info += [None, None]
         info += customer.rider_bundle
+        info += [customer.cook_start_time, customer.actual_cook_time, customer.time_info[6], customer.time_info[7], customer.rider_wait3, customer.food_wait3]
         customer_infos.append(info)
     f = open(title + "riders.txt", 'a')
     for info in rider_infos:

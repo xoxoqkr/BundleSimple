@@ -95,7 +95,7 @@ def MIN_OD_pair(orders, q,s,):
 
 #todo: 번들 생성 관련자
 def ConstructFeasibleBundle_TwoSided(target_order, orders, s, p2, thres = 0.05, speed = 1, bundle_permutation_option = False, uncertainty = False,
-                                     platform_exp_error = 1, print_option = True, sort_index = 5):
+                                     platform_exp_error = 1, print_option = True, sort_index = 5, now_t = 0):
     """
     Construct s-size bundle pool based on the customer in orders.
     And select n bundle from the pool
@@ -129,15 +129,16 @@ def ConstructFeasibleBundle_TwoSided(target_order, orders, s, p2, thres = 0.05, 
                 subset_orders.append(orders[name])
                 time_thres += orders[name].distance/speed
             #input('확인 1 {} : 확인2 {}'.format(subset_orders, time_thres))
-            tem_route_info = BundleConsist(subset_orders, orders, p2, speed = speed, bundle_permutation_option= bundle_permutation_option, time_thres= time_thres, uncertainty = uncertainty, platform_exp_error = platform_exp_error, feasible_return = True)
-            #feasible_routes.append([route, round(max(ftds),2), round(sum(ftds)/len(ftds),2), round(min(ftds),2), order_names, round(route_time,2)])
+            tem_route_info = BundleConsist(subset_orders, orders, p2, speed = speed, bundle_permutation_option= bundle_permutation_option, time_thres= time_thres, uncertainty = uncertainty, platform_exp_error = platform_exp_error, feasible_return = True, now_t = now_t)
+            #ver0: feasible_routes.append([route, round(max(ftds),2), round(sum(ftds)/len(ftds),2), round(min(ftds),2), order_names, round(route_time,2)])
+            #ver1: feasible_routes.append([route, unsync_t[0], round(sum(ftds) / len(ftds), 2), unsync_t[1], order_names, round(route_time, 2)])
             print('계산{} :: {}'.format(q, tem_route_info))
             if len(tem_route_info) > 0:
                 OD_pair_dist, p2p_dist = MIN_OD_pair(orders, q, s)
-                for info in tem_route_info:
-                    #info.append((OD_pair_dist - info[5]) / s)
-                    #info.append((info[5] / s))
-                    info.append((info[5]/p2p_dist)/s)
+                for info in tem_route_info: #todo: 번들 점수 내는 부분
+                    #info.append((info[5]/p2p_dist)/s)
+                    #info.append((info[1] + info[3]+info[5])/ s) #todo:220105번들 점수 내는 과정
+                    info.append((info[5]) / s)
             b += tem_route_info
         #input('가능 번들 수 {} : 정보 d {} s {}'.format(len(b), d, s))
         comparable_b = []

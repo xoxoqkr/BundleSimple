@@ -201,7 +201,7 @@ def BreakBundle(break_info, platform_set, customer_set):
     return res
 
 
-def BundleConsist(orders, customers, p2, time_thres = 0, speed = 1,M = 1000, bundle_permutation_option = False, uncertainty = False, platform_exp_error =  1, feasible_return = False):
+def BundleConsist(orders, customers, p2, time_thres = 0, speed = 1,M = 1000, bundle_permutation_option = False, uncertainty = False, platform_exp_error =  1, feasible_return = False, now_t = 0):
     """
     Construct bundle consists of orders
     :param orders: customer order in the route. type: customer class
@@ -253,19 +253,20 @@ def BundleConsist(orders, customers, p2, time_thres = 0, speed = 1,M = 1000, bun
                 break
         if sequence_feasiblity == True:
             #input('feasilbe 통과1')
-            ftd_feasiblity, ftds = FLT_Calculate(orders, customers, route, p2, [],M = M ,speed = speed, uncertainty =uncertainty, exp_error=platform_exp_error)
+            ftd_feasiblity, ftds = FLT_Calculate(orders, customers, route, p2, [],M = M ,speed = speed, uncertainty =uncertainty, exp_error=platform_exp_error, now_t = now_t)
             #customer_in_order, customers, route, p2, except_names, M = 1000, speed = 1, now_t = 0
             if ftd_feasiblity == True:
                 #input('feasilbe 통과2')
-                route_time = RouteTime(orders, route, speed=speed, M=M, uncertainty = uncertainty, error = platform_exp_error)
-                feasible_routes.append([route, round(max(ftds), 2), round(sum(ftds) / len(ftds), 2), round(min(ftds), 2), order_names,round(route_time, 2)])
+                route_time, unsync_t = RouteTime(orders, route, speed=speed, M=M, uncertainty = uncertainty, error = platform_exp_error, sync_output_para = True, now_t = now_t, bywho='Platform')
+                #feasible_routes.append([route, round(max(ftds), 2), round(sum(ftds) / len(ftds), 2), round(min(ftds), 2), order_names,round(route_time, 2)])
+                feasible_routes.append([route, unsync_t[0], round(sum(ftds) / len(ftds), 2), unsync_t[1], order_names, round(route_time, 2)])
                 #print('시간 정보 번들 경로 시간 {} : 가능한 짧은 시간 {}'.format(route_time, time_thres))
                 #if route_time < time_thres :
                 #    feasible_routes.append([route, round(max(ftds),2), round(sum(ftds)/len(ftds),2), round(min(ftds),2), order_names, round(route_time,2)])
                 #    input('번들 생성 절약 시간 {}'.format(time_thres - route_time))
                 #[경로, 최대FTD, 평균FTD, 최소FTD]
         if len(feasible_routes) > 0:
-            feasible_routes.sort(key = operator.itemgetter(2))
+            feasible_routes.sort(key = operator.itemgetter(2)) #todo: ftd 평균이 짧은 순으로 정렬
             feasible_subset.append(feasible_routes[0])
     if len(feasible_subset) > 0:
         feasible_subset.sort(key = operator.itemgetter(2))
@@ -328,7 +329,7 @@ def GraphDraw(infos, customers, M = 1000):
     #input('번들 경로 {} 시간 {}'.format(infos[0],infos[5]))
 
 
-def ConstructBundle(orders, s, n, p2, speed = 1, option = False, uncertainty = False, platform_exp_error = 1):
+def ConstructBundle(orders, s, n, p2, speed = 1, option = False, uncertainty = False, platform_exp_error = 1, now_t = 0):
     """
     Construct s-size bundle pool based on the customer in orders.
     And select n bundle from the pool
@@ -361,7 +362,7 @@ def ConstructBundle(orders, s, n, p2, speed = 1, option = False, uncertainty = F
             for name in q:
                 subset_orders.append(orders[name])
                 time_thres += orders[name].distance/speed
-            tem_route_info = BundleConsist(subset_orders, orders, p2, speed = speed, bundle_permutation_option= option, time_thres= time_thres, uncertainty = uncertainty, platform_exp_error = platform_exp_error)
+            tem_route_info = BundleConsist(subset_orders, orders, p2, speed = speed, bundle_permutation_option= option, time_thres= time_thres, uncertainty = uncertainty, platform_exp_error = platform_exp_error, now_t = now_t)
             if len(tem_route_info) > 0:
                 b.append(tem_route_info)
         if len(b) > 0:
@@ -512,7 +513,11 @@ def ResultPrint(name, customers, speed = 1, riders = None):
     r3 = [] #25
     r4 = [] #26
     r5 = [] #27
+    test1 = []
     service_times = []
+    unselected_ct = 0 #조리가 시작 되었지만, 조리 되지 못하고 버려지는 음식
+    food_wait3 = []
+    rider_wait3 = []
     for customer_name in customers:
         if customer_name == 0 :
             continue
@@ -552,6 +557,15 @@ def ResultPrint(name, customers, speed = 1, riders = None):
                     p2.append(customer.time_info[2] - customer.time_info[1])
                     p3.append(customer.time_info[3] - customer.time_info[2])
                     p4.append(customer.time_info[3] - customer.time_info[2] - mflt)
+            test1.append(customer.time_info[3]- (customer.cook_start_time + customer.actual_cook_time + customer.time_info[7]))
+            if customer.food_wait3 != None:
+                food_wait3.append(customer.food_wait3)
+            if customer.rider_wait3 != None:
+                rider_wait3.append(customer.rider_wait3)
+            print('확인용',customer.name, customer.food_wait3, customer.rider_wait3)
+        else:
+            if customer.cook_start_time > 0 and customer.time_info[1] == None:
+                unselected_ct += 1
     customer_lead_time_var = np.var(TLT)
     try:
         served_ratio = round(len(TLT)/len(customers),2)
@@ -598,11 +612,20 @@ def ResultPrint(name, customers, speed = 1, riders = None):
             ave_r3 = 0
             ave_r4 = 0
             ave_r5 = 0
+        ave_food_wait3 = None
+        if len(food_wait3) > 0:
+            ave_food_wait3 = sum(food_wait3) / len(food_wait3)
+        ave_rider_wait3 = None
+        if len(rider_wait3) > 0:
+            ave_rider_wait3 = sum(rider_wait3) / len(rider_wait3)
+        ave_test1 = None
+        if len(test1) > 0:
+            ave_test1 = sum(test1) / len(test1)
         ave_servie_time = round(sum(service_times)/len(service_times),4)
         print('시나리오 명 {} 전체 고객 {} 중 서비스 고객 {}/ 서비스율 {}/ 평균 LT :{}/ 평균 FLT : {}/직선거리 대비 증가분 : {}'.format(name, len(customers), len(TLT),served_ratio,av_TLT,
                                                                              av_FLT, av_MFLT))
         return [len(customers), len(TLT),served_ratio,av_TLT,av_FLT, av_MFLT, round(sum(MFLT)/len(MFLT),2), rider_income_var,customer_lead_time_var,len(OD_ratios),OD_ratio_value,ave_OD_ratio_value,len(done_bundle),ave_done_bundle,
-                ave_b1,ave_b2,ave_b3,ave_b4,ave_b5,ave_p1,ave_p2,ave_p3,ave_p4,ave_r1,ave_r2,ave_r3,ave_r4,ave_r5, ave_servie_time]
+                ave_b1,ave_b2,ave_b3,ave_b4,ave_b5,ave_p1,ave_p2,ave_p3,ave_p4,ave_r1,ave_r2,ave_r3,ave_r4,ave_r5, ave_servie_time, ave_test1 ,unselected_ct,ave_food_wait3,ave_rider_wait3]
     except:
         print('TLT 수:  {}'.format(len(TLT)))
         return None
