@@ -518,6 +518,8 @@ def ResultPrint(name, customers, speed = 1, riders = None):
     unselected_ct = 0 #조리가 시작 되었지만, 조리 되지 못하고 버려지는 음식
     food_wait3 = []
     rider_wait3 = []
+    food_wait1 = [] #15분 미만 음식
+    food_wait2 = [] #15분 이상 음식
     for customer_name in customers:
         if customer_name == 0 :
             continue
@@ -560,6 +562,10 @@ def ResultPrint(name, customers, speed = 1, riders = None):
             test1.append(customer.time_info[3]- (customer.cook_start_time + customer.actual_cook_time + customer.time_info[7]))
             if customer.food_wait3 != None:
                 food_wait3.append(customer.food_wait3)
+                if customer.dp_cook_time < 15:
+                    food_wait1.append(customer.food_wait3)
+                else:
+                    food_wait2.append(customer.food_wait3)
             if customer.rider_wait3 != None:
                 rider_wait3.append(customer.rider_wait3)
             print('확인용',customer.name, customer.food_wait3, customer.rider_wait3)
@@ -621,11 +627,17 @@ def ResultPrint(name, customers, speed = 1, riders = None):
         ave_test1 = None
         if len(test1) > 0:
             ave_test1 = sum(test1) / len(test1)
+        ave_food_wait1 = None
+        if len(food_wait1) > 0:
+            ave_food_wait1 = sum(food_wait1)/len(food_wait1)
+        ave_food_wait2 = None
+        if len(food_wait2) > 0:
+            ave_food_wait2 = sum(food_wait2)/len(food_wait2)
         ave_servie_time = round(sum(service_times)/len(service_times),4)
         print('시나리오 명 {} 전체 고객 {} 중 서비스 고객 {}/ 서비스율 {}/ 평균 LT :{}/ 평균 FLT : {}/직선거리 대비 증가분 : {}'.format(name, len(customers), len(TLT),served_ratio,av_TLT,
                                                                              av_FLT, av_MFLT))
         return [len(customers), len(TLT),served_ratio,av_TLT,av_FLT, av_MFLT, round(sum(MFLT)/len(MFLT),2), rider_income_var,customer_lead_time_var,len(OD_ratios),OD_ratio_value,ave_OD_ratio_value,len(done_bundle),ave_done_bundle,
-                ave_b1,ave_b2,ave_b3,ave_b4,ave_b5,ave_p1,ave_p2,ave_p3,ave_p4,ave_r1,ave_r2,ave_r3,ave_r4,ave_r5, ave_servie_time, ave_test1 ,unselected_ct,ave_food_wait3,ave_rider_wait3]
+                ave_b1,ave_b2,ave_b3,ave_b4,ave_b5,ave_p1,ave_p2,ave_p3,ave_p4,ave_r1,ave_r2,ave_r3,ave_r4,ave_r5, ave_servie_time, ave_test1 ,unselected_ct,ave_food_wait3,ave_rider_wait3,ave_food_wait1,ave_food_wait2,len(food_wait1),len(food_wait2),len(rider_wait3)]
     except:
         print('TLT 수:  {}'.format(len(TLT)))
         return None
