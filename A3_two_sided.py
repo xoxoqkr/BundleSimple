@@ -4,9 +4,11 @@
 import operator
 import itertools
 from A1_BasicFunc import distance, ActiveRiderCalculator
-from A2_Func import BundleConsist
+from A2_Func import BundleConsist, BundleConsist2
 import math
 import matplotlib.pyplot as plt
+
+
 
 def CountActiveRider(riders, t, min_pr = 0, t_now = 0, option = 'w'):
     """
@@ -129,7 +131,10 @@ def ConstructFeasibleBundle_TwoSided(target_order, orders, s, p2, thres = 0.05, 
                 subset_orders.append(orders[name])
                 time_thres += orders[name].distance/speed
             #input('확인 1 {} : 확인2 {}'.format(subset_orders, time_thres))
-            tem_route_info = BundleConsist(subset_orders, orders, p2, speed = speed, bundle_permutation_option= bundle_permutation_option, time_thres= time_thres, uncertainty = uncertainty, platform_exp_error = platform_exp_error, feasible_return = True, now_t = now_t)
+            if thres < 100:
+                tem_route_info = BundleConsist(subset_orders, orders, p2, speed = speed, bundle_permutation_option= bundle_permutation_option, time_thres= time_thres, uncertainty = uncertainty, platform_exp_error = platform_exp_error, feasible_return = True, now_t = now_t)
+            else:
+                tem_route_info = BundleConsist2(subset_orders, orders, p2, speed = speed, bundle_permutation_option= bundle_permutation_option, time_thres= time_thres, uncertainty = uncertainty, platform_exp_error = platform_exp_error, feasible_return = True, now_t = now_t)
             #ver0: feasible_routes.append([route, round(max(ftds),2), round(sum(ftds)/len(ftds),2), round(min(ftds),2), order_names, round(route_time,2)])
             #ver1: feasible_routes.append([route, unsync_t[0], round(sum(ftds) / len(ftds), 2), unsync_t[1], order_names, round(route_time, 2)])
             print('계산{} :: {}'.format(q, tem_route_info))
@@ -138,12 +143,13 @@ def ConstructFeasibleBundle_TwoSided(target_order, orders, s, p2, thres = 0.05, 
                 for info in tem_route_info: #todo: 번들 점수 내는 부분
                     #info.append((info[5]/p2p_dist)/s)
                     #info.append((info[1] + info[3]+info[5])/ s) #todo:220105번들 점수 내는 과정
+                    #info.append((info[3] + info[5]) / s)  # todo:220105번들 점수 내는 과정
                     info.append((info[5]) / s)
             b += tem_route_info
         #input('가능 번들 수 {} : 정보 d {} s {}'.format(len(b), d, s))
         comparable_b = []
-        sort_index = 6 # 5: route time, 6: s_b
         if len(b) > 0:
+            sort_index = len(tem_route_info[0])  # 5: route time, 6: s_b
             #b.sort(key=operator.itemgetter(6))  # s_b 순으로 정렬  #target order를 포함하는 모든 번들에 대해서 s_b를 계산.
             b.sort(key=operator.itemgetter(sort_index))
             b_star = b[0][sort_index]

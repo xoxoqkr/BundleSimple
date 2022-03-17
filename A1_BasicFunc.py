@@ -19,7 +19,7 @@ def distance(p1, p2):
     return round(euc_dist,4)
 
 
-def RouteTime(orders, route, M = 1000, speed = 1, uncertainty = False, error = 1, sync_output_para= False, now_t = 0, bywho = 'Rider'):
+def RouteTime(orders, route, M = 1000, speed = 1, uncertainty = False, error = 1, sync_output_para= False, now_t = 0, bywho = 'Rider', time_buffer_para = False):
     """
     Time to move the route with speed
     :param orders: order in route
@@ -30,16 +30,17 @@ def RouteTime(orders, route, M = 1000, speed = 1, uncertainty = False, error = 1
     time = 0
     locs = {}
     names = []
+    time_buffer = []
     un_sync_t = [0,0] #[차량 대기 시간, 음식 대기 시간]
     if type(orders) == dict:
         for order_name in orders:
-            locs[order_name + M] = [orders[order_name].store_loc, 'store', orders[order_name].time_info[6]]
-            locs[order_name] = [orders[order_name].location, 'customer', orders[order_name].time_info[7]]
+            locs[order_name + M] = [orders[order_name].store_loc, 'store', orders[order_name].time_info[6],orders[order_name].time_info[0] +orders[order_name].time_info[5]]
+            locs[order_name] = [orders[order_name].location, 'customer', orders[order_name].time_info[7],orders[order_name].time_info[0] +orders[order_name].time_info[5]]
             names += [order_name + M, order_name]
     elif type(orders) == list:
         for order in orders:
-            locs[order.name + M] = [order.store_loc, 'store', order.time_info[6]]
-            locs[order.name] = [order.location, 'customer', order.time_info[7]]
+            locs[order.name + M] = [order.store_loc, 'store', order.time_info[6], order.time_info[0] + order.time_info[5]]
+            locs[order.name] = [order.location, 'customer', order.time_info[7], order.time_info[0] + order.time_info[5]]
             names += [order.name + M, order.name]
     else:
         input('Error')
@@ -59,9 +60,9 @@ def RouteTime(orders, route, M = 1000, speed = 1, uncertainty = False, error = 1
             #print(2, bf, af, time,target.cook_info,uncertainty)
             if target.cook_start_time > 0: #todo: 이미 조리 시작된 음식
                 if bywho == 'Rider':
-                    slack_t = (target.cook_start_time + target.actual_cook_time) - (now_t + time)
-                else:
                     slack_t = (target.cook_start_time + target.dp_cook_time) - (now_t + time)
+                else:
+                    slack_t = (target.cook_start_time + target.actual_cook_time) - (now_t + time)
                 if slack_t > 0:
                     time += slack_t
                     un_sync_t[0] += slack_t
@@ -88,14 +89,19 @@ def RouteTime(orders, route, M = 1000, speed = 1, uncertainty = False, error = 1
                     time += exp_cook_time - time
                 #input('작동 확인1')            
             """
+        else:
+            time_buffer.append(af_loc[3] - (now_t + time))
         #input('작동 확인2')
     if sync_output_para == True:
-        return time, un_sync_t
+        if time_buffer_para == True:
+            return time, un_sync_t,time_buffer
+        else:
+            return time, un_sync_t
     else:
         return time
 
 
-def FLT_Calculate(customer_in_order, customers, route, p2, except_names , M = 1000, speed = 1, now_t = 0, uncertainty = False, exp_error = 1):
+def FLT_Calculate(customer_in_order, customers, route, p2, except_names , M = 1000, speed = 1, now_t = 0, uncertainty = False, exp_error = 1, time_buffer_para = False):
     """
     Calculate the customer`s Food Delivery Time in route(bundle)
 
@@ -110,6 +116,7 @@ def FLT_Calculate(customer_in_order, customers, route, p2, except_names , M = 10
         if order.name not in names:
             names.append(order.name)
     ftds = []
+    time_buffer = 0
     #input(''.format())
     #print('경로 고객들 {} 경로 {}'.format(names, route))
     #input('체크1 {} 체크2 {}'.format(customer_in_order,customers))
@@ -142,10 +149,16 @@ def FLT_Calculate(customer_in_order, customers, route, p2, except_names , M = 10
             #s = route.index(order_name + M)
             #e = route.index(order_name)
             if ftd > rev_p2:
-                return False, []
+                if time_buffer_para == True:
+                    return False, [], time_buffer
+                else:
+                    return False, []
             else:
                 ftds.append(ftd)
-    return True, ftds
+    if time_buffer_para == True:
+        return True, ftds,time_buffer
+    else:
+        return True, ftds
 
 
 def RiderGenerator(env, Rider_dict, Platform, Store_dict, Customer_dict, capacity = 3, speed = 1, working_duration = 120, interval = 1, runtime = 1000, gen_num = 10, history = None, freedom = True, score_type = 'simple', wait_para = False, uncertainty = False, exp_error = 1, exp_WagePerHr = 9000):
@@ -382,6 +395,7 @@ def OrdergeneratorByCSV(env, csv_dir, orders, stores, platform = None, p2_ratio 
         interval = data[interval_index]
         if service_time_diff == True:
             order.time_info[7] = int(data[12]/2) #서비스 시간에 서로 다른 값을 넣기.
+        #todo : 0317 지연되는 조건 생각할 것.
         if interval > 0:
             yield env.timeout(interval)
         else:
