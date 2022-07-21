@@ -143,7 +143,11 @@ class Rider(object):
                         yield env.process(self.RiderMoving(env, move_t))
                         print('T: {} 라이더 {} 고객 {} 도착 서비스 종료'.format(int(env.now),self.name, node_info[0]))
                         order.time_info[3] = env.now
-                        order.who_serve.append([self.name, int(env.now)])
+                        try:
+                            current_coord = self.CurrentLoc(env.now)
+                        except:
+                            current_coord = [0,0]
+                        order.who_serve.append([self.name, round(env.now,2),current_coord,self.onhand])
                         try:
                             self.container.remove(node_info[0])
                             self.onhand.remove(node_info[0])
