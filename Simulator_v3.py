@@ -14,7 +14,13 @@ from A1_BasicFunc import ResultSave, GenerateStoreByCSV, RiderGeneratorByCSV, Or
 from A2_Func import ResultPrint
 from re_platform import Platform_process5,Rider_Bundle_plt
 from datetime import datetime
-
+import onnxmltools
+from onnxmltools.convert.xgboost.operator_converters.XGBoost import convert_xgboost  # noqa
+import onnxmltools.convert.common.data_types
+import onnxruntime as rt
+from skl2onnx import convert_sklearn, update_registered_converter
+from skl2onnx.common.shape_calculator import calculate_linear_classifier_output_shapes  # noqa
+"""
 #global variable
 global instance_type
 global ellipse_w
@@ -28,6 +34,24 @@ global exp_range
 global unit_fee
 global fee_type
 global service_time_diff
+"""
+
+
+instance_type ='Instance_random'
+ellipse_w=10
+heuristic_theta=10
+heuristic_r1=10
+heuristic_type = 'XGBoost'
+rider_num= 10
+mix_ratios=None
+exp_range = [0,2,3,4]*2
+unit_fee = 110
+fee_type = 'linear'
+service_time_diff = True
+
+
+
+
 # Parameter define
 interval = 5
 run_time = 180
@@ -110,10 +134,11 @@ rider_select_print_fig = False
 #scenarios[5].search_type = 'enumerate'
 #scenarios[6].search_type = 'ellipse'
 #scenarios[7].search_type = 'ellipse'
-scenarios = [scenarios[2],copy.deepcopy(scenarios[8]),scenarios[3]]
+#scenarios = [scenarios[2],copy.deepcopy(scenarios[8]),scenarios[3]]
 #scenarios = [copy.deepcopy(scenarios[8])]
 #scenarios[0].search_type = heuristic_type
-scenarios[1].search_type = heuristic_type
+scenarios = [scenarios[2],scenarios[2]]
+scenarios[0].search_type = heuristic_type
 if mix_ratios != None:
     for ratio in mix_ratios:
         test_sc = copy.deepcopy(scenarios[1])
@@ -127,9 +152,13 @@ for count in range(len(scenarios)):
     print(obj_types[count], scenarios[count].obj_type)
 """
 print('시나리오 확인3')
+print(heuristic_type)
 for sc3 in scenarios:
-    print(sc3.platform_recommend, sc3.rider_bundle_construct,sc3.obj_type)
-#input('시나리오 확인')
+    #sc3.search_type = heuristic_type
+    sc3.platform_recommend = True
+    sc3.rider_bundle_construct = False
+    print(sc3.platform_recommend, sc3.rider_bundle_construct,sc3.obj_type, sc3.search_type)
+input('시나리오 확인')
 
 #exp_range = [0,2,3,4]*10 #인스턴스 1에러가 있음.
 #global exp_range #인스턴스 1에러가 있음.
@@ -137,6 +166,13 @@ for sc3 in scenarios:
 #input('instance_type {} '.format(instance_type))
 #search_type = 'heuristic'
 #input('확인 {}'.format(len(scenarios)))
+see_dir = 'C:/Users/xoxoq/OneDrive/Ipython/handson-gb-main/handson-gb-main/Chapter05/'
+sess = rt.InferenceSession(see_dir +"pipeline_xgboost4_test.onnx")
+#pred_onx = sess.run(None, {"input": X_test1[:5].astype(numpy.float32)}) #Input must be a list of dictionaries or a single numpy array for input 'input'.
+#print("predict", pred_onx[0])
+#print("predict_proba", pred_onx[1][:1])
+
+XGBmodel3 = sess
 
 rv_count = 0
 for ite in exp_range:#range(0, 1):
@@ -175,7 +211,7 @@ for ite in exp_range:#range(0, 1):
         env.process(OrdergeneratorByCSV(env, sc.customer_dir, Orders, Store_dict, Platform2, p2_ratio = customer_p2,rider_speed= rider_speed, unit_fee = unit_fee, fee_type = fee_type, service_time_diff = service_time_diff))
         env.process(Platform_process5(env, Platform2, Orders, Rider_dict, platform_p2,thres_p,interval, bundle_para= sc.platform_recommend, obj_type = sc.obj_type,
                                       search_type = sc.search_type, print_fig = print_fig, bundle_print_fig = bundle_print_fig, bundle_infos = bundle_infos,
-                                      ellipse_w = ellipse_w, heuristic_theta = heuristic_theta,heuristic_r1 = heuristic_r1))
+                                      ellipse_w = ellipse_w, heuristic_theta = heuristic_theta,heuristic_r1 = heuristic_r1,XGBmodel3 = XGBmodel3, XGBmodel2 = None))
         env.run(run_time)
         res = ResultPrint(sc.name + str(ite), Orders, speed=rider_speed, riders = Rider_dict)
         sc.res.append(res)

@@ -6,6 +6,8 @@ import itertools
 from A1_BasicFunc import distance, ActiveRiderCalculator
 from A2_Func import BundleConsist, BundleConsist2
 import math
+import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 
 
@@ -97,7 +99,7 @@ def MIN_OD_pair(orders, q,s,):
 
 #todo: 번들 생성 관련자
 def ConstructFeasibleBundle_TwoSided(target_order, orders, s, p2, thres = 0.05, speed = 1, bundle_permutation_option = False, uncertainty = False,
-                                     platform_exp_error = 1, print_option = True, sort_index = 5, now_t = 0):
+                                     platform_exp_error = 1, print_option = True, sort_index = 5, now_t = 0, XGBoostModel = None, search_type = 'enumerate'):
     """
     Construct s-size bundle pool based on the customer in orders.
     And select n bundle from the pool
@@ -117,6 +119,8 @@ def ConstructFeasibleBundle_TwoSided(target_order, orders, s, p2, thres = 0.05, 
     for customer_name in orders:
         if customer_name != target_order.name and orders[customer_name].time_info[1] == None and orders[customer_name].cancel == False:
             d.append(customer_name)
+    #print(d,s)
+    #input("확인2")
     if len(d) > s - 1:
         M = itertools.permutations(d, s - 1)
         b = []
@@ -131,13 +135,20 @@ def ConstructFeasibleBundle_TwoSided(target_order, orders, s, p2, thres = 0.05, 
                 subset_orders.append(orders[name])
                 time_thres += orders[name].distance/speed
             #input('확인 1 {} : 확인2 {}'.format(subset_orders, time_thres))
-            if thres < 100:
-                tem_route_info = BundleConsist(subset_orders, orders, p2, speed = speed, bundle_permutation_option= bundle_permutation_option, time_thres= time_thres, uncertainty = uncertainty, platform_exp_error = platform_exp_error, feasible_return = True, now_t = now_t)
+            if search_type == 'enumerate':
+                if thres < 100:
+                    tem_route_info = BundleConsist(subset_orders, orders, p2, speed = speed, bundle_permutation_option= bundle_permutation_option, time_thres= time_thres, uncertainty = uncertainty, platform_exp_error = platform_exp_error, feasible_return = True, now_t = now_t)
+                    # ver0: feasible_routes.append([route, round(max(ftds),2), round(sum(ftds)/len(ftds),2), round(min(ftds),2), order_names, round(route_time,2)])
+                else:
+                    tem_route_info = BundleConsist2(subset_orders, orders, p2, speed = speed, bundle_permutation_option= bundle_permutation_option, time_thres= time_thres, uncertainty = uncertainty, platform_exp_error = platform_exp_error, feasible_return = True, now_t = now_t)
+                    # ver1: [route, unsync_t[0], round(sum(ftds) / len(ftds), 2), unsync_t[1], order_names, round(route_time, 2),min(time_buffer), round(P2P_dist - route_time, 2)]
+            elif search_type == 'XGBoost':
+                #dataset 구성
+                tem_route_info = [] #작동하지 않는 기능
+                pass
             else:
-                tem_route_info = BundleConsist2(subset_orders, orders, p2, speed = speed, bundle_permutation_option= bundle_permutation_option, time_thres= time_thres, uncertainty = uncertainty, platform_exp_error = platform_exp_error, feasible_return = True, now_t = now_t)
-            #ver0: feasible_routes.append([route, round(max(ftds),2), round(sum(ftds)/len(ftds),2), round(min(ftds),2), order_names, round(route_time,2)])
-            #ver1: feasible_routes.append([route, unsync_t[0], round(sum(ftds) / len(ftds), 2), unsync_t[1], order_names, round(route_time, 2)])
-            print('계산{} :: {}'.format(q, tem_route_info))
+                input('ConstructFeasibleBundle_TwoSided ERROR')
+            #print('계산{} :: {}'.format(q, tem_route_info))
             if len(tem_route_info) > 0:
                 OD_pair_dist, p2p_dist = MIN_OD_pair(orders, q, s)
                 for info in tem_route_info: #todo: 번들 점수 내는 부분
@@ -149,8 +160,10 @@ def ConstructFeasibleBundle_TwoSided(target_order, orders, s, p2, thres = 0.05, 
         #input('가능 번들 수 {} : 정보 d {} s {}'.format(len(b), d, s))
         comparable_b = []
         if len(b) > 0:
-            sort_index = len(tem_route_info[0])  # 5: route time, 6: s_b
+            #sort_index = len(tem_route_info[0])-1  # 5: route time, 6: s_b
+            sort_index = 5
             #b.sort(key=operator.itemgetter(6))  # s_b 순으로 정렬  #target order를 포함하는 모든 번들에 대해서 s_b를 계산.
+            print('정렬정보',b[0], sort_index)
             b.sort(key=operator.itemgetter(sort_index))
             b_star = b[0][sort_index]
             ave = []
@@ -162,6 +175,88 @@ def ConstructFeasibleBundle_TwoSided(target_order, orders, s, p2, thres = 0.05, 
         return comparable_b
     else:
         return []
+
+
+def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, speed = 1 , bundle_permutation_option = False, uncertainty = False,thres = 1, platform_exp_error = 1):
+    d = []
+    for customer_name in orders:
+        if customer_name != target_order.name and orders[customer_name].time_info[1] == None and orders[customer_name].cancel == False:
+            d.append(customer_name)
+    # 1 : M1의 데이터에 대해서 attribute 계산 후 dataframe으로 만들기
+    print(d)
+    input('XGBoost_Bundle_Construct')
+    if len(d) <= s-1:
+        return []
+    M1 = []
+    input_data = []
+    M2 = itertools.permutations(d, s - 1)
+    for m in M2:
+        q = list(m) + [target_order.name]
+        tem1 = []
+        tem2 = []
+        # OD
+        distOD = []
+        gen_t = []
+        for name in q:
+            ct = orders[name]
+            tem1.append(ct)
+            tem2.append(ct.name)
+            distOD.append(distance(ct.store_loc, ct.location))
+            gen_t.append(ct.time_info[0])
+        M1.append(tem1)
+        eachother = itertools.combinations(q, 2)
+        distS = []
+        distC = []
+        for info in eachother:
+            ct1 = orders[info[0]]
+            ct2 = orders[info[1]]
+            distS.append(distance(ct1.store_loc, ct2.store_loc))
+            distC.append(distance(ct1.location, ct2.location))
+        distOD.sort()
+        distS.sort()
+        distC.sort()
+        gen_t.sort()
+        tem2 += distOD + distS + distC + gen_t
+        input_data.append(tem2)
+    input_data = np.array(input_data)
+    org_df = pd.DataFrame(data=input_data)
+    X_test = org_df.iloc[:,3:]
+    X_test_np = np.array(X_test)
+    print(input_data[:2])
+    print(X_test_np[:2])
+    input('test중')
+    #2 : XGModel에 넣기
+    pred_onx = XGBmodel.run(None, {"input": X_test_np.astype(np.float32)})  # Input must be a list of dictionaries or a single numpy array for input 'input'.
+    print("predict", pred_onx[0])
+    print("predict_proba", pred_onx[1][:1])
+    input('test중2')
+    #y_pred = XGBmodel.predict(X_test)
+    #labeled_org_df = pd.merge(y_pred, org_df, left_index=True, right_index=True)
+    #3 : label이 1인 것에 대해, 경로 만들고 실제 가능 여부 계산
+    constructed_bundles = []
+    count = 0
+    for label in pred_onx[0]:
+        if label == 1:
+            print('라벨',label)
+            if thres < 100 :
+                print('1::',M1[count])
+                tem = BundleConsist(M1[count], orders, p2, speed = speed,
+                                     bundle_permutation_option = bundle_permutation_option, uncertainty = uncertainty, platform_exp_error =  platform_exp_error,
+                                     feasible_return = True, now_t = now_t)
+            else:
+                print('2::',M1[count])
+                print('orders',orders)
+                tem = BundleConsist2(M1[count], orders, p2, speed = speed,
+                                     bundle_permutation_option = bundle_permutation_option, uncertainty = uncertainty, platform_exp_error =  platform_exp_error,
+                                     feasible_return = True, now_t = now_t, max_dist= 100)
+                print(tem)
+            if tem != None or len(tem) > 0:
+                constructed_bundles.append(tem)
+        count += 1
+    print(constructed_bundles)
+    input('확인2')
+    return constructed_bundles
+
 
 def SearchRaidar_heuristic(target, customers, platform, r1 = 10, theta = 90, now_t = 0, print_fig = False):
     """

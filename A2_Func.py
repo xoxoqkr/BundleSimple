@@ -9,7 +9,7 @@ import time
 import matplotlib.pyplot as plt
 import numpy as np
 import random
-from re_platform import Calculate_Phi
+
 
 
 def LamdaMuCalculate(orders, riders, now_t, interval = 5, return_type = 'class'):
@@ -280,7 +280,8 @@ def BundleConsist(orders, customers, p2, time_thres = 0, speed = 1,M = 1000, bun
         return []
 
 
-def BundleConsist2(orders, customers, p2, time_thres = 0, speed = 1,M = 1000, bundle_permutation_option = False, uncertainty = False, platform_exp_error =  1, feasible_return = False, now_t = 0, min_time_buffer = 10):
+def BundleConsist2(orders, customers, p2, time_thres = 0, speed = 1,M = 1000, bundle_permutation_option = False,
+                   uncertainty = False, platform_exp_error =  1, feasible_return = False, now_t = 0, min_time_buffer = 10, max_dist = 15):
     """
     Construct bundle consists of orders
     :param orders: customer order in the route. type: customer class
@@ -297,6 +298,8 @@ def BundleConsist2(orders, customers, p2, time_thres = 0, speed = 1,M = 1000, bu
     for name in order_names:
         store_names.append(name + M)
     candi = order_names + store_names
+    #print(candi)
+    #input('candi check')
     if bundle_permutation_option == False:
         subset = itertools.permutations(candi, len(candi))
     else:
@@ -308,8 +311,8 @@ def BundleConsist2(orders, customers, p2, time_thres = 0, speed = 1,M = 1000, bu
         test_names = itertools.permutations(order_names, 2)
         for names in test_names:
             dist = distance(customers[names[0]].location, customers[names[1]].location)
-            if dist > 15:
-                #print('거리에 의한 종료')
+            if dist > max_dist:
+                print('거리에 의한 종료')
                 return []
         subset = []
         for store in store_subset:
@@ -317,6 +320,8 @@ def BundleConsist2(orders, customers, p2, time_thres = 0, speed = 1,M = 1000, bu
                 tem = store + order
                 subset.append(tem)
         pass
+    #print(subset)
+    #input('경로 확인')
     feasible_subset = []
     for route in subset:
         sequence_feasiblity = True #모든 가게가 고객 보다 앞에 오는 경우.
@@ -335,7 +340,7 @@ def BundleConsist2(orders, customers, p2, time_thres = 0, speed = 1,M = 1000, bu
                 route_time, unsync_t, time_buffer = RouteTime(orders, route, speed=speed, M=M, uncertainty = uncertainty, error = platform_exp_error,
                                                               sync_output_para = True, now_t = now_t, bywho='Platform', time_buffer_para= True)
                 if min(time_buffer) >= min_time_buffer:
-                    tem = [route, unsync_t[0], round(sum(ftds) / len(ftds), 2), unsync_t[1], order_names, round(route_time, 2),min(time_buffer), round(P2P_dist - RouteTime, 2)]
+                    tem = [route, unsync_t[0], round(sum(ftds) / len(ftds), 2), unsync_t[1], order_names, round(route_time, 2),min(time_buffer), round(P2P_dist - route_time, 2)]
                     feasible_subset.append(tem)
     if len(feasible_subset) > 0:
         feasible_subset.sort(key = operator.itemgetter(2))

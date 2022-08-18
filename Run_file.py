@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 #from Simulator_v3 import exp_range
+heuristic_type = 'XGBoost'
 exp_range = [0,2,3,4]*2  #[0,2,3,4] * 2
 rider_list = [10,12]#[5,6,7,8,9]
 start_heads = ['1221_기본거리O_거리할증110원','1221_기본거리X_거리할증110원']
@@ -13,7 +14,7 @@ for fee_type in ['step','linear']:
 
     for rider_num in rider_list:
         #exec(open('Simulator_v3.py', encoding='UTF8').read(),globals().update(instance_type='Instance_random', ellipse_w=10, heuristic_theta=10,heuristic_r1=10, heuristic_type='enumerate', rider_num=rider_num, mix_ratios=None, exp_range = exp_range, unit_fee = unit_fee,fee_type = fee_type, service_time_diff = service_time_diff))
-        exec(open('Simulator_v3.py', encoding='UTF8').read(),globals().update(instance_type='Instance_cluster', ellipse_w=10, heuristic_theta=10, heuristic_r1=10,heuristic_type='enumerate', rider_num=rider_num, mix_ratios=None, exp_range = exp_range, unit_fee = unit_fee,fee_type = fee_type, service_time_diff = service_time_diff))
+        exec(open('Simulator_v3.py', encoding='UTF8').read(),globals().update(instance_type='Instance_cluster', ellipse_w=10, heuristic_theta=10, heuristic_r1=10,heuristic_type=heuristic_type, rider_num=rider_num, mix_ratios=None, exp_range = exp_range, unit_fee = unit_fee,fee_type = fee_type, service_time_diff = service_time_diff))
         #input('결과 확인')
     """
     for heuristic_theta in [110,130,150]:

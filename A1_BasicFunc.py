@@ -45,6 +45,7 @@ def RouteTime(orders, route, M = 1000, speed = 1, uncertainty = False, error = 1
     else:
         input('Error')
     #print('고려 대상들{} 경로{}'.format(list(locs.keys()), route))
+    #print('locs',locs)
     for index in range(1,len(route)):
         bf = route[index-1]
         bf_loc = locs[bf][0]
@@ -90,7 +91,9 @@ def RouteTime(orders, route, M = 1000, speed = 1, uncertainty = False, error = 1
                 #input('작동 확인1')            
             """
         else:
-            time_buffer.append(af_loc[3] - (now_t + time))
+            #print('af_loc',af_loc, locs[af])
+            #time_buffer.append(af_loc[3] - (now_t + time))
+            time_buffer.append(locs[af][3] - (now_t + time))
         #input('작동 확인2')
     if sync_output_para == True:
         if time_buffer_para == True:
@@ -134,13 +137,14 @@ def FLT_Calculate(customer_in_order, customers, route, p2, except_names , M = 10
             try:
                 s = route.index(order_name + M)
                 e = route.index(order_name)
+
                 try:
                     ftd = RouteTime(customer_in_order, route[s: e + 1], speed=speed, M=M, uncertainty=uncertainty, error = exp_error, now_t = now_t)
                 except:
                     ftd = 1000
                     print('경로 {}, s:{}, e :{}'.format(route,s,e))
                     print('경로 시간 계산 에러/ 현재고객 {}/ 경로 고객들 {}'.format(order_name,names))
-                    input('중지')
+                    #input('중지')
             except:
                 ftd = 0
                 print('경로 {}'.format(route))
@@ -353,7 +357,7 @@ def ReadCSV(csv_dir, interval_index = None):
         datas[-1].append(0)
     return datas
 
-def OrdergeneratorByCSV(env, csv_dir, orders, stores, platform = None, p2_ratio = None, rider_speed = 1, unit_fee = 110, fee_type = 'linear', service_time_diff = False):
+def OrdergeneratorByCSV(env, csv_dir, orders, stores, platform = None, p2_ratio = None, rider_speed = 1, unit_fee = 110, fee_type = 'linear', service_time_diff = False, custom_data = None):
     """
     Generate customer order
     :param env: Simpy Env
@@ -364,7 +368,10 @@ def OrdergeneratorByCSV(env, csv_dir, orders, stores, platform = None, p2_ratio 
     :param runtime: 시뮬레이션 동작 시간
     """
     #CSV 파일 읽기
-    datas = ReadCSV(csv_dir, interval_index = 1)
+    if custom_data == None:
+        datas = ReadCSV(csv_dir, interval_index = 1)
+    else:
+        datas = custom_data
     interval_index = len(datas[0]) - 1
     for data in datas:
         #[customer.name, customer.time_info[0], customer.location[0],customer.location[1], customer.store, customer.store_loc[0],customer.store_loc[1], customer.p2, customer.cook_time, customer.cook_info[0], customer.cook_info[1][0], customer.cook_info[1][1]]

@@ -3,7 +3,7 @@ import time
 import math
 from A1_BasicFunc import PrintSearchCandidate
 from A2_Func import CountUnpickedOrders, CalculateRho, RequiredBreakBundleNum, BreakBundle, GenBundleOrder,  LamdaMuCalculate, NewCustomer
-from A3_two_sided import BundleConsideredCustomers, CountActiveRider,  ConstructFeasibleBundle_TwoSided, SearchRaidar_heuristic, SearchRaidar_ellipse, SearchRaidar_ellipseMJ
+from A3_two_sided import BundleConsideredCustomers, CountActiveRider,  ConstructFeasibleBundle_TwoSided, SearchRaidar_heuristic, SearchRaidar_ellipse, SearchRaidar_ellipseMJ, XGBoost_Bundle_Construct
 import operator
 from Bundle_selection_problem import Bundle_selection_problem3, Bundle_selection_problem4
 import numpy
@@ -23,7 +23,8 @@ def distance(p1, p2):
 def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t = 1000,
                       divide_option = False,unserved_bundle_order_break = True, bundle_para = False,
                       delete_para = True, obj_type = 'simple_max_s', search_type = 'enumerate', print_fig = False,
-                      bundle_print_fig = False, bundle_infos = None,ellipse_w = 1.5, heuristic_theta = 100,heuristic_r1 = 10):
+                      bundle_print_fig = False, bundle_infos = None,ellipse_w = 1.5, heuristic_theta = 100,heuristic_r1 = 10,
+                      XGBmodel3 = None, XGBmodel2 = None):
     yield env.timeout(5) #warm-up time
     while env.now <= end_t:
         if bundle_para == True:
@@ -35,7 +36,7 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                 #                                                                                ellipse_w = ellipse_w, heuristic_theta = heuristic_theta,heuristic_r1 = heuristic_r1)
                 feasible_bundle_set, phi_b, d_matrix, s_b, D, lt_matrix = Bundle_Ready_Processs2(env.now, platform, orders, riders, p2, interval,
                                                                                                 speed = riders[0].speed, bundle_permutation_option= True, search_type = search_type, print_fig = print_fig,
-                                                                                                ellipse_w = ellipse_w, heuristic_theta = heuristic_theta,heuristic_r1 = heuristic_r1)
+                                                                                                ellipse_w = ellipse_w, heuristic_theta = heuristic_theta,heuristic_r1 = heuristic_r1, XGBmodel3 = XGBmodel3, XGBmodel2 = XGBmodel2)
 
 
                 print('phi_b {}:{} d_matrix {}:{} s_b {}:{}'.format(len(phi_b), numpy.average(phi_b),
@@ -310,7 +311,7 @@ def Bundle_Ready_Processs(now_t, platform_set, orders, riders, p2,interval, bund
 
 def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bundle_permutation_option = False, speed = 1, min_pr = 0.05,
                       unserved_bundle_order_break = True, considered_customer_type = 'all', search_type = 'enumerate', print_fig = False,
-                          ellipse_w = 1.5, heuristic_theta = 100,heuristic_r1 = 10, min_time_buffer = 5):
+                          ellipse_w = 1.5, heuristic_theta = 100,heuristic_r1 = 10, min_time_buffer = 5, XGBmodel3 = None, XGBmodel2 = None):
     # 번들이 필요한 라이더에게 번들 계산.
     if considered_customer_type == 'new':
         considered_customers_names = NewCustomer(orders, now_t, interval=interval)
@@ -350,14 +351,25 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
             considered_customers = searchRaidarEllipse_C_T
             if print_fig == True:
                 PrintSearchCandidate(target_order, searchRaidarEllipse_C_T, now_t=now_t, titleinfo=search_type)
-        else:
+        elif search_type == 'EllipseMJ':
             searchRaidarEllipseMJ_C_T = SearchRaidar_ellipseMJ(target_order, orders, platform_set, delta=ellipse_w)
             considered_customers = searchRaidarEllipseMJ_C_T
             if print_fig == True:
                 PrintSearchCandidate(target_order, searchRaidarEllipseMJ_C_T, now_t=now_t, titleinfo=search_type)
+        elif search_type == 'XGBoost':
+            enumerate_C_T = BundleConsideredCustomers(target_order, platform_set, riders, orders,
+                                                      bundle_search_variant=unserved_bundle_order_break,
+                                                      d_thres_option=True, speed=speed)
+            considered_customers = enumerate_C_T
         thres = 100
-        size3bundle = ConstructFeasibleBundle_TwoSided(target_order, considered_customers, 3, p2, speed=speed, bundle_permutation_option = bundle_permutation_option, thres= thres, now_t = now_t)
-        size2bundle = ConstructFeasibleBundle_TwoSided(target_order, considered_customers, 2, p2, speed=speed,bundle_permutation_option=bundle_permutation_option , thres= thres, now_t = now_t)
+        if search_type == 'XGBoost':
+            input('XGBoost')
+            size3bundle = XGBoost_Bundle_Construct(target_order, considered_customers, 3, p2, XGBmodel3, now_t = now_t, speed = speed , bundle_permutation_option = bundle_permutation_option, thres = thres)
+            size2bundle = []
+            #size2bundle = XGBoost_Bundle_Construct(target_order, considered_customers, 2, p2, XGBmodel2, now_t = now_t, speed = speed , bundle_permutation_option = bundle_permutation_option, thres = thres)
+        else:
+            size3bundle = ConstructFeasibleBundle_TwoSided(target_order, considered_customers, 3, p2, speed=speed, bundle_permutation_option = bundle_permutation_option, thres= thres, now_t = now_t)
+            size2bundle = ConstructFeasibleBundle_TwoSided(target_order, considered_customers, 2, p2, speed=speed,bundle_permutation_option=bundle_permutation_option , thres= thres, now_t = now_t)
         max_index = 100
         tem_infos = []
         try:
