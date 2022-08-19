@@ -20,6 +20,8 @@ heuristic_theta = 10
 heuristic_r1 = 10
 ellipse_w = 10
 speed = 3
+rider_p2 = 2 #1.5
+platform_p2 = rider_p2*0.8
 Saved_data = []
 DummyB2 = []
 DummyB3 = []
@@ -36,15 +38,20 @@ for data in stores:
     store = Store(env, Platform_dict, name, loc=loc, order_ready_time=order_ready_time, capacity=capacity, print_para=False, slack = slack)
     Store_dict[name] = store
 
-env.process(OrdergeneratorByCSV(env, test1, Orders, Store_dict, Platform_dict, custom_data=orders))
+env.process(OrdergeneratorByCSV(env, test1, Orders, Store_dict, Platform_dict, custom_data=orders, p2_ratio=1, rider_speed=3))
 
 #2번들을 탐색하는 과정
-env.process(BundleProcess(env, Orders,Platform_dict, heuristic_theta, heuristic_r1,ellipse_w,1.6,bundle_size=[3], bundle_permutation_option = True, speed = speed, Data = Saved_data, DummyB2_data = DummyB2, DummyB3_data = DummyB3))
+env.process(BundleProcess(env, Orders,Platform_dict, heuristic_theta, heuristic_r1,ellipse_w,platform_p2,bundle_permutation_option = True, bundle_size=[3], speed = speed, Data = Saved_data, DummyB2_data = DummyB2, DummyB3_data = DummyB3))
 
 env.run(200)
 print(len(Orders))
+print('Name :: dist :: p2 :: ratio')
+for ct_num in Orders:
+    ct = Orders[ct_num]
+    print(ct_num, '::',distance(ct.location, ct.store_loc), '::',ct.p2,'::',distance(ct.location, ct.store_loc) / ct.p2)
+#input('STOP')
 order_np = np.array(orders, dtype=np.float64)
-np.save('./GXBoost/'+save_id+'saved_orders', order_np)
+np.save('./GXBoost3/'+save_id+'saved_orders', order_np)
 #Feature saved Part
 label_datas = []
 count = 0

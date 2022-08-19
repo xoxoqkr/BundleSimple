@@ -42,7 +42,7 @@ ellipse_w=10
 heuristic_theta=10
 heuristic_r1=10
 heuristic_type = 'XGBoost'
-rider_num= 10
+rider_num= 0
 mix_ratios=None
 exp_range = [0,2,3,4]*2
 unit_fee = 110
@@ -209,9 +209,9 @@ for ite in exp_range:#range(0, 1):
                                         platform_recommend = sc.platform_recommend, input_order_select_type = order_select_type, bundle_construct= sc.rider_bundle_construct,
                                         rider_num = rider_num, lamda_list=lamda_list, p2 = rider_p2, rider_select_print_fig = rider_select_print_fig,ite = rv_count, mix_ratio = sc.mix_ratio))
         env.process(OrdergeneratorByCSV(env, sc.customer_dir, Orders, Store_dict, Platform2, p2_ratio = customer_p2,rider_speed= rider_speed, unit_fee = unit_fee, fee_type = fee_type, service_time_diff = service_time_diff))
-        env.process(Platform_process5(env, Platform2, Orders, Rider_dict, platform_p2,thres_p,interval, bundle_para= sc.platform_recommend, obj_type = sc.obj_type,
-                                      search_type = sc.search_type, print_fig = print_fig, bundle_print_fig = bundle_print_fig, bundle_infos = bundle_infos,
-                                      ellipse_w = ellipse_w, heuristic_theta = heuristic_theta,heuristic_r1 = heuristic_r1,XGBmodel3 = XGBmodel3, XGBmodel2 = None))
+        #env.process(Platform_process5(env, Platform2, Orders, Rider_dict, platform_p2,thres_p,interval, bundle_para= sc.platform_recommend, obj_type = sc.obj_type,
+        #                              search_type = sc.search_type, print_fig = print_fig, bundle_print_fig = bundle_print_fig, bundle_infos = bundle_infos,
+        #                              ellipse_w = ellipse_w, heuristic_theta = heuristic_theta,heuristic_r1 = heuristic_r1,XGBmodel3 = XGBmodel3, XGBmodel2 = None))
         env.run(run_time)
         res = ResultPrint(sc.name + str(ite), Orders, speed=rider_speed, riders = Rider_dict)
         sc.res.append(res)
@@ -222,6 +222,14 @@ for ite in exp_range:#range(0, 1):
         sc.bundle_snapshots['size'] += bundle_infos['size']
         sc.bundle_snapshots['length'] += bundle_infos['length']
         sc.bundle_snapshots['od'] += bundle_infos['od']
+
+        print('Name :: dist :: p2 :: ratio')
+        for ct_num in Orders:
+            ct = Orders[ct_num]
+            print(ct_num, '::', distance(ct.location, ct.store_loc), '::', ct.p2, '::',
+                  distance(ct.location, ct.store_loc) / ct.p2)
+        input('확인')
+
         #저장 부
         res = []
         wait_time = 0

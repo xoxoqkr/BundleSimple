@@ -184,7 +184,7 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
             d.append(customer_name)
     # 1 : M1의 데이터에 대해서 attribute 계산 후 dataframe으로 만들기
     print(d)
-    input('XGBoost_Bundle_Construct')
+    #input('XGBoost_Bundle_Construct')
     if len(d) <= s-1:
         return []
     M1 = []
@@ -224,12 +224,12 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
     X_test_np = np.array(X_test)
     print(input_data[:2])
     print(X_test_np[:2])
-    input('test중')
+    #input('test중')
     #2 : XGModel에 넣기
     pred_onx = XGBmodel.run(None, {"input": X_test_np.astype(np.float32)})  # Input must be a list of dictionaries or a single numpy array for input 'input'.
     print("predict", pred_onx[0])
     print("predict_proba", pred_onx[1][:1])
-    input('test중2')
+    #input('test중2')
     #y_pred = XGBmodel.predict(X_test)
     #labeled_org_df = pd.merge(y_pred, org_df, left_index=True, right_index=True)
     #3 : label이 1인 것에 대해, 경로 만들고 실제 가능 여부 계산
@@ -246,15 +246,19 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
             else:
                 print('2::',M1[count])
                 print('orders',orders)
+                print('ct# :: store_loc :: ct_loc')
+                for count1 in range(len(M1[count])):
+                    print(M1[count][count1].name,'::',M1[count][count1].store_loc,'::',M1[count][count1].location)
                 tem = BundleConsist2(M1[count], orders, p2, speed = speed,
                                      bundle_permutation_option = bundle_permutation_option, uncertainty = uncertainty, platform_exp_error =  platform_exp_error,
                                      feasible_return = True, now_t = now_t, max_dist= 100)
                 print(tem)
-            if tem != None or len(tem) > 0:
+            if len(tem) > 0:
                 constructed_bundles.append(tem)
         count += 1
-    print(constructed_bundles)
-    input('확인2')
+    if sum(pred_onx[0]) > 0:
+        print(constructed_bundles)
+        input('확인2')
     return constructed_bundles
 
 

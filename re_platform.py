@@ -363,7 +363,7 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
             considered_customers = enumerate_C_T
         thres = 100
         if search_type == 'XGBoost':
-            input('XGBoost')
+            #input('XGBoost')
             size3bundle = XGBoost_Bundle_Construct(target_order, considered_customers, 3, p2, XGBmodel3, now_t = now_t, speed = speed , bundle_permutation_option = bundle_permutation_option, thres = thres)
             size2bundle = []
             #size2bundle = XGBoost_Bundle_Construct(target_order, considered_customers, 2, p2, XGBmodel2, now_t = now_t, speed = speed , bundle_permutation_option = bundle_permutation_option, thres = thres)

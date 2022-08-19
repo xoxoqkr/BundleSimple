@@ -153,6 +153,7 @@ def FLT_Calculate(customer_in_order, customers, route, p2, except_names , M = 10
             #s = route.index(order_name + M)
             #e = route.index(order_name)
             if ftd > rev_p2:
+                print('시간 비교',customers[order_name].p2,ftd, rev_p2)
                 if time_buffer_para == True:
                     return False, [], time_buffer
                 else:
@@ -383,7 +384,13 @@ def OrdergeneratorByCSV(env, csv_dir, orders, stores, platform = None, p2_ratio 
         if p2_ratio == None:
             p2 = data[7]
         else:
-            p2 = (data[7]/rider_speed)*p2_ratio
+            #p2 = (data[7] / rider_speed) * p2_ratio
+            OD_dist = distance(input_location,store_loc)
+            if abs(distance(input_location,store_loc) - data[7]) > 0.5:
+                p2 = (OD_dist/rider_speed)*p2_ratio
+            else:
+                p2 = (data[7]/rider_speed)*p2_ratio
+            print('data체크',data[0],data[7],OD_dist,rider_speed,p2_ratio)
         #input('거리 {} / 생성 p2 {}/ 라이더 스피드{} / p2% {}'.format(distance(input_location, store_loc),p2, rider_speed, p2_ratio))
         cook_time = data[8]
         cook_time_type = data[9]
