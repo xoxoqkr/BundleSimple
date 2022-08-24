@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 #from scipy.stats import poisson
-from A1_BasicFunc import RouteTime, distance, FLT_Calculate
+from A1_BasicFunc import RouteTime, distance, FLT_Calculate, counter
 import operator
 import itertools
 import re_A1_class as A1_Class
@@ -212,6 +212,7 @@ def BundleConsist(orders, customers, p2, time_thres = 0, speed = 1,M = 1000, bun
     :param speed: rider speed
     :return: feasible route
     """
+    counter('bundle_consist')
     order_names = [] #가게 이름?
     for order in orders:
         order_names.append(order.name)
@@ -291,6 +292,7 @@ def BundleConsist2(orders, customers, p2, time_thres = 0, speed = 1,M = 1000, bu
     :param speed: rider speed
     :return: feasible route
     """
+    counter('bundle_consist2')
     order_names = [] #가게 이름?
     for order in orders:
         order_names.append(order.name)

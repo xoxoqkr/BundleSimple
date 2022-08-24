@@ -172,15 +172,78 @@ def BundleFeaturesCalculator(customer_data, names_set, label = 0):
         gen_t = []
         for name in names:
             gen_t.append(customer_data[int(name)][1])
+        # service_times
+        #ser_t = []
+        #for name in names:
+        #    ser_t.append(customer_data[int(name)][12])
+        #service_times
+        ser_t = []
+        for name in names:
+            ser_t.append(customer_data[int(name)][12])
         #print('확인',distOD,distS,distS,gen_t)
         tem = list(copy.deepcopy(names))
         tem += sorted(distOD)
         tem += sorted(distS)
         tem += sorted(distC)
         tem += sorted(gen_t)
+        #tem += sorted(cook_t)
+        tem += sorted(ser_t)
         tem += [label]
         datas.append(tem)
     return datas
+
+def BundleFeaturesCalculator2(customer_data, names_set, label = 0):
+    #INPUT : 번들 고객
+    #OUTPUT : 번들, 번들 Features
+    datas = []
+    used_names = []
+    for names in names_set:
+        if list(names) in used_names:
+            continue
+        used_names.append(list(names))
+        if len(names) > 3:
+            print(names)
+            input('중지')
+        #Dist_Feature
+        distOD = []
+        for name in names:
+            #print('name', name)
+            #print(customer_data[name])
+            #input('확인')
+            distOD.append(distance(customer_data[int(name)].location,customer_data[int(name)].store_loc))
+        eachother = itertools.combinations(names,2)
+        distS = []
+        distC = []
+        for info in eachother:
+            distS.append(distance(customer_data[int(info[0])].location,customer_data[int(info[1])].location))
+            distC.append(distance(customer_data[int(info[0])].store_loc, customer_data[int(info[1])].store_loc))
+        #Times_Feature
+        gen_t = []
+        for name in names:
+            gen_t.append(customer_data[int(name)].name)
+        # cook_times
+        cook_t = []
+        for name in names:
+            cook_t.append(customer_data[int(name)].time_info[6])
+        #service_times
+        ser_t = []
+        for name in names:
+            ser_t.append(customer_data[int(name)].time_info[7])
+        #print('확인',distOD,distS,distS,gen_t)
+        tem = list(copy.deepcopy(names))
+        tem += sorted(distOD)
+        tem += sorted(distS)
+        tem += sorted(distC)
+        tem += sorted(gen_t)
+        #tem += sorted(cook_t)
+        tem += sorted(ser_t)
+        tem += [label]
+        datas.append(tem)
+    return datas
+
+
+
+
 
 def ObjectGenerator(dir, coor_random= False):
     #dir을 받아서, object 생성
@@ -207,7 +270,34 @@ def ObjectGenerator(dir, coor_random= False):
     f.close()
     return basket
 
-def OrderGen(store_dir, customer_dir, store_size = 100, customer_size = 1000, order_size = 1000, coor_random= False):
+
+def ObjectGenerator2(dir, coor_random= False):
+    #dir을 받아서, object 생성
+    #INPUT : dir
+    #OUTPUT : object list
+    basket = []
+    f = open(dir, 'r')
+    lines = f.readlines()
+    count = 0
+    for line in lines[1:]:
+        info = line.split(';')
+        #print(info)
+        #info = info.split(',')
+        index = int(info[0])
+        if coor_random == False:
+            x = float(info[2].split(',')[0][1:])
+            y = float(info[2].split(',')[1][:-1])
+        else:
+            x = random.choice(range(0,50)) + round(random.random(),2)
+            y = random.choice(range(0,50)) + round(random.random(),2)
+        basket.append([count, index, x,y, int(info[1]), int(info[3])])
+        #print(basket[-1])
+        count += 1
+    f.close()
+    return basket
+
+
+def OrderGen(store_dir, customer_dir, store_size = 100, customer_size = 1000, order_size = 1000, coor_random= False, input_data = None):
     #store dir, customer_dir을 받아서,order 생성
     #INPUT : dir1, dir2, size
     #OUTPUT : order list, stores, customers
@@ -220,8 +310,9 @@ def OrderGen(store_dir, customer_dir, store_size = 100, customer_size = 1000, or
         customer = random.choice(customers)
         t += random.randrange(1,5)
         try:
-            order = [count,t , float(customer[2]), float(customer[3]),int(store[0]),float(store[2]),float(store[3]), 10, 7,0,7,1]
-            order.append(random.randrange(1, 5))  # interval
+            order = [count,t , float(customer[2]), float(customer[3]),int(store[0]),float(store[2]),float(store[3]), 10, 7,0,1,7]
+            order.append(random.randrange(4,9))  # service_times
+            order.append(random.randrange(2, 4))  #interval
             orders.append(order)
         except:
             print(store)

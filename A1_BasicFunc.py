@@ -15,9 +15,19 @@ def distance(p1, p2):
     :param p2:
     :return: 4 digit rounded euclidean distance between p1 and p2
     """
+    counter('distance')
     euc_dist = math.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
     return round(euc_dist,4)
 
+def counter(func_name):
+    if func_name == 'distance':
+        counter.dist += 1
+    elif func_name == 'bundle_consist':
+        counter.bundle_consist += 1
+    elif func_name == 'bundle_consist2':
+        counter.bundle_consist2 += 1
+    else:
+        pass
 
 def RouteTime(orders, route, M = 1000, speed = 1, uncertainty = False, error = 1, sync_output_para= False, now_t = 0, bywho = 'Rider', time_buffer_para = False):
     """
@@ -358,7 +368,7 @@ def ReadCSV(csv_dir, interval_index = None):
         datas[-1].append(0)
     return datas
 
-def OrdergeneratorByCSV(env, csv_dir, orders, stores, platform = None, p2_ratio = None, rider_speed = 1, unit_fee = 110, fee_type = 'linear', service_time_diff = False, custom_data = None):
+def OrdergeneratorByCSV(env, csv_dir, orders, stores, platform = None, p2_ratio = None, rider_speed = 1, unit_fee = 110, fee_type = 'linear', service_time_diff = False, custom_data = None, shuffle = False):
     """
     Generate customer order
     :param env: Simpy Env
@@ -374,9 +384,15 @@ def OrdergeneratorByCSV(env, csv_dir, orders, stores, platform = None, p2_ratio 
     else:
         datas = custom_data
     interval_index = len(datas[0]) - 1
+    if shuffle == True:
+        random.shuffle(datas)
+    count = 0
     for data in datas:
         #[customer.name, customer.time_info[0], customer.location[0],customer.location[1], customer.store, customer.store_loc[0],customer.store_loc[1], customer.p2, customer.cook_time, customer.cook_info[0], customer.cook_info[1][0], customer.cook_info[1][1]]
-        name = data[0]
+        if shuffle == True:
+            name = count
+        else:
+            name = data[0]
         gen_t = data[1]
         input_location = [data[2],data[3]]
         store_num = data[4]
@@ -391,6 +407,7 @@ def OrdergeneratorByCSV(env, csv_dir, orders, stores, platform = None, p2_ratio 
             else:
                 p2 = (data[7]/rider_speed)*p2_ratio
             print('data체크',data[0],data[7],OD_dist,rider_speed,p2_ratio)
+        count += 1
         #input('거리 {} / 생성 p2 {}/ 라이더 스피드{} / p2% {}'.format(distance(input_location, store_loc),p2, rider_speed, p2_ratio))
         cook_time = data[8]
         cook_time_type = data[9]
@@ -408,7 +425,13 @@ def OrdergeneratorByCSV(env, csv_dir, orders, stores, platform = None, p2_ratio 
         stores[store_num].received_orders.append(orders[name])
         interval = data[interval_index]
         if service_time_diff == True:
-            order.time_info[7] = int(data[12]/2) #서비스 시간에 서로 다른 값을 넣기.
+            try:
+                order.time_info[7] = int(data[12]/2) #서비스 시간에 서로 다른 값을 넣기.
+            except:
+                interval = random.randint(1, 4)
+                print('gen error',data[12])
+        if shuffle == True:
+            interval = random.randint(1,4)
         #todo : 0317 지연되는 조건 생각할 것.
         if interval > 0:
             yield env.timeout(interval)
@@ -673,3 +696,4 @@ def PrintSearchCandidate(target_customer, res_C_T, now_t = 0, titleinfo = 'None'
         plt.show()
         plt.close()
         #input('그림 확인')
+

@@ -912,6 +912,7 @@ class scenario(object):
         self.durations = []
         self.bundle_snapshots = {'size': [],'length':[],'od':[]}
         self.mix_ratio = None
+        self.countf = [0,0,0]
 
 def WaitTimeCal1(exp_store_arrive_t, assign_t, exp_cook_time, cook_time, move_t = 0):
     exp_food_ready_t = assign_t + exp_cook_time
