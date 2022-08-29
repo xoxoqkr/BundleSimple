@@ -314,7 +314,7 @@ def BundleConsist2(orders, customers, p2, time_thres = 0, speed = 1,M = 1000, bu
         for names in test_names:
             dist = distance(customers[names[0]].location, customers[names[1]].location)
             if dist > max_dist:
-                print('거리에 의한 종료')
+                #print('거리에 의한 종료')
                 return []
         subset = []
         for store in store_subset:
@@ -352,6 +352,7 @@ def BundleConsist2(orders, customers, p2, time_thres = 0, speed = 1,M = 1000, bu
     if len(feasible_subset) > 0:
         feasible_subset.sort(key = operator.itemgetter(2))
         if feasible_return == True:
+            print('반환 번들 수',len(feasible_subset), feasible_subset[:5])
             return feasible_subset
         else:
             return feasible_subset[0]

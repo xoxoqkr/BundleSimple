@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import time
 import math
-from A1_BasicFunc import PrintSearchCandidate
+from A1_BasicFunc import PrintSearchCandidate, check_list
 from A2_Func import CountUnpickedOrders, CalculateRho, RequiredBreakBundleNum, BreakBundle, GenBundleOrder,  LamdaMuCalculate, NewCustomer
 from A3_two_sided import BundleConsideredCustomers, CountActiveRider,  ConstructFeasibleBundle_TwoSided, SearchRaidar_heuristic, SearchRaidar_ellipse, SearchRaidar_ellipseMJ, XGBoost_Bundle_Construct
 import operator
@@ -365,13 +365,29 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
         if search_type == 'XGBoost':
             #input('XGBoost')
             size3bundle = XGBoost_Bundle_Construct(target_order, considered_customers, 3, p2, XGBmodel3, now_t = now_t, speed = speed , bundle_permutation_option = bundle_permutation_option, thres = thres)
-            size2bundle = []
+            size2bundle = XGBoost_Bundle_Construct(target_order, considered_customers, 2, p2, XGBmodel2, now_t = now_t, speed = speed , bundle_permutation_option = bundle_permutation_option, thres = thres)
             #size2bundle = XGBoost_Bundle_Construct(target_order, considered_customers, 2, p2, XGBmodel2, now_t = now_t, speed = speed , bundle_permutation_option = bundle_permutation_option, thres = thres)
         else:
             size3bundle = ConstructFeasibleBundle_TwoSided(target_order, considered_customers, 3, p2, speed=speed, bundle_permutation_option = bundle_permutation_option, thres= thres, now_t = now_t)
             size2bundle = ConstructFeasibleBundle_TwoSided(target_order, considered_customers, 2, p2, speed=speed,bundle_permutation_option=bundle_permutation_option , thres= thres, now_t = now_t)
+        ##번들 내용물 확인 필요
+        b_count = 2
+        for b_infos in [size2bundle, size3bundle]:
+            if len(b_infos) == 0:
+                continue
+            for info in b_infos:
+                print(b_infos)
+                print(info)
+                input('촏차')
+                coord = []
+                for ct_name in info[0][4]:
+                    coord += [orders[ct_name].store_loc]
+                    coord += [orders[ct_name].location]
+                check_list('b'+str(b_count),info + coord)
+            b_count += 1
         max_index = 100
         tem_infos = []
+        print('bundle_size', len(size3bundle),len(size2bundle))
         try:
             size3bundle.sort(key=operator.itemgetter(6))
             for info in size3bundle[:max_index]:
@@ -418,15 +434,34 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
     #3 s_b계산 #파레토 계산으로 대체
     s_matrix = numpy.zeros((len(Feasible_bundle_set), 1))
     count1 = 0
+    print('FS',Feasible_bundle_set)
     for info in Feasible_bundle_set:
-        if min(info[6]) >= min_time_buffer:
-            count2 = 0
-            for info1 in Feasible_bundle_set:
-                if info == info1:
-                    continue
-                if phi_b[count1] > phi_b[count2] and info[7] > info1[7]:
-                    s_matrix[count1]+= 1
-                count2 += 1
+        try:
+            """
+            val = 0
+            if type(info[6]) == float or  type(info[6]) == int:
+                val = info[6]
+            elif type(info[6]) == list:
+                val = min(info[6])
+            else:
+                print(type(info[6]))
+                input('Feasible_bundle_set INFO ERROR')
+            """
+            try:
+                val = min(info[6])
+            except:
+                val = info[6]
+            if val >= min_time_buffer:
+                count2 = 0
+                for info1 in Feasible_bundle_set:
+                    if info == info1:
+                        continue
+                    if phi_b[count1] > phi_b[count2] and info[7] > info1[7]:
+                        s_matrix[count1]+= 1
+                    count2 += 1
+        except:
+            print(info)
+            input('info 에러')
         count1 += 1
     #4 D 계산
     D = []

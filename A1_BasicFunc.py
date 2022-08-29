@@ -29,6 +29,16 @@ def counter(func_name):
     else:
         pass
 
+
+def check_list(b_type, element):
+    if b_type == 'b2':
+        check_list.b2.append(element)
+    elif b_type == 'b3':
+        check_list.b3.append(element)
+    else:
+        pass
+
+
 def RouteTime(orders, route, M = 1000, speed = 1, uncertainty = False, error = 1, sync_output_para= False, now_t = 0, bywho = 'Rider', time_buffer_para = False):
     """
     Time to move the route with speed
@@ -163,7 +173,7 @@ def FLT_Calculate(customer_in_order, customers, route, p2, except_names , M = 10
             #s = route.index(order_name + M)
             #e = route.index(order_name)
             if ftd > rev_p2:
-                print('시간 비교',customers[order_name].p2,ftd, rev_p2)
+                #print('시간 비교',customers[order_name].p2,ftd, rev_p2)
                 if time_buffer_para == True:
                     return False, [], time_buffer
                 else:

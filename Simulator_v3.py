@@ -10,15 +10,15 @@ import numpy as np
 import simpy
 import random
 from re_A1_class import scenario,Platform_pool
-from A1_BasicFunc import ResultSave, GenerateStoreByCSV, RiderGeneratorByCSV, OrdergeneratorByCSV, distance, counter
+from A1_BasicFunc import ResultSave, GenerateStoreByCSV, RiderGeneratorByCSV, OrdergeneratorByCSV, distance, counter, check_list
 from A2_Func import ResultPrint
 from re_platform import Platform_process5,Rider_Bundle_plt
 from datetime import datetime
-import onnxmltools
+#import onnxmltools
 from onnxmltools.convert.xgboost.operator_converters.XGBoost import convert_xgboost  # noqa
-import onnxmltools.convert.common.data_types
+#import onnxmltools.convert.common.data_types
 import onnxruntime as rt
-from skl2onnx import convert_sklearn, update_registered_converter
+#from skl2onnx import convert_sklearn, update_registered_converter
 from skl2onnx.common.shape_calculator import calculate_linear_classifier_output_shapes  # noqa
 """
 #global variable
@@ -37,14 +37,14 @@ global service_time_diff
 """
 
 
-instance_type ='Instance_random'
+instance_type = 'Instance_cluster' #'Instance_random' 'Instance_cluster'
 ellipse_w=10
 heuristic_theta=10
 heuristic_r1=10
-heuristic_type = 'XGBoost'
-rider_num= 0
+heuristic_type = 'XGBoost'#'XGBoost'
+rider_num= 8
 mix_ratios=None
-exp_range = [0,2,3,4]*2
+exp_range = [0]
 unit_fee = 110
 fee_type = 'linear'
 service_time_diff = True
@@ -76,7 +76,7 @@ store_max_range = 30
 divide_option = True  # True : 구성된 번들에 속한 고객들을 다시 개별 고객으로 나눔. False: 번들로 구성된 고객들은 번들로만 구성
 p2_set = True
 rider_p2 = 2 #1.5
-platform_p2 = rider_p2*0.8  #1.3 p2_set이 False인 경우에는 p2만큼의 시간이 p2로 고정됨. #p2_set이 True인 경우에는 p2*dis(가게,고객)/speed 만큼이 p2시간으로 설정됨.
+platform_p2 = 2 # rider_p2*0.8  #1.3 p2_set이 False인 경우에는 p2만큼의 시간이 p2로 고정됨. #p2_set이 True인 경우에는 p2*dis(가게,고객)/speed 만큼이 p2시간으로 설정됨.
 customer_p2 = 1 #2
 obj_types = ['simple_max_s'] #['simple_max_s', 'max_s+probability', 'simple_over_lt','over_lt+probability'] #todo : 0317_수정본. min_pr을 무의미한 제약식으로 설정
 # order_p2 = [[1.5,2,3],[0.3,0.3,0.4]] #음식 별로 민감도가 차이남.
@@ -156,6 +156,8 @@ for sc3 in scenarios:
     sc3.platform_recommend = True
     sc3.rider_bundle_construct = False
     print(sc3.platform_recommend, sc3.rider_bundle_construct,sc3.obj_type, sc3.search_type)
+scenarios = scenarios[:1]
+print(scenarios)
 input('시나리오 확인')
 
 #exp_range = [0,2,3,4]*10 #인스턴스 1에러가 있음.
@@ -164,13 +166,24 @@ input('시나리오 확인')
 #input('instance_type {} '.format(instance_type))
 #search_type = 'heuristic'
 #input('확인 {}'.format(len(scenarios)))
-see_dir = 'C:/Users/xoxoq/OneDrive/Ipython/handson-gb-main/handson-gb-main/Chapter05/'
-sess = rt.InferenceSession(see_dir +"pipeline_xgboost4_test.onnx")
-#pred_onx = sess.run(None, {"input": X_test1[:5].astype(numpy.float32)}) #Input must be a list of dictionaries or a single numpy array for input 'input'.
-#print("predict", pred_onx[0])
-#print("predict_proba", pred_onx[1][:1])
+if heuristic_type == 'XGBoost':
+    see_dir = 'C:/Users/xoxoq/OneDrive/Ipython/handson-gb-main/handson-gb-main/Chapter05/'
+    if instance_type == 'Instance_random':
+        sess3 = rt.InferenceSession(see_dir +"pipeline_xgboost2_r_3.onnx")
+        sees2 = rt.InferenceSession(see_dir +"pipeline_xgboost2_r_2_ver3.onnx")
+    else:
+        sess3 = rt.InferenceSession(see_dir +"pipeline_xgboost2_c_3_ver1.onnx")
+        sees2 = rt.InferenceSession(see_dir +"pipeline_xgboost2_c_2_ver1.onnx")
+    #pred_onx = sess.run(None, {"input": X_test1[:5].astype(numpy.float32)}) #Input must be a list of dictionaries or a single numpy array for input 'input'.
+    #print("predict", pred_onx[0])
+    #print("predict_proba", pred_onx[1][:1])
 
-XGBmodel3 = sess
+    XGBmodel3 = sess3
+    XGBmodel2 = sees2
+else:
+    XGBmodel3 = None
+    XGBmodel2 = None
+
 
 rv_count = 0
 for ite in exp_range:#range(0, 1):
@@ -189,6 +202,8 @@ for ite in exp_range:#range(0, 1):
         counter.dist = 0
         counter.bundle_consist = 0
         counter.bundle_consist2 = 0
+        check_list.b2 = []
+        check_list.b3 = []
         ##counter 정의
 
         bundle_infos = {'size': [],'length':[],'od':[]}
@@ -215,7 +230,7 @@ for ite in exp_range:#range(0, 1):
         env.process(OrdergeneratorByCSV(env, sc.customer_dir, Orders, Store_dict, Platform2, p2_ratio = customer_p2,rider_speed= rider_speed, unit_fee = unit_fee, fee_type = fee_type, service_time_diff = service_time_diff))
         env.process(Platform_process5(env, Platform2, Orders, Rider_dict, platform_p2,thres_p,interval, bundle_para= sc.platform_recommend, obj_type = sc.obj_type,
                                       search_type = sc.search_type, print_fig = print_fig, bundle_print_fig = bundle_print_fig, bundle_infos = bundle_infos,
-                                      ellipse_w = ellipse_w, heuristic_theta = heuristic_theta,heuristic_r1 = heuristic_r1,XGBmodel3 = XGBmodel3, XGBmodel2 = None))
+                                      ellipse_w = ellipse_w, heuristic_theta = heuristic_theta,heuristic_r1 = heuristic_r1,XGBmodel3 = XGBmodel3, XGBmodel2 = XGBmodel2))
         env.run(run_time)
         res = ResultPrint(sc.name + str(ite), Orders, speed=rider_speed, riders = Rider_dict)
         sc.res.append(res)
@@ -234,7 +249,7 @@ for ite in exp_range:#range(0, 1):
             ct = Orders[ct_num]
             print(ct_num, '::', distance(ct.location, ct.store_loc), '::', ct.p2, '::',
                   distance(ct.location, ct.store_loc) / ct.p2)
-        input('확인')
+        #input('확인')
 
         #저장 부
         res = []
@@ -417,8 +432,19 @@ for ite in exp_range:#range(0, 1):
         name = 'FLT_ratio_ITE{};ID{}'.format(ite, random.random())
         plt.savefig('Figure/' + name+'.png', dpi=1000)
         plt.close()
+    ##b2번들 확인
+    b_count = 2
+    for b_infos in [check_list.b2, check_list.b3]:
+        f = open("번들 저장.txt", 'a')
+        f.write('Start;'+str(instance_type) +';'+ str(heuristic_type) +';'+ str(b_count)+ '\n')
+        for info in b_infos:
+            con = '{};{};'.format(info[0],info[-1])
+            f.write(con + '\n')
+        f.close()
+        b_count += 1
 
 
+#input('테스트 종료')
 for sc in scenarios:
     count = 1
     for res_info in sc.res:
@@ -470,7 +496,7 @@ for sc in scenarios:
         f3.write(head + '\n')
     ave_duration = sum(sc.durations)/len(sc.durations)
     try:
-        tem_data = '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};'.format(
+        tem_data = '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};'.format(
                 instance_type , str(sc.name[0]),sc.search_type, ave_duration,sc.platform_recommend,sc.rider_bundle_construct,rider_num,sc.obj_type, res_info[0],res_info[1],
                 res_info[2], res_info[3], res_info[4], res_info[5], res_info[6], res_info[7], res_info[8],res_info[9],res_info[10],res_info[11],res_info[12],res_info[13],
             res_info[14], res_info[15], res_info[16],res_info[17], res_info[18], res_info[19],res_info[20],res_info[21],res_info[22],res_info[23], res_info[24],res_info[25],

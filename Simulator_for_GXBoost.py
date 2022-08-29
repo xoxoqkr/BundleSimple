@@ -13,7 +13,7 @@ global instance_type
 
 #gen_B_size = 3
 #instance_type = 'Instance_random'
-test_run_time = 100
+test_run_time = 200
 
 ##count 확인
 counter.dist = 0

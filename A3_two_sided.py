@@ -197,12 +197,14 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
         # OD
         distOD = []
         gen_t = []
+        ser_t = []
         for name in q:
             ct = orders[name]
             tem1.append(ct)
             tem2.append(ct.name)
             distOD.append(distance(ct.store_loc, ct.location))
             gen_t.append(ct.time_info[0])
+            ser_t.append(ct.time_info[7])
         M1.append(tem1)
         eachother = itertools.combinations(q, 2)
         distS = []
@@ -216,17 +218,18 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
         distS.sort()
         distC.sort()
         gen_t.sort()
-        tem2 += distOD + distS + distC + gen_t
+        ser_t.sort()
+        tem2 += distOD + distS + distC + gen_t + ser_t
         input_data.append(tem2)
     input_data = np.array(input_data)
     org_df = pd.DataFrame(data=input_data)
-    X_test = org_df.iloc[:,3:]
+    X_test = org_df.iloc[:,s:] #탐색 번들에 따라, 다른 index 시작 지점을 가짐.
     X_test_np = np.array(X_test)
     print(input_data[:2])
     print(X_test_np[:2])
     #input('test중')
     #2 : XGModel에 넣기
-    pred_onx = XGBmodel.run(None, {"input": X_test_np.astype(np.float32)})  # Input must be a list of dictionaries or a single numpy array for input 'input'.
+    pred_onx = XGBmodel.run(None, {"feature_input": X_test_np.astype(np.float32)})  # Input must be a list of dictionaries or a single numpy array for input 'input'.
     print("predict", pred_onx[0])
     print("predict_proba", pred_onx[1][:1])
     #input('test중2')
@@ -258,7 +261,7 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
         count += 1
     if sum(pred_onx[0]) > 0:
         print(constructed_bundles)
-        input('확인2')
+        #input('확인2')
     return constructed_bundles
 
 
