@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 import time
 import math
-from A1_BasicFunc import PrintSearchCandidate, check_list
+from datetime import datetime
+from A1_BasicFunc import PrintSearchCandidate, check_list, t_counter
 from A2_Func import CountUnpickedOrders, CalculateRho, RequiredBreakBundleNum, BreakBundle, GenBundleOrder,  LamdaMuCalculate, NewCustomer
 from A3_two_sided import BundleConsideredCustomers, CountActiveRider,  ConstructFeasibleBundle_TwoSided, SearchRaidar_heuristic, SearchRaidar_ellipse, SearchRaidar_ellipseMJ, XGBoost_Bundle_Construct
 import operator
@@ -44,7 +45,14 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                 print('d_matrix : {}'.format(d_matrix))
                 #문제 풀이
                 #unique_bundle_indexs = Bundle_selection_problem3(phi_b, d_matrix, s_b, min_pr = 0.05)
-                unique_bundle_indexs = Bundle_selection_problem4(phi_b, D, s_b, lt_matrix, min_pr = 1, obj_type= obj_type) #todo : 0317_수정본. min_pr을 무의미한 제약식으로 설정
+                pr_para = True
+                if search_type == 'XGBoost':
+                    pr_para = False
+                unique_bundle_indexs = Bundle_selection_problem4(phi_b, D, s_b, lt_matrix, min_pr = 1, obj_type= obj_type, pr_para=pr_para) #todo : 0317_수정본. min_pr을 무의미한 제약식으로 설정
+                if len(feasible_bundle_set) > 0:
+                    print('T',int(env.now), '가능 번들 수:',len(feasible_bundle_set) )
+                    print('선택된 번들',unique_bundle_indexs)
+                    #input('feasible_bundle_set 확인')
                 #input('결과 확인')
                 unique_bundles = []
                 for index in unique_bundle_indexs:
@@ -53,6 +61,7 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                 # 번들을 업로드
                 task_index = max(list(platform.platform.keys())) + 1
                 if len(unique_bundles) > 0:
+                    check_list('unique', unique_bundles)
                     #플랫폼에 새로운 주문을 추가하는 작업이 필요.
                     print('주문 수 {} :: 추가 주문수 {}'.format(len(platform.platform),len(unique_bundles)))
                     x1 = []
@@ -359,9 +368,10 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
         elif search_type == 'XGBoost':
             enumerate_C_T = BundleConsideredCustomers(target_order, platform_set, riders, orders,
                                                       bundle_search_variant=unserved_bundle_order_break,
-                                                      d_thres_option=True, speed=speed)
+                                                      d_thres_option=True, speed=speed) #todo : 확인 할 것
             considered_customers = enumerate_C_T
         thres = 100
+        start_time_sec = datetime.now()
         if search_type == 'XGBoost':
             #input('XGBoost')
             size3bundle = XGBoost_Bundle_Construct(target_order, considered_customers, 3, p2, XGBmodel3, now_t = now_t, speed = speed , bundle_permutation_option = bundle_permutation_option, thres = thres)
@@ -370,6 +380,10 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
         else:
             size3bundle = ConstructFeasibleBundle_TwoSided(target_order, considered_customers, 3, p2, speed=speed, bundle_permutation_option = bundle_permutation_option, thres= thres, now_t = now_t)
             size2bundle = ConstructFeasibleBundle_TwoSided(target_order, considered_customers, 2, p2, speed=speed,bundle_permutation_option=bundle_permutation_option , thres= thres, now_t = now_t)
+        end_time_sec = datetime.now()
+        duration = end_time_sec - start_time_sec
+        duration = duration.microseconds/1000000
+        t_counter('xgboost', duration)
         ##번들 내용물 확인 필요
         b_count = 2
         for b_infos in [size2bundle, size3bundle]:
@@ -378,32 +392,38 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
             for info in b_infos:
                 print(b_infos)
                 print(info)
-                input('촏차')
+                #input('확인 T:'+str(now_t))
                 coord = []
-                for ct_name in info[0][4]:
+                for ct_name in info[4]:
                     coord += [orders[ct_name].store_loc]
                     coord += [orders[ct_name].location]
                 check_list('b'+str(b_count),info + coord)
             b_count += 1
         max_index = 100
         tem_infos = []
-        print('bundle_size', len(size3bundle),len(size2bundle))
         try:
             size3bundle.sort(key=operator.itemgetter(6))
             for info in size3bundle[:max_index]:
                 tem_infos.append(info)
+            #input('번들 추가됨1: 추가 길이::'+ str(len(tem_infos)))
         except:
             pass
         try:
             size2bundle.sort(key=operator.itemgetter(6))
             for info in size2bundle[:max_index]:
                 tem_infos.append(info)
+            #input('번들 추가됨2: 추가 길이::'+ str(len(tem_infos)))
         except:
             pass
         Feasible_bundle_set += tem_infos
         end = time.time()
+        if len(size3bundle) +len(size2bundle) > 0:
+            print('T now',int(now_t),'bundle_size', len(size3bundle),len(size2bundle))
+            print('번들3',size3bundle)
+            print('번들2',size2bundle)
+            #input('확인22')
         print('고객 당 계산 시간 {} : B2::{} B3::{}'.format(end - start, len(size2bundle),len(size3bundle)))
-    print('T {} 번들 수 {}'.format(now_t, len(Feasible_bundle_set)))
+    print('T {} 번들 수 확인2::{}'.format(now_t, len(Feasible_bundle_set)))
     phi_br = []
     for rider_name in riders:
         rider = riders[rider_name]
@@ -432,37 +452,44 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
                 d_matrix[index1, index2] = 0
                 d_matrix[index2, index1] = 0
     #3 s_b계산 #파레토 계산으로 대체
-    s_matrix = numpy.zeros((len(Feasible_bundle_set), 1))
+
     count1 = 0
     print('FS',Feasible_bundle_set)
-    for info in Feasible_bundle_set:
-        try:
-            """
-            val = 0
-            if type(info[6]) == float or  type(info[6]) == int:
-                val = info[6]
-            elif type(info[6]) == list:
-                val = min(info[6])
-            else:
-                print(type(info[6]))
-                input('Feasible_bundle_set INFO ERROR')
-            """
+    if search_type == 'XGBoost' or search_type == 'enumerate':
+        s_matrix = []
+        for info in Feasible_bundle_set:
+            s_matrix.append(info[5]/len(info[4]))
+    else:
+        s_matrix = numpy.zeros((len(Feasible_bundle_set), 1))
+        for info in Feasible_bundle_set:
             try:
-                val = min(info[6])
+                """
+                val = 0
+                if type(info[6]) == float or  type(info[6]) == int:
+                    val = info[6]
+                elif type(info[6]) == list:
+                    val = min(info[6])
+                else:
+                    print(type(info[6]))
+                    input('Feasible_bundle_set INFO ERROR')
+                """
+                try:
+                    val = min(info[6])
+                except:
+                    val = info[6]
+                if val >= min_time_buffer:
+                    count2 = 0
+                    for info1 in Feasible_bundle_set:
+                        if info == info1:
+                            continue
+                        if phi_b[count1] > phi_b[count2] and info[7] > info1[7]:
+                            s_matrix[count1]+= 1
+                        count2 += 1
             except:
-                val = info[6]
-            if val >= min_time_buffer:
-                count2 = 0
-                for info1 in Feasible_bundle_set:
-                    if info == info1:
-                        continue
-                    if phi_b[count1] > phi_b[count2] and info[7] > info1[7]:
-                        s_matrix[count1]+= 1
-                    count2 += 1
-        except:
-            print(info)
-            input('info 에러')
-        count1 += 1
+                print(info)
+                input('info 에러')
+            count1 += 1
+    print('s_matrix',s_matrix)
     #4 D 계산
     D = []
     #info1 : [route, round(max(ftds), 2), round(sum(ftds) / len(ftds), 2), round(min(ftds), 2), order_names, round(route_time, 2)]

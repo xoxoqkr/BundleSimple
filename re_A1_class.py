@@ -114,7 +114,7 @@ class Rider(object):
                 #print('T: {} 라이더 :{} 노드 정보 {} 경로 {}'.format(int(env.now),self.name, node_info,self.route))
                 order = customers[node_info[0]]
                 store_name = order.store
-                move_t = Basic.distance(self.last_departure_loc, node_info[2]) / self.speed
+                move_t = Basic.distance(self.last_departure_loc, node_info[2], rider_count= True) / self.speed
                 self.next_search_time = env.now + move_t
                 print('라이더 {}/ 현재 시간 {} /다음 선택 시간 {}/ OnHandOrder{}/ 최대 주문 수{}'.format(self.name, env.now, self.next_search_time, len(self.onhand), self.capacity))
                 if len(self.route) == 1:
@@ -375,7 +375,7 @@ class Rider(object):
                 continue
             elif task.picked == False and len(task.customers) + len(self.onhand) <= self.max_order_num: #Step 1-2 : 아직 선택되지 않은 task에 대해 라이더의 현재 위치와의 거리 계산
                 #dist = Basic.distance(self.last_departure_loc,task.route[0][2]) / self.speed  # 자신의 현재 위치와 order의 시작점(가게) 사이의 거리.
-                dist = Basic.distance(self.CurrentLoc(self.env.now),task.route[0][2])  # 자신의 현재 위치와 order의 시작점(가게) 사이의 거리.
+                dist = Basic.distance(self.CurrentLoc(self.env.now),task.route[0][2],rider_count= True)  # 자신의 현재 위치와 order의 시작점(가게) 사이의 거리.
                 if len(task.customers) > 1:
                     bundle_task_names.append([task.index, dist])
                 bound_order_names.append([task.index, dist])
@@ -418,8 +418,8 @@ class Rider(object):
                 print('경로 X :{}'.format(rev_route))
             rev_route += task.route
             for node_index in range(1, len(rev_route)):
-                print('bf {} -> {} af/ T:{}'.format(rev_route[node_index - 1][2], rev_route[node_index][2],Basic.distance(rev_route[node_index - 1][2], rev_route[node_index][2]) / self.speed))
-                mv_time += Basic.distance(rev_route[node_index - 1][2], rev_route[node_index][2]) / self.speed
+                print('bf {} -> {} af/ T:{}'.format(rev_route[node_index - 1][2], rev_route[node_index][2],Basic.distance(rev_route[node_index - 1][2], rev_route[node_index][2],rider_count= True) / self.speed))
+                mv_time += Basic.distance(rev_route[node_index - 1][2], rev_route[node_index][2],rider_count= True) / self.speed
                 if rev_route[node_index][1] == 0:
                     mv_time += customers[rev_route[node_index][0]].time_info[6]
                     tem_time_check.append(round(self.env.now - customers[rev_route[node_index][0]].time_info[0],4))
@@ -445,9 +445,9 @@ class Rider(object):
                     if len(self.route) > 0:
                         bf = self.route[-1][2]
                         af = best_route_info[0][0][2]
-                        org_route_t = Basic.distance(bf, af)/ self.speed
+                        org_route_t = Basic.distance(bf, af,rider_count= True)/ self.speed
                     else:
-                        org_route_t = Basic.distance(self.visited_route[-1][2],best_route_info[0][0][2])/ self.speed
+                        org_route_t = Basic.distance(self.visited_route[-1][2],best_route_info[0][0][2],rider_count= True)/ self.speed
                         print('af {} -> {} bf'.format(self.visited_route[-1][2],best_route_info[0][0][2]))
                     if len(best_route_info) < 5:
                         input('best_route_info {} '.format(best_route_info))
@@ -475,8 +475,15 @@ class Rider(object):
         scores.sort(key=operator.itemgetter(7), reverse=True)
         time_check.sort(key=operator.itemgetter(0), reverse=True)
         ave_wait = []
+        #print(time_check)
+        #input('timecheck')
         for info in time_check:
-            ave_wait += info[3]
+            try:
+                ave_wait += info[3]
+            except:
+                print(info)
+                #input('timecheck')
+                pass
         if sum(ave_wait) > 0:
             print('T;{};라이더;{};현위치;{};평균대기;{};선택;{}정보;{}'.format(int(self.env.now), self.name,time_check[0][5] ,round(numpy.mean(ave_wait),4), time_check[0][3] ,time_check))
         else:
@@ -912,7 +919,8 @@ class scenario(object):
         self.durations = []
         self.bundle_snapshots = {'size': [],'length':[],'od':[]}
         self.mix_ratio = None
-        self.countf = [0,0,0]
+        self.countf = [0,0,0,0,0]
+        self.countt = [0, 0, 0, 0, 0]
 
 def WaitTimeCal1(exp_store_arrive_t, assign_t, exp_cook_time, cook_time, move_t = 0):
     exp_food_ready_t = assign_t + exp_cook_time

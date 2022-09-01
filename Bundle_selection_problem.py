@@ -125,7 +125,8 @@ def Bundle_selection_problem3(phi_b, d_matrix, s_b, min_pr):
         return []
 
 
-def Bundle_selection_problem4(phi_b, D, s_b, lt_matrix,min_pr=0.05, obj_type = 'simple_max_s'):
+def Bundle_selection_problem4(phi_b, D, s_b, lt_matrix,min_pr=0.05, obj_type = 'simple_max_s',pr_para = True):
+    print('풀이전 확인 ',D, s_b,obj_type)
     bundle_indexs = list(range(len(s_b)))
     try:
         if obj_type == 'max_s+probability':
@@ -152,10 +153,11 @@ def Bundle_selection_problem4(phi_b, D, s_b, lt_matrix,min_pr=0.05, obj_type = '
         pass
     for info in D:
         m.addConstr(x[info[0]] + x[info[1]] <= 1)
-
-    m.addConstrs(x[i] * phi_b[i] - z[i] <= min_pr for i in bundle_indexs)
+    if pr_para == True:
+        m.addConstrs(x[i] * phi_b[i] - z[i] <= min_pr for i in bundle_indexs)
     #풀이
     m.optimize()
+    m.write("out_test.lp")
     test = []
     count = 0
     for val in m.getVars():

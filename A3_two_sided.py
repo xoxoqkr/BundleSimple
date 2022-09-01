@@ -3,7 +3,8 @@
 #from scipy.stats import poisson
 import operator
 import itertools
-from A1_BasicFunc import distance, ActiveRiderCalculator
+from datetime import datetime
+from A1_BasicFunc import distance, ActiveRiderCalculator, counter, t_counter
 from A2_Func import BundleConsist, BundleConsist2
 import math
 import numpy as np
@@ -202,7 +203,7 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
             ct = orders[name]
             tem1.append(ct)
             tem2.append(ct.name)
-            distOD.append(distance(ct.store_loc, ct.location))
+            distOD.append(distance(ct.store_loc, ct.location, rider_count='xgboost'))
             gen_t.append(ct.time_info[0])
             ser_t.append(ct.time_info[7])
         M1.append(tem1)
@@ -212,8 +213,8 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
         for info in eachother:
             ct1 = orders[info[0]]
             ct2 = orders[info[1]]
-            distS.append(distance(ct1.store_loc, ct2.store_loc))
-            distC.append(distance(ct1.location, ct2.location))
+            distS.append(distance(ct1.store_loc, ct2.store_loc, rider_count='xgboost'))
+            distC.append(distance(ct1.location, ct2.location, rider_count='xgboost'))
         distOD.sort()
         distS.sort()
         distC.sort()
@@ -229,7 +230,12 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
     print(X_test_np[:2])
     #input('test중')
     #2 : XGModel에 넣기
+    start_time_sec = datetime.now()
     pred_onx = XGBmodel.run(None, {"feature_input": X_test_np.astype(np.float32)})  # Input must be a list of dictionaries or a single numpy array for input 'input'.
+    end_time_sec = datetime.now()
+    duration = end_time_sec - start_time_sec
+    duration = duration.microseconds / 1000000
+    t_counter('sess', duration)
     print("predict", pred_onx[0])
     print("predict_proba", pred_onx[1][:1])
     #input('test중2')
@@ -240,24 +246,27 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
     count = 0
     for label in pred_onx[0]:
         if label == 1:
-            print('라벨',label)
+            #print('라벨',label)
             if thres < 100 :
                 print('1::',M1[count])
                 tem = BundleConsist(M1[count], orders, p2, speed = speed,
                                      bundle_permutation_option = bundle_permutation_option, uncertainty = uncertainty, platform_exp_error =  platform_exp_error,
                                      feasible_return = True, now_t = now_t)
             else:
-                print('2::',M1[count])
-                print('orders',orders)
-                print('ct# :: store_loc :: ct_loc')
+                #print('2::',M1[count])
+                #print('orders',orders)
+                #print('ct# :: store_loc :: ct_loc')
                 for count1 in range(len(M1[count])):
-                    print(M1[count][count1].name,'::',M1[count][count1].store_loc,'::',M1[count][count1].location)
+                    #print(M1[count][count1].name,'::',M1[count][count1].store_loc,'::',M1[count][count1].location)
+                    pass
                 tem = BundleConsist2(M1[count], orders, p2, speed = speed,
                                      bundle_permutation_option = bundle_permutation_option, uncertainty = uncertainty, platform_exp_error =  platform_exp_error,
-                                     feasible_return = True, now_t = now_t, max_dist= 100)
+                                     feasible_return = True, now_t = now_t, max_dist= 15) #max_dist= 15
+                print('구성 된 라벨 1 ::', label)
                 print(tem)
             if len(tem) > 0:
-                constructed_bundles.append(tem)
+                #constructed_bundles.append(tem)
+                constructed_bundles += tem
         count += 1
     if sum(pred_onx[0]) > 0:
         print(constructed_bundles)

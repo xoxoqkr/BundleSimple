@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 
 #from scipy.stats import poisson
-from A1_BasicFunc import RouteTime, distance, FLT_Calculate, counter
+from datetime import datetime
+from A1_BasicFunc import RouteTime, distance, FLT_Calculate, counter, t_counter
 import operator
 import itertools
 import re_A1_class as A1_Class
@@ -293,6 +294,7 @@ def BundleConsist2(orders, customers, p2, time_thres = 0, speed = 1,M = 1000, bu
     :return: feasible route
     """
     counter('bundle_consist2')
+    start_time_sec = datetime.now()
     order_names = [] #가게 이름?
     for order in orders:
         order_names.append(order.name)
@@ -345,10 +347,16 @@ def BundleConsist2(orders, customers, p2, time_thres = 0, speed = 1,M = 1000, bu
                     tem = [route, unsync_t[0], round(sum(ftds) / len(ftds), 2), unsync_t[1], order_names, round(route_time, 2),min(time_buffer), round(P2P_dist - route_time, 2)]
                     feasible_subset.append(tem)
                 else:
-                    print('조리 시간 초과1:',min(time_buffer),'::', min_time_buffer)
+                    #print('조리 시간 초과1:',min(time_buffer),'::', min_time_buffer)
+                    pass
             else:
 
-                print('음식 조리 시간 초과2::',ftd_feasiblity,ftds)
+                #print('음식 조리 시간 초과2::',ftd_feasiblity,ftds)
+                pass
+    end_time_sec = datetime.now()
+    duration = end_time_sec - start_time_sec
+    duration = duration.microseconds / 1000000
+    t_counter('old', duration)
     if len(feasible_subset) > 0:
         feasible_subset.sort(key = operator.itemgetter(2))
         if feasible_return == True:

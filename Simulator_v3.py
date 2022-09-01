@@ -10,7 +10,7 @@ import numpy as np
 import simpy
 import random
 from re_A1_class import scenario,Platform_pool
-from A1_BasicFunc import ResultSave, GenerateStoreByCSV, RiderGeneratorByCSV, OrdergeneratorByCSV, distance, counter, check_list
+from A1_BasicFunc import ResultSave, GenerateStoreByCSV, RiderGeneratorByCSV, OrdergeneratorByCSV, distance, counter, check_list, t_counter, GenerateStoreByCSVStressTest, OrdergeneratorByCSVForStressTest, RiderGenerator
 from A2_Func import ResultPrint
 from re_platform import Platform_process5,Rider_Bundle_plt
 from datetime import datetime
@@ -37,22 +37,23 @@ global service_time_diff
 """
 
 
-instance_type = 'Instance_cluster' #'Instance_random' 'Instance_cluster'
+instance_type = 'Instance_random' #'Instance_random' 'Instance_cluster'
 ellipse_w=10
 heuristic_theta=10
 heuristic_r1=10
-heuristic_type = 'XGBoost'#'XGBoost'
-rider_num= 8
+heuristic_type = 'enumerate'#'XGBoost'#'enumerate'
+rider_num= 175 #8
 mix_ratios=None
-exp_range = [0]
+exp_range = [0,1,2,3,4]
 unit_fee = 110
 fee_type = 'linear'
 service_time_diff = True
 
-
+setting = 'stresstest'
+stress_lamda = 1875/60
 # Parameter define
 interval = 5
-run_time = 180
+run_time = 120
 cool_time = 30  # run_time - cool_time 시점까지만 고객 생성
 uncertainty_para = True  # 음식 주문 불확실성 고려
 rider_exp_error = 1.5  # 라이더가 가지는 불확실성
@@ -157,7 +158,9 @@ for sc3 in scenarios:
     sc3.rider_bundle_construct = False
     print(sc3.platform_recommend, sc3.rider_bundle_construct,sc3.obj_type, sc3.search_type)
 scenarios = scenarios[:1]
-print(scenarios)
+scenarios[0].obj_type = 'simple_max_s'
+print(scenarios, scenarios[0].obj_type)
+
 input('시나리오 확인')
 
 #exp_range = [0,2,3,4]*10 #인스턴스 1에러가 있음.
@@ -199,13 +202,20 @@ for ite in exp_range:#range(0, 1):
     num_bundles = []
     for sc in scenarios:
         ##count 확인
-        counter.dist = 0
+        counter.dist1 = 0
+        counter.dist2 = 0
+        counter.dist3 = 0
         counter.bundle_consist = 0
         counter.bundle_consist2 = 0
         check_list.b2 = []
         check_list.b3 = []
+        check_list.b2_count = 0
+        check_list.b3_count = 0
+        check_list.suggested_bundle = []
         ##counter 정의
-
+        t_counter.t1 = 0
+        t_counter.t2 = 0
+        t_counter.t3 = 0
         bundle_infos = {'size': [],'length':[],'od':[]}
         #start_time_sec = time.time()
         start_time_sec = datetime.now()
@@ -223,11 +233,21 @@ for ite in exp_range:#range(0, 1):
         Store_dict = {}
         # run
         env = simpy.Environment()
-        GenerateStoreByCSV(env, sc.store_dir, Platform2, Store_dict)
-        env.process(RiderGeneratorByCSV(env, sc.rider_dir,  Rider_dict, Platform2, Store_dict, Orders, input_speed = rider_speed, input_capacity= rider_capacity,
-                                        platform_recommend = sc.platform_recommend, input_order_select_type = order_select_type, bundle_construct= sc.rider_bundle_construct,
-                                        rider_num = rider_num, lamda_list=lamda_list, p2 = rider_p2, rider_select_print_fig = rider_select_print_fig,ite = rv_count, mix_ratio = sc.mix_ratio))
-        env.process(OrdergeneratorByCSV(env, sc.customer_dir, Orders, Store_dict, Platform2, p2_ratio = customer_p2,rider_speed= rider_speed, unit_fee = unit_fee, fee_type = fee_type, service_time_diff = service_time_diff))
+        if setting == 'stresstest':
+            GenerateStoreByCSVStressTest(env, 300, Platform2, Store_dict, store_type=instance_type)
+            env.process(OrdergeneratorByCSVForStressTest(env, Orders, Store_dict, stress_lamda, platform=Platform2, p2_ratio=customer_p2, rider_speed=rider_speed,
+                                             unit_fee=unit_fee, fee_type=fee_type))
+            env.process(RiderGenerator(env, Rider_dict, Platform2, Store_dict, Orders, capacity=rider_capacity, speed=rider_speed,working_duration=run_time, interval=0.1,
+                           gen_num=175,  wait_para=wait_para))
+        else:
+            GenerateStoreByCSV(env, sc.store_dir, Platform2, Store_dict)
+            env.process(OrdergeneratorByCSV(env, sc.customer_dir, Orders, Store_dict, Platform2, p2_ratio=customer_p2,
+                                            rider_speed=rider_speed, unit_fee=unit_fee, fee_type=fee_type,
+                                            service_time_diff=service_time_diff))
+            env.process(RiderGeneratorByCSV(env, sc.rider_dir,  Rider_dict, Platform2, Store_dict, Orders, input_speed = rider_speed, input_capacity= rider_capacity,
+                                            platform_recommend = sc.platform_recommend, input_order_select_type = order_select_type, bundle_construct= sc.rider_bundle_construct,
+                                            rider_num = rider_num, lamda_list=lamda_list, p2 = rider_p2, rider_select_print_fig = rider_select_print_fig,ite = rv_count, mix_ratio = sc.mix_ratio))
+        #env.process(OrdergeneratorByCSV(env, sc.customer_dir, Orders, Store_dict, Platform2, p2_ratio = customer_p2,rider_speed= rider_speed, unit_fee = unit_fee, fee_type = fee_type, service_time_diff = service_time_diff))
         env.process(Platform_process5(env, Platform2, Orders, Rider_dict, platform_p2,thres_p,interval, bundle_para= sc.platform_recommend, obj_type = sc.obj_type,
                                       search_type = sc.search_type, print_fig = print_fig, bundle_print_fig = bundle_print_fig, bundle_infos = bundle_infos,
                                       ellipse_w = ellipse_w, heuristic_theta = heuristic_theta,heuristic_r1 = heuristic_r1,XGBmodel3 = XGBmodel3, XGBmodel2 = XGBmodel2))
@@ -241,9 +261,13 @@ for ite in exp_range:#range(0, 1):
         sc.bundle_snapshots['size'] += bundle_infos['size']
         sc.bundle_snapshots['length'] += bundle_infos['length']
         sc.bundle_snapshots['od'] += bundle_infos['od']
-        sc.countf[0] = counter.dist
+        sc.countf[0] = counter.dist1
         sc.countf[1] = counter.bundle_consist
         sc.countf[2] = counter.bundle_consist2
+        sc.countf[3] = counter.dist3
+        sc.countt[0] = t_counter.t1
+        sc.countt[1] = t_counter.t2
+        sc.countt[2] = t_counter.t3
         print('Name :: dist :: p2 :: ratio')
         for ct_num in Orders:
             ct = Orders[ct_num]
@@ -442,7 +466,8 @@ for ite in exp_range:#range(0, 1):
             f.write(con + '\n')
         f.close()
         b_count += 1
-
+    print('uniqe 번들 수::',len(check_list.suggested_bundle))
+    print(check_list.suggested_bundle)
 
 #input('테스트 종료')
 for sc in scenarios:
@@ -489,19 +514,20 @@ for sc in scenarios:
         head = '인스턴스종류;SC;번들탐색방식;연산시간(sec);플랫폼;라이더;라이더수;obj;전체 고객;서비스된 고객;서비스율;평균LT;평균FLT;직선거리 대비 증가분;원래 O-D길이;라이더 수익 분산;LT분산;' \
                'OD증가수;OD증가 분산;OD평균;수행된 번들 수;수행된번들크기평균;b1;b2;b3;b4;b5;p1;p2;p3;p4;r1;r2;r3;r4;r5;평균서비스시간;(테스트)음식 대기 시간;(테스트)버려진 음식 수;(테)음식대기;' \
                '(테)라이더대기;(테)15분이하 음식대기분;(테)15분이상 음식대기분;(테)15분이하 음식대기 수;(테)15분이상 음식대기 수;(테)라이더 대기 수;라이더평균운행시간;제안된 번들수;라이더수수료;size;length;ods;ellipse_w; ' \
-               'heuristic_theta; heuristic_r1;rider_ratio;#dist;#bc1;#bc2'
+               'heuristic_theta; heuristic_r1;rider_ratio;#dist;#bc1;#bc2;#dist(xgb);#t1;#t2;#t3'
         #print('인스턴스종류;SC;번들탐색방식;연산시간(sec);플랫폼;라이더;obj;전체 고객;서비스된 고객;서비스율;평균LT;평균FLT;직선거리 대비 증가분;원래 O-D길이;라이더 수익 분산;LT분산;'
         #     'OD증가수;OD증가 분산;OD평균;수행된 번들 수;수행된번들크기평균;제안된 번들수;size;length;ods')
         print(head)
         f3.write(head + '\n')
     ave_duration = sum(sc.durations)/len(sc.durations)
     try:
-        tem_data = '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};'.format(
+        tem_data = '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};'.format(
                 instance_type , str(sc.name[0]),sc.search_type, ave_duration,sc.platform_recommend,sc.rider_bundle_construct,rider_num,sc.obj_type, res_info[0],res_info[1],
                 res_info[2], res_info[3], res_info[4], res_info[5], res_info[6], res_info[7], res_info[8],res_info[9],res_info[10],res_info[11],res_info[12],res_info[13],
             res_info[14], res_info[15], res_info[16],res_info[17], res_info[18], res_info[19],res_info[20],res_info[21],res_info[22],res_info[23], res_info[24],res_info[25],
             res_info[26],res_info[27],res_info[28],res_info[29],res_info[30],res_info[31],res_info[32], res_info[33],res_info[34], res_info[35],res_info[36], res_info[37],res_info[38],
-            offered_bundle_num,res_info[39], res_info[40], res_info[41],res_info[42],ellipse_w, heuristic_theta, heuristic_r1, sc.mix_ratio, sc.countf[0], sc.countf[1], sc.countf[2])
+            offered_bundle_num,res_info[39], res_info[40], res_info[41],res_info[42],ellipse_w, heuristic_theta, heuristic_r1, sc.mix_ratio, sc.countf[0], sc.countf[1], sc.countf[2], sc.countf[3],
+        sc.countt[0], sc.countt[1],sc.countt[2])
         """
         print(
             '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{}'.format(

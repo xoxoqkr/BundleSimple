@@ -8,20 +8,31 @@ import time
 import re_A1_class
 import matplotlib.pyplot as plt
 
-def distance(p1, p2):
+def distance(p1, p2, rider_count = None):
     """
     Calculate 4 digit rounded euclidean distance between p1 and p2
-    :param p1:
+    :para
+    m p1:
     :param p2:
     :return: 4 digit rounded euclidean distance between p1 and p2
     """
-    counter('distance')
+    counter('distance1')
+    if rider_count == 'rider':
+        counter('distance2')
+    elif rider_count == 'xgboost':
+        counter('distance3')
+    else:
+        pass
     euc_dist = math.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
     return round(euc_dist,4)
 
 def counter(func_name):
-    if func_name == 'distance':
-        counter.dist += 1
+    if func_name == 'distance1':
+        counter.dist1 += 1
+    elif func_name == 'distance2':
+        counter.dist2 += 1
+    elif func_name == 'distance3':
+        counter.dist3 += 1
     elif func_name == 'bundle_consist':
         counter.bundle_consist += 1
     elif func_name == 'bundle_consist2':
@@ -30,13 +41,39 @@ def counter(func_name):
         pass
 
 
+def t_counter(func_name, t):
+    if func_name == 'xgboost':
+        #print(t_counter.t1,'->')
+        t_counter.t1 += t
+        #print(t_counter.t1, t)
+        #input('check1:')
+    elif func_name == 'old':
+        #print(t_counter.t2, '->')
+        t_counter.t2 += t
+        #print(t_counter.t2, t)
+        #input('check2')
+    elif func_name == 'sess':
+        #print(t_counter.t3, '->')
+        t_counter.t3 += t
+        #print(t_counter.t3, t)
+        #input('check3')
+    else:
+        #input('check4')
+        pass
+
 def check_list(b_type, element):
     if b_type == 'b2':
         check_list.b2.append(element)
+        check_list.b2_count += len(element)
     elif b_type == 'b3':
         check_list.b3.append(element)
+        check_list.b3_count += len(element)
+    elif b_type == 'unique':
+        check_list.suggested_bundle += element
     else:
         pass
+
+
 
 
 def RouteTime(orders, route, M = 1000, speed = 1, uncertainty = False, error = 1, sync_output_para= False, now_t = 0, bywho = 'Rider', time_buffer_para = False):
@@ -186,7 +223,8 @@ def FLT_Calculate(customer_in_order, customers, route, p2, except_names , M = 10
         return True, ftds
 
 
-def RiderGenerator(env, Rider_dict, Platform, Store_dict, Customer_dict, capacity = 3, speed = 1, working_duration = 120, interval = 1, runtime = 1000, gen_num = 10, history = None, freedom = True, score_type = 'simple', wait_para = False, uncertainty = False, exp_error = 1, exp_WagePerHr = 9000):
+def RiderGenerator(env, Rider_dict, Platform, Store_dict, Customer_dict, capacity = 3, speed = 1, working_duration = 120, interval = 1, runtime = 1000,
+                   gen_num = 10, history = None, freedom = True, score_type = 'simple', wait_para = False, uncertainty = False, exp_error = 1, exp_WagePerHr = 9000):
     """
     Generate the rider until t <= runtime and rider_num<= gen_num
     :param env: simpy environment
@@ -300,6 +338,29 @@ def GenerateStoreByCSV(env, csv_dir, platform,Store_dict, mus = [5,10,15], std_r
         else:
             store.FRT = numpy.random.normal(mus[2], mus[2] * std_ratio, 1000)
         Store_dict[name] = store
+
+
+def GenerateStoreByCSVStressTest(env, num, platform,Store_dict, mus = [5,10,15], std_ratio = 0.2, store_type = 'instance_random'):
+    #mus = [11.5,13.5,15.5]
+    for count in range(num):
+        if store_type == 'instance_random':
+            loc = [random.randint(10, 40), random.randint(10, 40)]
+        else:
+            loc = [random.randint(20, 30), random.randint(20, 30)]
+        #['name', 'start_loc_x', 'start_loc_y', 'order_ready_time', 'capacity', 'slack']
+        name = count
+        order_ready_time = 5
+        capacity = 2
+        slack = 2
+        store = re_A1_class.Store(env, platform, name, loc=loc, order_ready_time=order_ready_time, capacity=capacity, print_para=False, slack = slack)
+        if name <= 4: #
+            store.FRT = numpy.random.normal(mus[0], mus[0]*std_ratio, 1000)
+        elif name <= 10:
+            store.FRT = numpy.random.normal(mus[1], mus[1]*std_ratio, 1000)
+        else:
+            store.FRT = numpy.random.normal(mus[2], mus[2] * std_ratio, 1000)
+        Store_dict[name] = store
+
 
 
 def Ordergenerator(env, orders, stores, max_range = 50, interval = 5, runtime = 100, history = None, p2 = 15, p2_set = False, speed = 4, cooking_time = [2,5], cook_time_type = 'random'):
@@ -448,6 +509,51 @@ def OrdergeneratorByCSV(env, csv_dir, orders, stores, platform = None, p2_ratio 
         else:
             print('현재 T :{} / 마지막 고객 {} 생성'.format(int(env.now), name))
             pass
+
+
+
+def OrdergeneratorByCSVForStressTest(env, orders, stores, lamda, platform = None, p2_ratio = None, rider_speed = 1, unit_fee = 110, fee_type = 'linear'):
+    """
+    Generate customer order
+    :param env: Simpy Env
+    :param orders: Order
+    :param platform: 플랫폼에 올라온 주문들 {[KY]order index : [Value]class order, ...}
+    :param stores: 플랫폼에 올라온 가게들 {[KY]store name : [Value]class store, ...}
+    :param interval: 주문 생성 간격
+    :param runtime: 시뮬레이션 동작 시간
+    """
+    for count in range(1000000):
+        store_name = random.choice(range(len(stores)))
+        store = stores[store_name]
+        store_loc = store.location
+        req_dist = random.randint(5,20)
+        angle = math.radians(random.randrange(0, 360))
+        customer_loc = [store_loc[0] + round(req_dist*math.cos(angle),4),store_loc[1] + round(req_dist*math.sin(angle),4) ]
+        name = count
+        OD_dist = distance(store_loc, customer_loc)
+        p2 = (OD_dist / rider_speed) * p2_ratio
+        cook_time = 7
+        cook_time_type = 0
+        cooking_time = [7,1]
+        #order = A1_Class.Customer(env, name, input_location, store=store_num, store_loc=store_loc, p2=p2,
+        #                       cooking_time=cook_time, cook_info=[cook_time_type, cooking_time])
+        order = re_A1_class.Customer(env, name, customer_loc, store=store_name, store_loc=store_loc, p2=p2,
+                               cooking_time=cook_time, cook_info=[cook_time_type, cooking_time], platform = platform, unit_fee = unit_fee, fee_type = fee_type)
+        order.actual_cook_time = random.choice(stores[store_name].FRT)
+        order.dp_cook_time = 5*(1 + order.actual_cook_time//5)
+        if order.dp_cook_time >= 15:
+            order.cooking_process = env.process(order.CookingFirst(env, order.actual_cook_time)) #todo : 15분 이상 음식은 미리 조리 시작
+        print('T {} 음식 {} 조리 확인/ 시간 {}'.format(int(env.now), order.name,order.actual_cook_time))
+        orders[name] = order
+        stores[store_name].received_orders.append(orders[name])
+        interval = 1/lamda
+        #todo : 0317 지연되는 조건 생각할 것.
+        if interval > 0:
+            yield env.timeout(interval)
+        else:
+            print('현재 T :{} / 마지막 고객 {} 생성'.format(int(env.now), name))
+            pass
+
 
 
 
