@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 
 #from scipy.stats import poisson
+import time
 import operator
 import itertools
 from datetime import datetime
-from A1_BasicFunc import distance, ActiveRiderCalculator, counter, t_counter
+from A1_BasicFunc import distance, ActiveRiderCalculator, counter, t_counter, counter2
 from A2_Func import BundleConsist, BundleConsist2
 import math
 import numpy as np
@@ -13,7 +14,7 @@ import matplotlib.pyplot as plt
 
 
 
-def CountActiveRider(riders, t, min_pr = 0, t_now = 0, option = 'w'):
+def CountActiveRider(riders, t, min_pr = 0, t_now = 0, option = 'w', point_return = False):
     """
     현대 시점에서 t 시점내에 주문을 선택할 확률이 min_pr보다 더 높은 라이더를 계산
     @param riders: RIDER CLASS DICT
@@ -22,14 +23,21 @@ def CountActiveRider(riders, t, min_pr = 0, t_now = 0, option = 'w'):
     @return: 만족하는 라이더의 이름. LIST
     """
     names = []
+    dists = []
     for rider_name in riders:
         rider = riders[rider_name]
         if ActiveRiderCalculator(rider, t_now, option = option) == True and rider.select_pr(t) >= min_pr:
             names.append(rider_name)
-    return names
+            if point_return == True:
+                dists.append(rider.CurrentLoc(rider.next_search_time))
+    if point_return == True:
+        return names, dists
+    else:
+        return names
 
 
-def BundleConsideredCustomers(target_order, platform, riders, customers, speed = 1, bundle_search_variant = True, d_thres_option = True):
+def BundleConsideredCustomers(target_order, platform, riders, customers, speed = 1, bundle_search_variant = True, d_thres_option = True, max_d_infos = []):
+    #todo : 0907 정정
     not_served_ct_name_cls = {}
     not_served_ct_names = [] #번들 구성에 고려될 수 있는 고객들
     in_bundle_names = []
@@ -52,7 +60,16 @@ def BundleConsideredCustomers(target_order, platform, riders, customers, speed =
             else:
                 d_thres = customer.p2
             dist = distance(target_order.store_loc, customer.store_loc) / speed
-            if target_order.name != customer.name and dist <= d_thres:
+            dist2 = distance(target_order.location, customer.location) / speed
+            store_para = 0.2
+            #if target_order.name != customer.name and dist <= d_thres :
+            in_max_d = True
+            for d_info in max_d_infos:
+                dist3 = distance(target_order.store_loc, d_info[1])/ speed
+                if dist3 > d_info[2]:
+                    in_max_d = False
+                    break
+            if target_order.name != customer.name and dist <= d_thres*store_para and dist2 <= d_thres and in_max_d == True:
                 not_served_ct_names.append(customer_name)
                 not_served_ct_name_cls[customer_name] = customer
     current_in_bundle = []
@@ -126,7 +143,7 @@ def ConstructFeasibleBundle_TwoSided(target_order, orders, s, p2, thres = 0.05, 
         M = itertools.permutations(d, s - 1)
         b = []
         if print_option == True:
-            print('대상 고객 {} 고려 고객들 {}'.format(target_order.name, d))
+            print('대상 고객 {} ::고려 고객들 {}'.format(target_order.name, d))
         for m in M:
             #print('대상 seq :: {}'.format(m))
             q = list(m) + [target_order.name]
@@ -137,6 +154,7 @@ def ConstructFeasibleBundle_TwoSided(target_order, orders, s, p2, thres = 0.05, 
                 time_thres += orders[name].distance/speed
             #input('확인 1 {} : 확인2 {}'.format(subset_orders, time_thres))
             if search_type == 'enumerate':
+                counter2('old1',len(subset_orders))
                 if thres < 100:
                     tem_route_info = BundleConsist(subset_orders, orders, p2, speed = speed, bundle_permutation_option= bundle_permutation_option, time_thres= time_thres, uncertainty = uncertainty, platform_exp_error = platform_exp_error, feasible_return = True, now_t = now_t)
                     # ver0: feasible_routes.append([route, round(max(ftds),2), round(sum(ftds)/len(ftds),2), round(min(ftds),2), order_names, round(route_time,2)])
@@ -226,15 +244,18 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
     org_df = pd.DataFrame(data=input_data)
     X_test = org_df.iloc[:,s:] #탐색 번들에 따라, 다른 index 시작 지점을 가짐.
     X_test_np = np.array(X_test)
+    counter2('sess1',len(X_test_np))
     print(input_data[:2])
     print(X_test_np[:2])
     #input('test중')
     #2 : XGModel에 넣기
-    start_time_sec = datetime.now()
+    #start_time_sec = datetime.now()
+    start_time_sec = time.time()
     pred_onx = XGBmodel.run(None, {"feature_input": X_test_np.astype(np.float32)})  # Input must be a list of dictionaries or a single numpy array for input 'input'.
-    end_time_sec = datetime.now()
+    #end_time_sec = datetime.now()
+    end_time_sec = time.time()
     duration = end_time_sec - start_time_sec
-    duration = duration.microseconds / 1000000
+    #duration = duration.seconds + duration.microseconds / 1000000
     t_counter('sess', duration)
     print("predict", pred_onx[0])
     print("predict_proba", pred_onx[1][:1])
@@ -244,6 +265,7 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
     #3 : label이 1인 것에 대해, 경로 만들고 실제 가능 여부 계산
     constructed_bundles = []
     count = 0
+    count1 = 0
     for label in pred_onx[0]:
         if label == 1:
             #print('라벨',label)
@@ -256,9 +278,6 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
                 #print('2::',M1[count])
                 #print('orders',orders)
                 #print('ct# :: store_loc :: ct_loc')
-                for count1 in range(len(M1[count])):
-                    #print(M1[count][count1].name,'::',M1[count][count1].store_loc,'::',M1[count][count1].location)
-                    pass
                 tem = BundleConsist2(M1[count], orders, p2, speed = speed,
                                      bundle_permutation_option = bundle_permutation_option, uncertainty = uncertainty, platform_exp_error =  platform_exp_error,
                                      feasible_return = True, now_t = now_t, max_dist= 15) #max_dist= 15
@@ -267,7 +286,11 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
             if len(tem) > 0:
                 #constructed_bundles.append(tem)
                 constructed_bundles += tem
+            if count1 > 0.12*len(X_test_np):
+                break
+            count1 += 1
         count += 1
+    counter2('sess2', count1)
     if sum(pred_onx[0]) > 0:
         print(constructed_bundles)
         #input('확인2')

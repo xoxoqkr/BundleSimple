@@ -203,7 +203,7 @@ def BreakBundle(break_info, platform_set, customer_set):
     return res
 
 
-def BundleConsist(orders, customers, p2, time_thres = 0, speed = 1,M = 1000, bundle_permutation_option = False, uncertainty = False, platform_exp_error =  1, feasible_return = False, now_t = 0):
+def BundleConsist(orders, customers, p2, time_thres = 0, speed = 1,M = 10000, bundle_permutation_option = False, uncertainty = False, platform_exp_error =  1, feasible_return = False, now_t = 0):
     """
     Construct bundle consists of orders
     :param orders: customer order in the route. type: customer class
@@ -282,8 +282,8 @@ def BundleConsist(orders, customers, p2, time_thres = 0, speed = 1,M = 1000, bun
         return []
 
 
-def BundleConsist2(orders, customers, p2, time_thres = 0, speed = 1,M = 1000, bundle_permutation_option = False,
-                   uncertainty = False, platform_exp_error =  1, feasible_return = False, now_t = 0, min_time_buffer = 10, max_dist = 15):
+def BundleConsist2(orders, customers, p2, time_thres = 0, speed = 1,M = 10000, bundle_permutation_option = False,
+                   uncertainty = False, platform_exp_error =  1, feasible_return = False, now_t = 0, min_time_buffer = 10, max_dist = 15, sort_index = 8):
     """
     Construct bundle consists of orders
     :param orders: customer order in the route. type: customer class
@@ -294,7 +294,8 @@ def BundleConsist2(orders, customers, p2, time_thres = 0, speed = 1,M = 1000, bu
     :return: feasible route
     """
     counter('bundle_consist2')
-    start_time_sec = datetime.now()
+    #start_time_sec = datetime.now()
+    start_time_sec = time.time()
     order_names = [] #가게 이름?
     for order in orders:
         order_names.append(order.name)
@@ -344,7 +345,10 @@ def BundleConsist2(orders, customers, p2, time_thres = 0, speed = 1,M = 1000, bu
                 route_time, unsync_t, time_buffer = RouteTime(orders, route, speed=speed, M=M, uncertainty = uncertainty, error = platform_exp_error,
                                                               sync_output_para = True, now_t = now_t, bywho='Platform', time_buffer_para= True)
                 if min(time_buffer) >= min_time_buffer:
-                    tem = [route, unsync_t[0], round(sum(ftds) / len(ftds), 2), unsync_t[1], order_names, round(route_time, 2),min(time_buffer), round(P2P_dist - route_time, 2)]
+                    origin = customers[route[0] - M].store_loc
+                    destination = customers[route[-1]].location
+                    line_dist = round(route_time, 2) - distance(origin, destination)/speed
+                    tem = [route, unsync_t[0], round(sum(ftds) / len(ftds), 2), unsync_t[1], order_names, round(route_time, 2),min(time_buffer), round(P2P_dist - route_time, 2),line_dist]
                     feasible_subset.append(tem)
                 else:
                     #print('조리 시간 초과1:',min(time_buffer),'::', min_time_buffer)
@@ -353,12 +357,13 @@ def BundleConsist2(orders, customers, p2, time_thres = 0, speed = 1,M = 1000, bu
 
                 #print('음식 조리 시간 초과2::',ftd_feasiblity,ftds)
                 pass
-    end_time_sec = datetime.now()
+    #end_time_sec = datetime.now()
+    end_time_sec = time.time()
     duration = end_time_sec - start_time_sec
-    duration = duration.microseconds / 1000000
+    #duration = duration.seconds + duration.microseconds / 1000000
     t_counter('old', duration)
     if len(feasible_subset) > 0:
-        feasible_subset.sort(key = operator.itemgetter(2))
+        feasible_subset.sort(key = operator.itemgetter(sort_index))
         if feasible_return == True:
             print('반환 번들 수',len(feasible_subset), feasible_subset[:5])
             return feasible_subset
@@ -368,7 +373,7 @@ def BundleConsist2(orders, customers, p2, time_thres = 0, speed = 1,M = 1000, bu
         return []
 
 
-def GraphDraw(infos, customers, M = 1000):
+def GraphDraw(infos, customers, M = 10000):
     # 그래프 그리기
     x = []
     y = []
@@ -544,7 +549,7 @@ def GenSingleOrder(order_index, customer, platform_exp_error = 1):
     return o
 
 
-def GenBundleOrder(order_index, bundie_info, customer_set, now_t, M = 1000, platform_exp_error = 1):
+def GenBundleOrder(order_index, bundie_info, customer_set, now_t, M = 10000, platform_exp_error = 1):
     route = []
     for node in bundie_info[0]:
         if node >= M:

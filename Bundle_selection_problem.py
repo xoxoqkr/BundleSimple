@@ -126,7 +126,7 @@ def Bundle_selection_problem3(phi_b, d_matrix, s_b, min_pr):
 
 
 def Bundle_selection_problem4(phi_b, D, s_b, lt_matrix,min_pr=0.05, obj_type = 'simple_max_s',pr_para = True):
-    print('풀이전 확인 ',D, s_b,obj_type)
+    #print('풀이전 확인 ',D, s_b,obj_type)
     bundle_indexs = list(range(len(s_b)))
     try:
         if obj_type == 'max_s+probability':
@@ -177,7 +177,7 @@ def Bundle_selection_problem4(phi_b, D, s_b, lt_matrix,min_pr=0.05, obj_type = '
             if val.VarName[0] == 'x' and float(val.x) == 1.0:
                 res.append(count)
             count += 1
-        return res
+        return res, len(m.getConstrs())
     except:
         print('Infeasible')
-        return []
+        return [], None

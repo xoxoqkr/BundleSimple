@@ -40,9 +40,23 @@ def counter(func_name):
     else:
         pass
 
+def counter2(func_name, num):
+    if func_name == 'sess1': #XGBoost 투입 데이터 수
+        counter2.num1.append(num)
+    elif func_name == 'sess2': #XGBoost 종료 후 데이터 수
+        counter2.num2.append(num)
+    elif func_name == 'sess3':
+        counter2.num3.append(num)
+    elif func_name == 'old1': #enumerate 데이터 수
+        counter2.num4.append(num)
+    elif func_name == 'old2':
+        counter2.num5.append(num)
+    else:
+        pass
+
 
 def t_counter(func_name, t):
-    if func_name == 'xgboost':
+    if func_name == 'XGBoost':
         #print(t_counter.t1,'->')
         t_counter.t1 += t
         #print(t_counter.t1, t)
@@ -58,6 +72,7 @@ def t_counter(func_name, t):
         #print(t_counter.t3, t)
         #input('check3')
     else:
+        t_counter.t4 += t
         #input('check4')
         pass
 
@@ -76,7 +91,7 @@ def check_list(b_type, element):
 
 
 
-def RouteTime(orders, route, M = 1000, speed = 1, uncertainty = False, error = 1, sync_output_para= False, now_t = 0, bywho = 'Rider', time_buffer_para = False):
+def RouteTime(orders, route, M = 10000, speed = 1, uncertainty = False, error = 1, sync_output_para= False, now_t = 0, bywho = 'Rider', time_buffer_para = False):
     """
     Time to move the route with speed
     :param orders: order in route
@@ -161,7 +176,7 @@ def RouteTime(orders, route, M = 1000, speed = 1, uncertainty = False, error = 1
         return time
 
 
-def FLT_Calculate(customer_in_order, customers, route, p2, except_names , M = 1000, speed = 1, now_t = 0, uncertainty = False, exp_error = 1, time_buffer_para = False):
+def FLT_Calculate(customer_in_order, customers, route, p2, except_names , M = 10000, speed = 1, now_t = 0, uncertainty = False, exp_error = 1, time_buffer_para = False):
     """
     Calculate the customer`s Food Delivery Time in route(bundle)
 
@@ -201,7 +216,7 @@ def FLT_Calculate(customer_in_order, customers, route, p2, except_names , M = 10
                     ftd = 1000
                     print('경로 {}, s:{}, e :{}'.format(route,s,e))
                     print('경로 시간 계산 에러/ 현재고객 {}/ 경로 고객들 {}'.format(order_name,names))
-                    #input('중지')
+                    input('중지')
             except:
                 ftd = 0
                 print('경로 {}'.format(route))
@@ -253,6 +268,9 @@ def RiderGenerator(env, Rider_dict, Platform, Store_dict, Customer_dict, capacit
         else:
             yield env.timeout(interval)
         rider_num += 1
+        if rider_num == gen_num:
+            print('라이더 수',len(Rider_dict))
+            input('라이더 생성 완료')
 
 
 def RiderGeneratorByCSV(env, csv_dir, Rider_dict, Platform, Store_dict, Customer_dict, working_duration = 120, exp_WagePerHr = 9000 ,input_speed = None,
@@ -512,7 +530,7 @@ def OrdergeneratorByCSV(env, csv_dir, orders, stores, platform = None, p2_ratio 
 
 
 
-def OrdergeneratorByCSVForStressTest(env, orders, stores, lamda, platform = None, p2_ratio = None, rider_speed = 1, unit_fee = 110, fee_type = 'linear'):
+def OrdergeneratorByCSVForStressTest(env, orders, stores, lamda, platform = None, p2_ratio = 1, rider_speed = 1, unit_fee = 110, fee_type = 'linear'):
     """
     Generate customer order
     :param env: Simpy Env

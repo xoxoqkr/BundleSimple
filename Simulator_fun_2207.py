@@ -192,11 +192,12 @@ def BundleFeaturesCalculator(customer_data, names_set, label = 0):
         datas.append(tem)
     return datas
 
-def BundleFeaturesCalculator2(customer_data, names_set, label = 0):
+def BundleFeaturesCalculator2(customer_data, names_set, label = 0, add_info = None, print_option = False):
     #INPUT : 번들 고객
     #OUTPUT : 번들, 번들 Features
     datas = []
     used_names = []
+    count = 0
     for names in names_set:
         if list(names) in used_names:
             continue
@@ -237,8 +238,16 @@ def BundleFeaturesCalculator2(customer_data, names_set, label = 0):
         tem += sorted(gen_t)
         #tem += sorted(cook_t)
         tem += sorted(ser_t)
+        if add_info != None:
+            if type(add_info) == int:
+                tem += [0,0]
+            else:
+                tem += add_info[count]
         tem += [label]
         datas.append(tem)
+        count += 1
+        if print_option == True:
+            print(tem)
     return datas
 
 

@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 from Simulator_fun_2207 import *
 #from Simulator_v3 import run_time
+#from Simulator_v3 import rider_speed
 from re_A1_class import Store, Platform_pool
 import numpy as np
 import simpy
-from A1_BasicFunc import  OrdergeneratorByCSV, GenerateStoreByCSV, counter
+from A1_BasicFunc import  OrdergeneratorByCSV, GenerateStoreByCSV, counter, check_list, counter2, t_counter
 import datetime
 
 
@@ -19,6 +20,28 @@ test_run_time = 200
 counter.dist = 0
 counter.bundle_consist = 0
 counter.bundle_consist2 = 0
+counter.dist1 = 0
+counter.dist2 = 0
+counter.dist3 = 0
+counter.bundle_consist = 0
+counter.bundle_consist2 = 0
+
+check_list.b2 = []
+check_list.b3 = []
+check_list.b2_count = 0
+check_list.b3_count = 0
+check_list.suggested_bundle = []
+##counter 정의
+t_counter.t1 = 0
+t_counter.t2 = 0
+t_counter.t3 = 0
+t_counter.t4 = 0
+counter2.num1 = []
+counter2.num2 = []
+counter2.num3 = []
+counter2.num4 = []
+counter2.num5 = []
+
 
 
 current_time = datetime.datetime.now()
@@ -44,6 +67,7 @@ Orders = {}
 test1 = []
 store_dir = '송파구store_Coor.txt'
 customer_dir = '송파구house_Coor.txt'
+rider_speed = 3
 heuristic_theta = 10
 heuristic_r1 = 10
 ellipse_w = 10
@@ -99,8 +123,18 @@ np.save('./GXBoost'+str(gen_B_size)+'/'+save_id+'saved_orders_'+instance_type_i+
 label_datas = []
 count = 0
 label1_names = []
+label1_infos = []
 print(len(Saved_data))
+"""
 #input('Saved_data')
+for data in Saved_data:
+    origin = Orders[data[0][0] - 1000].store_loc
+    destination = Orders[data[0][-1]].location
+    line_dist = data[5] - distance(origin, destination) / rider_speed
+    data.append(line_dist)
+"""
+Saved_data.sort(key=operator.itemgetter(8))
+
 for data in Saved_data:
     # ver1: [route, unsync_t[0], round(sum(ftds) / len(ftds), 2), unsync_t[1], order_names, round(route_time, 2),min(time_buffer), round(P2P_dist - route_time, 2)]
     print(data)
@@ -109,8 +143,17 @@ for data in Saved_data:
     tem += data[0]
     tem += [data[2]]
     tem += [data[5]]
+    tem += [data[6]] #todo: 추가된 부분
+    #거리 계산하기
+    #print('거리 계산',Orders[data[0][0]- 1000].store_loc, Orders[data[0][-1]].location)
+    #origin = Orders[data[0][0]- 1000].store_loc
+    #destination = Orders[data[0][-1]].location
+    #line_dist = data[5] - distance(origin,destination)/rider_speed
+    tem += [data[8]]
     label_datas.append(tem)
     label1_names.append(data[4])
+    label1_infos.append([data[8],data[5]])
+    count += 1
 label_datas_np = np.array(label_datas)
 np.save('./GXBoost'+str(gen_B_size)+'/'+save_id+'c_'+instance_type_i+'_'+str(gen_B_size), label_datas_np)
 print('고객 수::', len(Orders))
@@ -132,11 +175,11 @@ if gen_B_size == 2:
     np.save('./GXBoost'+str(gen_B_size)+'/'+save_id+'Dummy_B2_datas_'+instance_type_i+'_'+str(gen_B_size), Dummy_B2_datas)
     print('입력2', len(label1_names))
     #label1_data = BundleFeaturesCalculator(saved_orders, label1_names, label=1)
-    label1_data = BundleFeaturesCalculator2(Orders, label1_names, label=1)
+    label1_data = BundleFeaturesCalculator2(Orders, label1_names, label=1, add_info=label1_infos, print_option = True)
     print('입력2_중복제거', len(label1_data))
     print('입력2',len(Dummy_B2_datas_names), Dummy_B2_datas_names[:5])
     #label0_data = BundleFeaturesCalculator(saved_orders, Dummy_B2_datas_names, label = 0)
-    label0_data = BundleFeaturesCalculator2(Orders, Dummy_B2_datas_names, label=0)
+    label0_data = BundleFeaturesCalculator2(Orders, Dummy_B2_datas_names, label=0, add_info=2)
     print('입력2_중복제거',len(label0_data))
     #input('확인2')
 if gen_B_size == 3:
@@ -153,12 +196,12 @@ if gen_B_size == 3:
     np.save('./GXBoost'+str(gen_B_size)+'/'+save_id+'Dummy_B3_datas_'+instance_type_i+'_'+str(gen_B_size), Dummy_B3_datas)
     print('입력3',len(label1_names))
     #label1_data = BundleFeaturesCalculator(saved_orders, label1_names, label = 1)
-    label1_data = BundleFeaturesCalculator2(Orders, label1_names, label=1)
+    label1_data = BundleFeaturesCalculator2(Orders, label1_names, label=1, add_info=label1_infos, print_option = True)
     print('입력3_중복제거',len(label1_data))
     #input('확인3')
     print('입력3',len(Dummy_B3_datas_names), Dummy_B3_datas_names[:5])
     #label0_data = BundleFeaturesCalculator(saved_orders, Dummy_B3_datas_names, label = 0)
-    label0_data = BundleFeaturesCalculator2(Orders, Dummy_B3_datas_names, label=0)
+    label0_data = BundleFeaturesCalculator2(Orders, Dummy_B3_datas_names, label=0, add_info=2)
     print('입력3_중복제거',len(label0_data))
     #input('확인3')
 

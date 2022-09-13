@@ -138,6 +138,10 @@ class Rider(object):
                             print(order.leave)
                             print(order.time_info)
                             input('멈춤')
+                        if order.time_info[1] == None:
+                            print(self.route)
+                            print(order.name,order.time_info)
+                            input('실리지 않은 고객이??')
                         wait_at_store, food_wait, manual_cook_time = WaitTimeCal1(exp_store_arrive, order.time_info[1], exp_cook_time, order.cook_time,move_t = move_t)
                         self.store_wait += wait_at_store
                         order.rider_wait = wait_at_store

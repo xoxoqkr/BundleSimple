@@ -10,7 +10,7 @@ import numpy as np
 import simpy
 import random
 from re_A1_class import scenario,Platform_pool
-from A1_BasicFunc import ResultSave, GenerateStoreByCSV, RiderGeneratorByCSV, OrdergeneratorByCSV, distance, counter, check_list, t_counter, GenerateStoreByCSVStressTest, OrdergeneratorByCSVForStressTest, RiderGenerator
+from A1_BasicFunc import ResultSave, GenerateStoreByCSV, RiderGeneratorByCSV, OrdergeneratorByCSV, distance, counter, check_list, t_counter, GenerateStoreByCSVStressTest, OrdergeneratorByCSVForStressTest, RiderGenerator, counter2
 from A2_Func import ResultPrint
 from re_platform import Platform_process5,Rider_Bundle_plt
 from datetime import datetime
@@ -20,6 +20,14 @@ from onnxmltools.convert.xgboost.operator_converters.XGBoost import convert_xgbo
 import onnxruntime as rt
 #from skl2onnx import convert_sklearn, update_registered_converter
 from skl2onnx.common.shape_calculator import calculate_linear_classifier_output_shapes  # noqa
+import platform
+print(platform.architecture())
+#input('버전 확인')
+
+
+
+
+
 """
 #global variable
 global instance_type
@@ -41,7 +49,7 @@ instance_type = 'Instance_random' #'Instance_random' 'Instance_cluster'
 ellipse_w=10
 heuristic_theta=10
 heuristic_r1=10
-heuristic_type = 'enumerate'#'XGBoost'#'enumerate'
+heuristic_type = 'XGBoost'#'XGBoost'#'enumerate'
 rider_num= 175 #8
 mix_ratios=None
 exp_range = [0,1,2,3,4]
@@ -50,7 +58,8 @@ fee_type = 'linear'
 service_time_diff = True
 
 setting = 'stresstest'
-stress_lamda = 1875/60
+stress_lamda = 40 # 분당 주문 발생 수 # (2400/60)/5 #기준은 한 구에 분당 3750/60
+stress_rider_num = 320  #기준은 한 구에 400명
 # Parameter define
 interval = 5
 run_time = 120
@@ -67,7 +76,7 @@ rider_working_time = 120
 # env = simpy.Environment()
 store_num = 20
 rider_gen_interval = 2  # 라이더 생성 간격.
-rider_speed = 3
+rider_speed = 3 #10
 rider_capacity = 3
 start_ite = 0
 ITE_NUM = 1
@@ -216,6 +225,12 @@ for ite in exp_range:#range(0, 1):
         t_counter.t1 = 0
         t_counter.t2 = 0
         t_counter.t3 = 0
+        t_counter.t4 = 0
+        counter2.num1 = []
+        counter2.num2 = []
+        counter2.num3 = []
+        counter2.num4 = []
+        counter2.num5 = []
         bundle_infos = {'size': [],'length':[],'od':[]}
         #start_time_sec = time.time()
         start_time_sec = datetime.now()
@@ -237,8 +252,8 @@ for ite in exp_range:#range(0, 1):
             GenerateStoreByCSVStressTest(env, 300, Platform2, Store_dict, store_type=instance_type)
             env.process(OrdergeneratorByCSVForStressTest(env, Orders, Store_dict, stress_lamda, platform=Platform2, p2_ratio=customer_p2, rider_speed=rider_speed,
                                              unit_fee=unit_fee, fee_type=fee_type))
-            env.process(RiderGenerator(env, Rider_dict, Platform2, Store_dict, Orders, capacity=rider_capacity, speed=rider_speed,working_duration=run_time, interval=0.1,
-                           gen_num=175,  wait_para=wait_para))
+            env.process(RiderGenerator(env, Rider_dict, Platform2, Store_dict, Orders, capacity=rider_capacity, speed=rider_speed,working_duration=run_time, interval=0.01,
+                           gen_num=stress_rider_num,  wait_para=wait_para))
         else:
             GenerateStoreByCSV(env, sc.store_dir, Platform2, Store_dict)
             env.process(OrdergeneratorByCSV(env, sc.customer_dir, Orders, Store_dict, Platform2, p2_ratio=customer_p2,
@@ -268,6 +283,7 @@ for ite in exp_range:#range(0, 1):
         sc.countt[0] = t_counter.t1
         sc.countt[1] = t_counter.t2
         sc.countt[2] = t_counter.t3
+        sc.countt[3] = t_counter.t4
         print('Name :: dist :: p2 :: ratio')
         for ct_num in Orders:
             ct = Orders[ct_num]
