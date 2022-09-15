@@ -5,6 +5,9 @@ import random
 import csv
 import numpy.random
 import time
+
+from numpy.random import poisson
+
 import re_A1_class
 import matplotlib.pyplot as plt
 
@@ -270,7 +273,7 @@ def RiderGenerator(env, Rider_dict, Platform, Store_dict, Customer_dict, capacit
         rider_num += 1
         if rider_num == gen_num:
             print('라이더 수',len(Rider_dict))
-            input('라이더 생성 완료')
+            #input('라이더 생성 완료')
 
 
 def RiderGeneratorByCSV(env, csv_dir, Rider_dict, Platform, Store_dict, Customer_dict, working_duration = 120, exp_WagePerHr = 9000 ,input_speed = None,
@@ -358,10 +361,10 @@ def GenerateStoreByCSV(env, csv_dir, platform,Store_dict, mus = [5,10,15], std_r
         Store_dict[name] = store
 
 
-def GenerateStoreByCSVStressTest(env, num, platform,Store_dict, mus = [5,10,15], std_ratio = 0.2, store_type = 'instance_random'):
+def GenerateStoreByCSVStressTest(env, num, platform,Store_dict, mus = [5,10,15], std_ratio = 0.2, store_type = 'Instance_random'):
     #mus = [11.5,13.5,15.5]
     for count in range(num):
-        if store_type == 'instance_random':
+        if store_type == 'Instance_random':
             loc = [random.randint(10, 40), random.randint(10, 40)]
         else:
             loc = [random.randint(20, 30), random.randint(20, 30)]
@@ -540,13 +543,22 @@ def OrdergeneratorByCSVForStressTest(env, orders, stores, lamda, platform = None
     :param interval: 주문 생성 간격
     :param runtime: 시뮬레이션 동작 시간
     """
+    dist_distribution = numpy.random.poisson(20,7) #todo: 0915 거리 조절
     for count in range(1000000):
         store_name = random.choice(range(len(stores)))
         store = stores[store_name]
         store_loc = store.location
-        req_dist = random.randint(5,20)
+        #req_dist = random.randint(5,20)*rider_speed
+        req_dist = max(random.choice(dist_distribution), 7)
         angle = math.radians(random.randrange(0, 360))
-        customer_loc = [store_loc[0] + round(req_dist*math.cos(angle),4),store_loc[1] + round(req_dist*math.sin(angle),4) ]
+        num = 0
+        while num < 1000:
+            customer_loc = [store_loc[0] + round(req_dist*math.cos(angle),4),store_loc[1] + round(req_dist*math.sin(angle),4) ]
+            if customer_loc[0] <= 50 and customer_loc[1] <= 50 :
+                break
+            num += 1
+        if num == 1000:
+            customer_loc = [random.randint(0,50),random.randint(0,50)]
         name = count
         OD_dist = distance(store_loc, customer_loc)
         p2 = (OD_dist / rider_speed) * p2_ratio

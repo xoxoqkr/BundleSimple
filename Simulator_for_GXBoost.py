@@ -5,7 +5,7 @@ from Simulator_fun_2207 import *
 from re_A1_class import Store, Platform_pool
 import numpy as np
 import simpy
-from A1_BasicFunc import  OrdergeneratorByCSV, GenerateStoreByCSV, counter, check_list, counter2, t_counter
+from A1_BasicFunc import  OrdergeneratorByCSV, GenerateStoreByCSV, counter, check_list, counter2, t_counter, GenerateStoreByCSVStressTest, OrdergeneratorByCSVForStressTest
 import datetime
 
 
@@ -77,6 +77,10 @@ platform_p2 = 2 #rider_p2*0.8
 Saved_data = []
 DummyB2 = []
 DummyB3 = []
+customer_p2 = 1 #2
+unit_fee = 110
+fee_type = 'linear'
+stress_lamda = 1 # 분당 주문 발생 수 # (2400/60)/5 #기준은 한 구에 분당 3750/60
 #1 주문 생성
 orders, stores, customers = OrderGen(store_dir, customer_dir, store_size = 100, customer_size = 1000, order_size = 1000, coor_random = True)
 
@@ -93,8 +97,18 @@ for data in stores:
 #env.process(OrdergeneratorByCSV(env, test1, Orders, Store_dict, Platform_dict, custom_data=orders, p2_ratio=1, rider_speed=3, service_time_diff = True))
 test2 = 'E:/학교업무 동기화용/py_charm/BundleSimple/'+instance_type+'/Instancestore_infos0'
 test3 = 'E:/학교업무 동기화용/py_charm/BundleSimple/'+instance_type+'/ct_data_merge'
-GenerateStoreByCSV(env, test2, Platform_dict, Store_dict)
-env.process(OrdergeneratorByCSV(env, test3, Orders, Store_dict, Platform_dict, p2_ratio = 1,rider_speed= 3,  service_time_diff = False, shuffle= True))
+#GenerateStoreByCSV(env, test2, Platform_dict, Store_dict)
+#env.process(OrdergeneratorByCSV(env, test3, Orders, Store_dict, Platform_dict, p2_ratio = 1,rider_speed= 3,  service_time_diff = False, shuffle= True))
+
+GenerateStoreByCSVStressTest(env, 200, Platform_dict, Store_dict, store_type=instance_type)
+env.process(
+    OrdergeneratorByCSVForStressTest(env, Orders, Store_dict, stress_lamda, platform=Platform_dict, p2_ratio=customer_p2,
+                                     rider_speed=rider_speed,
+                                     unit_fee=unit_fee, fee_type=fee_type))
+
+
+
+
 
 #2번들을 탐색하는 과정
 env.process(BundleProcess(env, Orders,Platform_dict, heuristic_theta, heuristic_r1,ellipse_w,platform_p2,bundle_permutation_option = True, bundle_size=[gen_B_size], speed = speed, Data = Saved_data, DummyB2_data = DummyB2, DummyB3_data = DummyB3))
@@ -136,7 +150,7 @@ for data in Saved_data:
 Saved_data.sort(key=operator.itemgetter(8))
 
 for data in Saved_data:
-    # ver1: [route, unsync_t[0], round(sum(ftds) / len(ftds), 2), unsync_t[1], order_names, round(route_time, 2),min(time_buffer), round(P2P_dist - route_time, 2)]
+    # ver1: [route, unsync_t[0], round(sum(ftds) / len(ftds), 2), unsync_t[1], order_names, round(route_time, 2),min(time_buffer), round(P2P_dist - route_time, 2), round(route_time, 2) - 시작점 지점과 끝점 이동 시간]
     print(data)
     tem = [count, len(data[4])]
     tem += data[4]
@@ -152,7 +166,7 @@ for data in Saved_data:
     tem += [data[8]]
     label_datas.append(tem)
     label1_names.append(data[4])
-    label1_infos.append([data[8],data[5]])
+    label1_infos.append([data[8],data[5],data[9],data[10]])
     count += 1
 label_datas_np = np.array(label_datas)
 np.save('./GXBoost'+str(gen_B_size)+'/'+save_id+'c_'+instance_type_i+'_'+str(gen_B_size), label_datas_np)
@@ -179,7 +193,7 @@ if gen_B_size == 2:
     print('입력2_중복제거', len(label1_data))
     print('입력2',len(Dummy_B2_datas_names), Dummy_B2_datas_names[:5])
     #label0_data = BundleFeaturesCalculator(saved_orders, Dummy_B2_datas_names, label = 0)
-    label0_data = BundleFeaturesCalculator2(Orders, Dummy_B2_datas_names, label=0, add_info=2)
+    label0_data = BundleFeaturesCalculator2(Orders, Dummy_B2_datas_names, label=0, add_info=4)
     print('입력2_중복제거',len(label0_data))
     #input('확인2')
 if gen_B_size == 3:
@@ -201,7 +215,7 @@ if gen_B_size == 3:
     #input('확인3')
     print('입력3',len(Dummy_B3_datas_names), Dummy_B3_datas_names[:5])
     #label0_data = BundleFeaturesCalculator(saved_orders, Dummy_B3_datas_names, label = 0)
-    label0_data = BundleFeaturesCalculator2(Orders, Dummy_B3_datas_names, label=0, add_info=2)
+    label0_data = BundleFeaturesCalculator2(Orders, Dummy_B3_datas_names, label=0, add_info=4)
     print('입력3_중복제거',len(label0_data))
     #input('확인3')
 

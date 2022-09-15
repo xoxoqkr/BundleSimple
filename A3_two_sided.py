@@ -196,7 +196,7 @@ def ConstructFeasibleBundle_TwoSided(target_order, orders, s, p2, thres = 0.05, 
         return []
 
 
-def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, speed = 1 , bundle_permutation_option = False, uncertainty = False,thres = 1, platform_exp_error = 1):
+def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, speed = 1 , bundle_permutation_option = False, uncertainty = False,thres = 1, platform_exp_error = 1,  thres_label = 1, label_check = None):
     d = []
     for customer_name in orders:
         if customer_name != target_order.name and orders[customer_name].time_info[1] == None and orders[customer_name].cancel == False:
@@ -205,7 +205,7 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
     print(d)
     #input('XGBoost_Bundle_Construct')
     if len(d) <= s-1:
-        return []
+        return [], np.array([])
     M1 = []
     input_data = []
     M2 = itertools.permutations(d, s - 1)
@@ -257,17 +257,19 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
     duration = end_time_sec - start_time_sec
     #duration = duration.seconds + duration.microseconds / 1000000
     t_counter('sess', duration)
-    print("predict", pred_onx[0])
+    print("predict", pred_onx[0], type(pred_onx[0]))
     print("predict_proba", pred_onx[1][:1])
     #input('test중2')
     #y_pred = XGBmodel.predict(X_test)
     #labeled_org_df = pd.merge(y_pred, org_df, left_index=True, right_index=True)
     #3 : label이 1인 것에 대해, 경로 만들고 실제 가능 여부 계산
     constructed_bundles = []
+    labels = []
     count = 0
     count1 = 0
     for label in pred_onx[0]:
-        if label == 1:
+        labels.append(label)
+        if label >= thres_label:
             #print('라벨',label)
             if thres < 100 :
                 print('1::',M1[count])
@@ -286,15 +288,22 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
             if len(tem) > 0:
                 #constructed_bundles.append(tem)
                 constructed_bundles += tem
-            if count1 > 0.12*len(X_test_np):
-                break
+            #if count1 > 0.12*len(X_test_np):
+            #    break
             count1 += 1
         count += 1
     counter2('sess2', count1)
+    label_check = np.append(label_check, pred_onx[0])
+    print('확인용1',label_check)
+    #label_check = np.concatenate((label_check, pred_onx[0]))
+    #unique, counts = np.unique(pred_onx[0], return_counts=True)
+    #print(str(dict(zip(unique, counts))))
+    #print('1:{}; 2:{}; 3:{};4:{};'.format(pred_onx[0].count(1),pred_onx[0].count(2),pred_onx[0].count(3),pred_onx[0].count(4)))
+    #input('숫자 확인')
     if sum(pred_onx[0]) > 0:
         print(constructed_bundles)
         #input('확인2')
-    return constructed_bundles
+    return constructed_bundles, np.array(labels)
 
 
 def SearchRaidar_heuristic(target, customers, platform, r1 = 10, theta = 90, now_t = 0, print_fig = False):

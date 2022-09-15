@@ -25,7 +25,7 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                       divide_option = False,unserved_bundle_order_break = True, bundle_para = False,
                       delete_para = True, obj_type = 'simple_max_s', search_type = 'enumerate', print_fig = False,
                       bundle_print_fig = False, bundle_infos = None,ellipse_w = 1.5, heuristic_theta = 100,heuristic_r1 = 10,
-                      XGBmodel3 = None, XGBmodel2 = None):
+                      XGBmodel3 = None, XGBmodel2 = None, thres_label = 1):
     f = open("loop시간정보.txt", 'a')
     f.write('연산 시작')
     f.write('\n')
@@ -44,10 +44,10 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                 #feasible_bundle_set, phi_b, d_matrix, s_b, D, lt_matrix = Bundle_Ready_Processs(env.now, platform, orders, riders, p2, interval,
                 #                                                                                speed = riders[0].speed, bundle_permutation_option= True, search_type = search_type, print_fig = print_fig,
                 #                                                                                ellipse_w = ellipse_w, heuristic_theta = heuristic_theta,heuristic_r1 = heuristic_r1)
-                feasible_bundle_set, phi_b, d_matrix, s_b, D, lt_matrix, act_considered_ct_num = Bundle_Ready_Processs2(env.now, platform, orders, riders, p2, interval,
+                feasible_bundle_set, phi_b, d_matrix, s_b, D, lt_matrix, act_considered_ct_num, label_infos = Bundle_Ready_Processs2(env.now, platform, orders, riders, p2, interval,
                                                                                                 speed = riders[0].speed, bundle_permutation_option= True, search_type = search_type, print_fig = print_fig,
                                                                                                 ellipse_w = ellipse_w, heuristic_theta = heuristic_theta,heuristic_r1 = heuristic_r1, XGBmodel3 = XGBmodel3,
-                                                                                                                        XGBmodel2 = XGBmodel2, considered_customer_type = 'new')
+                                                                                                                        XGBmodel2 = XGBmodel2, considered_customer_type = 'new', thres_label=thres_label)
 
 
                 print('phi_b {}:{} d_matrix {}:{} s_b {}:{}'.format(len(phi_b), numpy.average(phi_b),
@@ -155,7 +155,7 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
         #duration = duration.seconds+ duration.microseconds/1000000
         duration = loop_e - loop_s
         f = open("loop시간정보.txt", 'a')
-        f.write('현재시간;연산소요시간;undone_num;선택을 기다리는 고객 수;전체 고객 수;라이더 수;MIP 푸는데 걸린 시간;의사결정변수;제약식 수;xgboost;old;sess;enumerate;sess1;sess2;sess3;enu1;enu2;bundle_consist2호출수;수정된 고려 고객;\n')
+        f.write('현재시간;연산소요시간;undone_num;선택을 기다리는 고객 수;전체 고객 수;라이더 수;MIP 푸는데 걸린 시간;의사결정변수;제약식 수;xgboost;old;sess;enumerate;sess1;sess2;sess3;enu1;enu2;bundle_consist2호출수;수정된 고려 고객;0;1;2;3;4;\n')
         unselected_num = 0
         done_num = 0
         for order_name in orders:
@@ -163,8 +163,8 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                 unselected_num += 1
             if orders[order_name].time_info[4] == None:
                 done_num += 1
-        info = '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};'.format(round(env.now,2),duration,done_num,unselected_num,len(orders), len(riders),mip_duration, lens_b,num_const,t_counter.t1,t_counter.t2,t_counter.t3,t_counter.t4,
-                                                                sum(counter2.num1), sum(counter2.num2),sum(counter2.num3),sum(counter2.num4),sum(counter2.num5), counter.bundle_consist2,act_considered_ct_num)
+        info = '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};'.format(round(env.now,2),duration,done_num,unselected_num,len(orders), len(riders),mip_duration, lens_b,num_const,t_counter.t1,t_counter.t2,t_counter.t3,t_counter.t4,
+                                                                sum(counter2.num1), sum(counter2.num2),sum(counter2.num3),sum(counter2.num4),sum(counter2.num5), counter.bundle_consist2,act_considered_ct_num,label_infos[0],label_infos[1],label_infos[2],label_infos[4],label_infos[4])
         #info = [round(env.now,2),duration,done_num,unselected_num,len(orders), len(riders)]
         f.write(info)
         f.write('\n')
@@ -356,7 +356,7 @@ def Bundle_Ready_Processs(now_t, platform_set, orders, riders, p2,interval, bund
 
 def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bundle_permutation_option = False, speed = 1, min_pr = 0.05,
                       unserved_bundle_order_break = True, considered_customer_type = 'all', search_type = 'enumerate', print_fig = False,
-                          ellipse_w = 1.5, heuristic_theta = 100,heuristic_r1 = 10, min_time_buffer = 5, XGBmodel3 = None, XGBmodel2 = None):
+                          ellipse_w = 1.5, heuristic_theta = 100,heuristic_r1 = 10, min_time_buffer = 5, XGBmodel3 = None, XGBmodel2 = None, thres_label = 1):
     # 번들이 필요한 라이더에게 번들 계산.
     if considered_customer_type == 'new':
         considered_customers_names = NewCustomer(orders, now_t, interval=interval)
@@ -394,6 +394,7 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
     if len(BundleCheck) > 0:
         input('T {};;번들 존재{}'.format(now_t, BundleCheck))
     check_considered_customers = []
+    check_label = numpy.array([])
     for customer_name in considered_customers_names:
         start = time.time()
         target_order = orders[customer_name]
@@ -440,9 +441,13 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
         start_time_sec = time.time()
         if search_type == 'XGBoost':
             #input('XGBoost')
-            size3bundle = XGBoost_Bundle_Construct(target_order, considered_customers, 3, p2, XGBmodel3, now_t = now_t, speed = speed , bundle_permutation_option = bundle_permutation_option, thres = thres)
-            size2bundle = XGBoost_Bundle_Construct(target_order, considered_customers, 2, p2, XGBmodel2, now_t = now_t, speed = speed , bundle_permutation_option = bundle_permutation_option, thres = thres)
+            #size3bundle, label3data = XGBoost_Bundle_Construct(target_order, considered_customers, 3, p2, XGBmodel3, now_t = now_t, speed = speed , bundle_permutation_option = bundle_permutation_option, thres = thres, thres_label=thres_label, label_check=check_label)
+            size3bundle = []
+            label3data = []
+            size2bundle, label2data = XGBoost_Bundle_Construct(target_order, considered_customers, 2, p2, XGBmodel2, now_t = now_t, speed = speed , bundle_permutation_option = bundle_permutation_option, thres = thres, thres_label=thres_label, label_check=check_label)
             #size2bundle = XGBoost_Bundle_Construct(target_order, considered_customers, 2, p2, XGBmodel2, now_t = now_t, speed = speed , bundle_permutation_option = bundle_permutation_option, thres = thres)
+            check_label = numpy.concatenate((check_label, label3data, label2data))
+            #print('확인용2', tr1, tr2)
         else:
             size3bundle = ConstructFeasibleBundle_TwoSided(target_order, considered_customers, 3, p2, speed=speed, bundle_permutation_option = bundle_permutation_option, thres= thres, now_t = now_t, print_option= False)
             size2bundle = ConstructFeasibleBundle_TwoSided(target_order, considered_customers, 2, p2, speed=speed,bundle_permutation_option=bundle_permutation_option , thres= thres, now_t = now_t, print_option= False)
@@ -490,7 +495,25 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
             #print('번들2',size2bundle)
             #input('확인22')
         print('고객 당 계산 시간 {} : B2::{} B3::{}'.format(end - start, len(size2bundle),len(size3bundle)))
-    print('대상 고객들', check_considered_customers)
+    #check_label
+    #check_label.count()
+    try:
+        unique, counts = numpy.unique(check_label, return_counts=True)
+        print('label 정보',str(dict(zip(unique, counts))))
+    except:
+        unique = [0,1,2,3,4]
+        counts = [0,0,0,0,0]
+    res_label_count = [0,0,0,0,0]
+    for label_val in range(5):
+        if label_val in unique:
+            try:
+                res_label_count[label_val] = counts[label_val]
+            except:
+                pass
+        else:
+            pass
+    #print(unique, counts)
+    print('대상 고객들', check_considered_customers[:5])
     #input('확인:' + str(now_t))
     print('T {} 번들 수 확인2::{}'.format(now_t, len(Feasible_bundle_set)))
     phi_br = []
@@ -587,7 +610,7 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
             customer = orders[name]
             over_t.append(now_t - customer.time_info[0])
         lt_vector.append(sum(over_t)/len(over_t))
-    return Feasible_bundle_set, phi_b, d_matrix, s_matrix, D, lt_vector, len(check_considered_customers)
+    return Feasible_bundle_set, phi_b, d_matrix, s_matrix, D, lt_vector, len(check_considered_customers), res_label_count
 
 
 def Break_the_bundle(platform, orders, org_bundle_num, rev_bundle_num):

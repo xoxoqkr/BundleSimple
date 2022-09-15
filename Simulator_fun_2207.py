@@ -238,9 +238,13 @@ def BundleFeaturesCalculator2(customer_data, names_set, label = 0, add_info = No
         tem += sorted(gen_t)
         #tem += sorted(cook_t)
         tem += sorted(ser_t)
+        dummy = []
+        if type(add_info) == int:
+            for _ in range(add_info):
+                dummy.append(0)
         if add_info != None:
             if type(add_info) == int:
-                tem += [0,0]
+                tem += dummy
             else:
                 tem += add_info[count]
         tem += [label]
@@ -254,7 +258,7 @@ def BundleFeaturesCalculator2(customer_data, names_set, label = 0, add_info = No
 
 
 
-def ObjectGenerator(dir, coor_random= False):
+def ObjectGenerator(dir, coor_random= False, x_s = 0, x_e = 50, y_s = 0, y_e = 50):
     #dir을 받아서, object 생성
     #INPUT : dir
     #OUTPUT : object list
@@ -271,8 +275,8 @@ def ObjectGenerator(dir, coor_random= False):
             x = float(info[2].split(',')[0][1:])
             y = float(info[2].split(',')[1][:-1])
         else:
-            x = random.choice(range(0,50)) + round(random.random(),2)
-            y = random.choice(range(0,50)) + round(random.random(),2)
+            x = random.choice(range(x_s,x_e)) + round(random.random(),2)
+            y = random.choice(range(y_s,y_e)) + round(random.random(),2)
         basket.append([count, index, x,y, int(info[1]), int(info[3])])
         #print(basket[-1])
         count += 1
@@ -306,12 +310,12 @@ def ObjectGenerator2(dir, coor_random= False):
     return basket
 
 
-def OrderGen(store_dir, customer_dir, store_size = 100, customer_size = 1000, order_size = 1000, coor_random= False, input_data = None):
+def OrderGen(store_dir, customer_dir, store_size = 100, customer_size = 1000, order_size = 1000, coor_random= False, input_data = None, s_x_s = 0, s_x_e = 50, s_y_s = 0, s_y_e = 50):
     #store dir, customer_dir을 받아서,order 생성
     #INPUT : dir1, dir2, size
     #OUTPUT : order list, stores, customers
     orders = []
-    stores = random.sample(ObjectGenerator(store_dir, coor_random = coor_random), store_size)
+    stores = random.sample(ObjectGenerator(store_dir, coor_random = coor_random, x_s = s_x_s, x_e = s_x_e, y_s = s_y_s, y_e = s_y_e), store_size)
     customers = random.sample(ObjectGenerator(customer_dir, coor_random = coor_random), customer_size)
     t = 0
     for count in range(order_size):

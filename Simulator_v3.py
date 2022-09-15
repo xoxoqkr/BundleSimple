@@ -45,7 +45,7 @@ global service_time_diff
 """
 
 
-instance_type = 'Instance_random' #'Instance_random' 'Instance_cluster'
+instance_type = 'Instance_cluster' #'Instance_random' 'Instance_cluster'
 ellipse_w=10
 heuristic_theta=10
 heuristic_r1=10
@@ -56,6 +56,8 @@ exp_range = [0,1,2,3,4]
 unit_fee = 110
 fee_type = 'linear'
 service_time_diff = True
+thres_label = 1
+
 
 setting = 'stresstest'
 stress_lamda = 40 # 분당 주문 발생 수 # (2400/60)/5 #기준은 한 구에 분당 3750/60
@@ -93,6 +95,10 @@ obj_types = ['simple_max_s'] #['simple_max_s', 'max_s+probability', 'simple_over
 wait_para = False  # True: 음식조리로 인한 대기시간 발생 #False : 음식 대기로 인한 대기시간 발생X
 scenarios = []
 run_para = True  # True : 시뮬레이션 작동 #False 데이터 저장용
+r2_onx = 'pipeline_xgboost2_r_2_ver7'
+r3_onx = 'pipeline_xgboost3_r_3_ver6'
+c2_onx = 'pipeline_xgboost2_r_2_ver9'
+c3_onx = 'pipeline_xgboost3_c_3_ver6'
 f = open("결과저장0706.txt", 'a')
 f.write('결과저장 시작' + '\n')
 f.close()
@@ -181,20 +187,21 @@ input('시나리오 확인')
 if heuristic_type == 'XGBoost':
     see_dir = 'C:/Users/xoxoq/OneDrive/Ipython/handson-gb-main/handson-gb-main/Chapter05/'
     if instance_type == 'Instance_random':
-        sess3 = rt.InferenceSession(see_dir +"pipeline_xgboost2_r_3.onnx")
-        sees2 = rt.InferenceSession(see_dir +"pipeline_xgboost2_r_2_ver3.onnx")
+        sees2 = rt.InferenceSession(see_dir + r2_onx + '.onnx')  # "pipeline_xgboost2_r_2_ver3.onnx"
+        #sess3 = rt.InferenceSession(see_dir + r3_onx + '.onnx')  #pipeline_xgboost2_r_3
+        sess3 = None
     else:
-        sess3 = rt.InferenceSession(see_dir +"pipeline_xgboost2_c_3_ver1.onnx")
-        sees2 = rt.InferenceSession(see_dir +"pipeline_xgboost2_c_2_ver1.onnx")
+        sees2 = rt.InferenceSession(see_dir + c2_onx + '.onnx')  # "pipeline_xgboost2_c_2_ver1.onnx"
+        #sess3 = rt.InferenceSession(see_dir + c3_onx + '.onnx') #"pipeline_xgboost2_c_3_ver1.onnx"
+        sess3 = None
     #pred_onx = sess.run(None, {"input": X_test1[:5].astype(numpy.float32)}) #Input must be a list of dictionaries or a single numpy array for input 'input'.
     #print("predict", pred_onx[0])
     #print("predict_proba", pred_onx[1][:1])
-
-    XGBmodel3 = sess3
     XGBmodel2 = sees2
+    XGBmodel3 = sess3
 else:
-    XGBmodel3 = None
     XGBmodel2 = None
+    XGBmodel3 = None
 
 
 rv_count = 0
@@ -249,7 +256,7 @@ for ite in exp_range:#range(0, 1):
         # run
         env = simpy.Environment()
         if setting == 'stresstest':
-            GenerateStoreByCSVStressTest(env, 300, Platform2, Store_dict, store_type=instance_type)
+            GenerateStoreByCSVStressTest(env, 200, Platform2, Store_dict, store_type=instance_type)
             env.process(OrdergeneratorByCSVForStressTest(env, Orders, Store_dict, stress_lamda, platform=Platform2, p2_ratio=customer_p2, rider_speed=rider_speed,
                                              unit_fee=unit_fee, fee_type=fee_type))
             env.process(RiderGenerator(env, Rider_dict, Platform2, Store_dict, Orders, capacity=rider_capacity, speed=rider_speed,working_duration=run_time, interval=0.01,
@@ -265,7 +272,7 @@ for ite in exp_range:#range(0, 1):
         #env.process(OrdergeneratorByCSV(env, sc.customer_dir, Orders, Store_dict, Platform2, p2_ratio = customer_p2,rider_speed= rider_speed, unit_fee = unit_fee, fee_type = fee_type, service_time_diff = service_time_diff))
         env.process(Platform_process5(env, Platform2, Orders, Rider_dict, platform_p2,thres_p,interval, bundle_para= sc.platform_recommend, obj_type = sc.obj_type,
                                       search_type = sc.search_type, print_fig = print_fig, bundle_print_fig = bundle_print_fig, bundle_infos = bundle_infos,
-                                      ellipse_w = ellipse_w, heuristic_theta = heuristic_theta,heuristic_r1 = heuristic_r1,XGBmodel3 = XGBmodel3, XGBmodel2 = XGBmodel2))
+                                      ellipse_w = ellipse_w, heuristic_theta = heuristic_theta,heuristic_r1 = heuristic_r1,XGBmodel3 = XGBmodel3, XGBmodel2 = XGBmodel2, thres_label = thres_label))
         env.run(run_time)
         res = ResultPrint(sc.name + str(ite), Orders, speed=rider_speed, riders = Rider_dict)
         sc.res.append(res)
@@ -561,3 +568,13 @@ for sc in scenarios:
     print_count += 1
 f3.write('Exp End' + '\n')
 f3.close()
+
+if setting == 'stresstest':
+    f3 = open("고객_coord_정보 .txt", 'a')
+    f3.write('결과저장 시작' + instance_type + '\n')
+    for order_name in Orders:
+        order = Orders[order_name]
+        con = '{};{};{};{};{};{};\n'.format(order.name,order.location[0],order.location[1], order.store, order.store_loc[0], order.store_loc[1])
+        f3.write(con)
+    f3.write('Exp End' + '\n')
+    f3.close()
