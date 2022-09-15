@@ -238,6 +238,44 @@ def BundleFeaturesCalculator2(customer_data, names_set, label = 0, add_info = No
         tem += sorted(gen_t)
         #tem += sorted(cook_t)
         tem += sorted(ser_t)
+        points = []
+        vectors = []
+        for name in names:
+            points += [customer_data[name].store_loc[0], customer_data[name].store_loc[1],customer_data[name].location[0],customer_data[name].location[1]]
+            vectors += [customer_data[name].store_loc[0] - customer_data[name].location[0],
+                        customer_data[name].store_loc[1] - customer_data[name].location[1]]
+        if len(names) == 2:
+            triangles = [0,0]
+        else:
+            if  min(distS) <= 0:
+                v1 = 0.0
+            else:
+                s1 = sum(distS)/2
+                try:
+                    v1 = float(np.sqrt(s1*(s1-distS[0])*(s1-distS[1])*(s1-distS[2])))
+                except:
+                    v1 = - 1
+                    print('distS', distS)
+                    #input('distS;확인1')
+            if min(distC) <= 0:
+                v2 = 0.0
+            else:
+                s2 = sum(distC) / 2
+                try:
+                    v2 = float(np.sqrt(s2*(s2-distC[0])*(s2-distC[1])*(s2-distC[2])))
+                except:
+                    v2 = - 1
+                    print('distC', distC)
+                    #input('distC;확인1')
+            if type(v1) != float or type(v2) != float:
+                print(distC, distS)
+                print(points)
+                print('확인2', v1,v2, type(v1),type(v2))
+                #input('VVV;확인3')
+            triangles = [v1,v2]
+        tem += points
+        tem += vectors
+        tem += triangles
         dummy = []
         if type(add_info) == int:
             for _ in range(add_info):

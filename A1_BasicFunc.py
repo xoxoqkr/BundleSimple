@@ -576,7 +576,7 @@ def OrdergeneratorByCSVForStressTest(env, orders, stores, lamda, platform = None
         print('T {} 음식 {} 조리 확인/ 시간 {}'.format(int(env.now), order.name,order.actual_cook_time))
         orders[name] = order
         stores[store_name].received_orders.append(orders[name])
-        interval = 1/lamda
+        interval = 1.0/lamda
         #todo : 0317 지연되는 조건 생각할 것.
         if interval > 0:
             yield env.timeout(interval)

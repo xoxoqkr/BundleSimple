@@ -14,7 +14,7 @@ global instance_type
 
 #gen_B_size = 3
 #instance_type = 'Instance_random'
-test_run_time = 200
+test_run_time = 150
 
 ##count 확인
 counter.dist = 0
@@ -167,6 +167,13 @@ for data in Saved_data:
     label_datas.append(tem)
     label1_names.append(data[4])
     label1_infos.append([data[8],data[5],data[9],data[10]])
+    points = []
+    vectors = []
+    triangles = []
+    for name in data[4]:
+        points += [Orders[name].store_loc, Orders[name].location]
+        vectors += [Orders[name].store_loc[0] - Orders[name].location[0], Orders[name].store_loc[1] - Orders[name].location[1]]
+    #label1_infos.app
     count += 1
 label_datas_np = np.array(label_datas)
 np.save('./GXBoost'+str(gen_B_size)+'/'+save_id+'c_'+instance_type_i+'_'+str(gen_B_size), label_datas_np)
@@ -218,7 +225,9 @@ if gen_B_size == 3:
     label0_data = BundleFeaturesCalculator2(Orders, Dummy_B3_datas_names, label=0, add_info=4)
     print('입력3_중복제거',len(label0_data))
     #input('확인3')
-
+#print(len(label1_data[0]), len(label0_data[0]))
+#print(label1_data[0], label0_data[0])
+#input('확인')
 raw_data = label1_data + label0_data
 raw_data_np = np.array(raw_data, dtype=np.float64)
 np.save('./GXBoost'+str(gen_B_size)+'/'+save_id+'raw_data_np_'+instance_type_i+'_'+str(gen_B_size), raw_data_np)

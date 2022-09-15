@@ -351,14 +351,17 @@ def BundleConsist2(orders, customers, p2, time_thres = 0, speed = 1,M = 10000, b
                     tem = [route, unsync_t[0], round(sum(ftds) / len(ftds), 2), unsync_t[1], order_names, round(route_time, 2),min(time_buffer), round(P2P_dist - route_time, 2), line_dist, round(P2P_dist,4), distance(origin, destination)/speed]
                     if line_dist <= 0.1 :
                         print_route = []
-                        for value in route:
-                            if value > M:
-                                print_route.append(customers[value - M].store_loc)
-                            else:
-                                print_route.append(customers[value].location)
-                        print(origin, destination, round(route_time, 2) , distance(origin, destination)/speed, line_dist)
-                        print(print_route)
-                        #input('거리 에러')
+                        try:
+                            for value in route:
+                                if value >= M:
+                                    print_route.append(customers[value - M].store_loc)
+                                else:
+                                    print_route.append(customers[value].location)
+                            print(origin, destination, round(route_time, 2) , distance(origin, destination)/speed, line_dist)
+                            print(print_route)
+                            #input('거리 에러')
+                        except:
+                            pass
                     feasible_subset.append(tem)
                 else:
                     #print('조리 시간 초과1:',min(time_buffer),'::', min_time_buffer)
