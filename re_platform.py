@@ -155,7 +155,8 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
         #duration = duration.seconds+ duration.microseconds/1000000
         duration = loop_e - loop_s
         f = open("loop시간정보.txt", 'a')
-        f.write('현재시간;연산소요시간;undone_num;선택을 기다리는 고객 수;전체 고객 수;라이더 수;MIP 푸는데 걸린 시간;의사결정변수;제약식 수;xgboost;old;sess;enumerate;sess1;sess2;sess3;enu1;enu2;bundle_consist2호출수;수정된 고려 고객;0;1;2;3;4;\n')
+        if env.now < 6 + interval:
+            f.write('현재시간;연산소요시간;undone_num;선택을 기다리는 고객 수;전체 고객 수;라이더 수;MIP 푸는데 걸린 시간;의사결정변수;제약식 수;xgboost;old;sess;enumerate;sess1;sess2;sess3;enu1;enu2;bundle_consist2호출수;수정된 고려 고객;0;1;2;3;4;\n')
         unselected_num = 0
         done_num = 0
         for order_name in orders:
@@ -164,7 +165,7 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
             if orders[order_name].time_info[4] == None:
                 done_num += 1
         info = '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};'.format(round(env.now,2),duration,done_num,unselected_num,len(orders), len(riders),mip_duration, lens_b,num_const,t_counter.t1,t_counter.t2,t_counter.t3,t_counter.t4,
-                                                                sum(counter2.num1), sum(counter2.num2),sum(counter2.num3),sum(counter2.num4),sum(counter2.num5), counter.bundle_consist2,act_considered_ct_num,label_infos[0],label_infos[1],label_infos[2],label_infos[4],label_infos[4])
+                                                                sum(counter2.num1), sum(counter2.num2),sum(counter2.num3),sum(counter2.num4),sum(counter2.num5), counter.bundle_consist2,act_considered_ct_num,label_infos[0],label_infos[1],label_infos[2],label_infos[3],label_infos[4])
         #info = [round(env.now,2),duration,done_num,unselected_num,len(orders), len(riders)]
         f.write(info)
         f.write('\n')
@@ -441,16 +442,19 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
         start_time_sec = time.time()
         if search_type == 'XGBoost':
             #input('XGBoost')
-            #size3bundle, label3data = XGBoost_Bundle_Construct(target_order, considered_customers, 3, p2, XGBmodel3, now_t = now_t, speed = speed , bundle_permutation_option = bundle_permutation_option, thres = thres, thres_label=thres_label, label_check=check_label)
-            size3bundle = []
-            label3data = []
+            size3bundle, label3data = XGBoost_Bundle_Construct(target_order, considered_customers, 3, p2, XGBmodel3, now_t = now_t, speed = speed , bundle_permutation_option = bundle_permutation_option, thres = thres, thres_label=thres_label, label_check=check_label)
+            #size3bundle = []
+            #label3data = []
             size2bundle, label2data = XGBoost_Bundle_Construct(target_order, considered_customers, 2, p2, XGBmodel2, now_t = now_t, speed = speed , bundle_permutation_option = bundle_permutation_option, thres = thres, thres_label=thres_label, label_check=check_label)
             #size2bundle = XGBoost_Bundle_Construct(target_order, considered_customers, 2, p2, XGBmodel2, now_t = now_t, speed = speed , bundle_permutation_option = bundle_permutation_option, thres = thres)
+            #this_loop_label = numpy.concatenate((label3data, label2data))
             check_label = numpy.concatenate((check_label, label3data, label2data))
             #print('확인용2', tr1, tr2)
         else:
             size3bundle = ConstructFeasibleBundle_TwoSided(target_order, considered_customers, 3, p2, speed=speed, bundle_permutation_option = bundle_permutation_option, thres= thres, now_t = now_t, print_option= False)
             size2bundle = ConstructFeasibleBundle_TwoSided(target_order, considered_customers, 2, p2, speed=speed,bundle_permutation_option=bundle_permutation_option , thres= thres, now_t = now_t, print_option= False)
+            label3data = []
+            label2data = []
         #end_time_sec = datetime.now()
         end_time_sec = time.time()
         duration = end_time_sec - start_time_sec
@@ -499,11 +503,18 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
     #check_label.count()
     try:
         unique, counts = numpy.unique(check_label, return_counts=True)
+        #unique, counts = numpy.unique(this_loop_label, return_counts=True)
         print('label 정보',str(dict(zip(unique, counts))))
+        label_count_dict = dict(zip(unique, counts))
     except:
         unique = [0,1,2,3,4]
         counts = [0,0,0,0,0]
-    res_label_count = [0,0,0,0,0]
+    print('unique',unique)
+    print('counts',counts)
+    res_label_count = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    for key in label_count_dict:
+        res_label_count[int(key)] = label_count_dict[key]
+    """
     for label_val in range(5):
         if label_val in unique:
             try:
@@ -512,7 +523,10 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
                 pass
         else:
             pass
+    """
     #print(unique, counts)
+    print(res_label_count[:25])
+    input('label 정보 확인')
     print('대상 고객들', check_considered_customers[:5])
     #input('확인:' + str(now_t))
     print('T {} 번들 수 확인2::{}'.format(now_t, len(Feasible_bundle_set)))

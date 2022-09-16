@@ -56,7 +56,7 @@ exp_range = [0,1,2,3,4]
 unit_fee = 110
 fee_type = 'linear'
 service_time_diff = True
-thres_label = 1
+thres_label = 25
 
 
 setting = 'stresstest'
@@ -97,8 +97,8 @@ scenarios = []
 run_para = True  # True : 시뮬레이션 작동 #False 데이터 저장용
 r2_onx = 'pipeline_xgboost2_r_2_ver7'
 r3_onx = 'pipeline_xgboost3_r_3_ver6'
-c2_onx = 'pipeline_xgboost2_r_2_ver9'
-c3_onx = 'pipeline_xgboost3_c_3_ver6'
+c2_onx = 'pipeline_xgboost2_c_ver9'
+c3_onx = 'pipeline_xgboost3_c_ver10'
 f = open("결과저장0706.txt", 'a')
 f.write('결과저장 시작' + '\n')
 f.close()
@@ -192,8 +192,8 @@ if heuristic_type == 'XGBoost':
         sess3 = None
     else:
         sees2 = rt.InferenceSession(see_dir + c2_onx + '.onnx')  # "pipeline_xgboost2_c_2_ver1.onnx"
-        #sess3 = rt.InferenceSession(see_dir + c3_onx + '.onnx') #"pipeline_xgboost2_c_3_ver1.onnx"
-        sess3 = None
+        sess3 = rt.InferenceSession(see_dir + c3_onx + '.onnx') #"pipeline_xgboost2_c_3_ver1.onnx"
+        #sess3 = None
     #pred_onx = sess.run(None, {"input": X_test1[:5].astype(numpy.float32)}) #Input must be a list of dictionaries or a single numpy array for input 'input'.
     #print("predict", pred_onx[0])
     #print("predict_proba", pred_onx[1][:1])

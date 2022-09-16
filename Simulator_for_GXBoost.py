@@ -12,9 +12,11 @@ import datetime
 global gen_B_size
 global instance_type
 
+
+save_root_dir = 'E:/'
 #gen_B_size = 3
 #instance_type = 'Instance_random'
-test_run_time = 150
+test_run_time = 100
 
 ##count 확인
 counter.dist = 0
@@ -132,7 +134,8 @@ instance_type_i = instance_type[9]
 #input('STOP')
 order_np = np.array(saved_orders, dtype=np.float64)
 #np.save('./GXBoost'+str(gen_B_size)+'/'+save_id+'saved_orders_'+instance_type_i+'_'+str(gen_B_size), order_np)
-np.save('./GXBoost'+str(gen_B_size)+'/'+save_id+'saved_orders_'+instance_type_i+'_'+str(gen_B_size), saved_orders)
+#np.save('./GXBoost'+str(gen_B_size)+'/'+save_id+'saved_orders_'+instance_type_i+'_'+str(gen_B_size), saved_orders)
+np.save(save_root_dir + 'GXBoost'+str(gen_B_size)+'/'+save_id+'saved_orders_'+instance_type_i+'_'+str(gen_B_size), saved_orders)
 #Feature saved Part
 label_datas = []
 count = 0
@@ -176,7 +179,8 @@ for data in Saved_data:
     #label1_infos.app
     count += 1
 label_datas_np = np.array(label_datas)
-np.save('./GXBoost'+str(gen_B_size)+'/'+save_id+'c_'+instance_type_i+'_'+str(gen_B_size), label_datas_np)
+#np.save('./GXBoost'+str(gen_B_size)+'/'+save_id+'c_'+instance_type_i+'_'+str(gen_B_size), label_datas_np)
+np.save(save_root_dir + 'GXBoost'+str(gen_B_size)+'/'+save_id+'c_'+instance_type_i+'_'+str(gen_B_size), label_datas_np)
 print('고객 수::', len(Orders))
 print('counter', counter.dist, counter.bundle_consist, counter.bundle_consist2)
 if gen_B_size == 2:
@@ -193,7 +197,8 @@ if gen_B_size == 2:
         #print('data',data)
         #print('더미3',Dummy_B2_datas_names)
     Dummy_B2_datas_np = np.array(Dummy_B2_datas, dtype=int)
-    np.save('./GXBoost'+str(gen_B_size)+'/'+save_id+'Dummy_B2_datas_'+instance_type_i+'_'+str(gen_B_size), Dummy_B2_datas)
+    #np.save('./GXBoost'+str(gen_B_size)+'/'+save_id+'Dummy_B2_datas_'+instance_type_i+'_'+str(gen_B_size), Dummy_B2_datas)
+    np.save(save_root_dir + 'GXBoost' + str(gen_B_size) + '/' + save_id + 'Dummy_B2_datas_' + instance_type_i + '_' + str(gen_B_size), Dummy_B2_datas)
     print('입력2', len(label1_names))
     #label1_data = BundleFeaturesCalculator(saved_orders, label1_names, label=1)
     label1_data = BundleFeaturesCalculator2(Orders, label1_names, label=1, add_info=label1_infos, print_option = True)
@@ -214,7 +219,8 @@ if gen_B_size == 3:
         Dummy_B3_datas.append(tem)
         Dummy_B3_datas_names.append(data)
     Dummy_B3_datas_np = np.array(Dummy_B3_datas, dtype=int)
-    np.save('./GXBoost'+str(gen_B_size)+'/'+save_id+'Dummy_B3_datas_'+instance_type_i+'_'+str(gen_B_size), Dummy_B3_datas)
+    #np.save('./GXBoost'+str(gen_B_size)+'/'+save_id+'Dummy_B3_datas_'+instance_type_i+'_'+str(gen_B_size), Dummy_B3_datas)
+    np.save(save_root_dir + 'GXBoost' + str(gen_B_size) + '/' + save_id + 'Dummy_B3_datas_' + instance_type_i + '_' + str(gen_B_size), Dummy_B3_datas)
     print('입력3',len(label1_names))
     #label1_data = BundleFeaturesCalculator(saved_orders, label1_names, label = 1)
     label1_data = BundleFeaturesCalculator2(Orders, label1_names, label=1, add_info=label1_infos, print_option = True)
@@ -230,8 +236,9 @@ if gen_B_size == 3:
 #input('확인')
 raw_data = label1_data + label0_data
 raw_data_np = np.array(raw_data, dtype=np.float64)
-np.save('./GXBoost'+str(gen_B_size)+'/'+save_id+'raw_data_np_'+instance_type_i+'_'+str(gen_B_size), raw_data_np)
-
+#np.save('./GXBoost'+str(gen_B_size)+'/'+save_id+'raw_data_np_'+instance_type_i+'_'+str(gen_B_size), raw_data_np)
+np.save(save_root_dir + 'GXBoost'+str(gen_B_size)+'/'+save_id+'raw_data_np_'+instance_type_i+'_'+str(gen_B_size), raw_data_np)
 #결과 확인
-res= np.load('./GXBoost'+str(gen_B_size)+'/'+save_id+'raw_data_np_'+instance_type_i+'_'+str(gen_B_size)+'.npy')
+#res= np.load('./GXBoost'+str(gen_B_size)+'/'+save_id+'raw_data_np_'+instance_type_i+'_'+str(gen_B_size)+'.npy')
+res= np.load(save_root_dir + 'GXBoost'+str(gen_B_size)+'/'+save_id+'raw_data_np_'+instance_type_i+'_'+str(gen_B_size)+'.npy')
 print('저장 결과',np.shape(res))

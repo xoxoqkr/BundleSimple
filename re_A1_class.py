@@ -355,7 +355,7 @@ class Rider(object):
                     next = self.check_t #order_end_time
                 else:
                     next = self.Rand.poisson(self.search_lamda)
-                print('다음 시간 {}'.format(next))
+                #print('다음 시간 {}'.format(next))
                 self.next_search_time2 += next
                 self.order_select_time.append(env.now)
                 yield env.timeout(next)

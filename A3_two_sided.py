@@ -226,8 +226,8 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
             ser_t.append(ct.time_info[7])
         M1.append(tem1)
         eachother = itertools.combinations(q, 2)
-        distS = []
-        distC = []
+        distS = [] ##DD거리
+        distC = [] #OO거리
         for info in eachother:
             ct1 = orders[info[0]]
             ct2 = orders[info[1]]
@@ -238,7 +238,44 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
         distC.sort()
         gen_t.sort()
         ser_t.sort()
-        tem2 += distOD + distS + distC + gen_t + ser_t
+        tem2 += distOD + distC + distS + gen_t + ser_t
+        ##0916 추가된 부분
+        ## --------start------
+        vectors = []
+        for name in q:
+            vectors += [orders[name].store_loc[0] - orders[name].location[0],
+                        orders[name].store_loc[1] - orders[name].location[1]]
+        if len(q) == 2:
+            triangles = [0, 0]
+        else:
+            if min(distS) <= 0:
+                v1 = 0.0
+            else:
+                s1 = sum(distS) / 2
+                try:
+                    v1 = float(np.sqrt(s1 * (s1 - distS[0]) * (s1 - distS[1]) * (s1 - distS[2])))
+                except:
+                    v1 = - 1
+                    print('distS', distS)
+                    # input('distS;확인1')
+            if min(distC) <= 0:
+                v2 = 0.0
+            else:
+                s2 = sum(distC) / 2
+                try:
+                    v2 = float(np.sqrt(s2 * (s2 - distC[0]) * (s2 - distC[1]) * (s2 - distC[2])))
+                except:
+                    v2 = - 1
+                    print('distC', distC)
+                    # input('distC;확인1')
+            if type(v1) != float or type(v2) != float:
+                print(distC, distS)
+                print('확인2', v1, v2, type(v1), type(v2))
+                # input('VVV;확인3')
+            triangles = [v2,v1]
+        tem2 += vectors + triangles
+        ##0916 추가된 부분
+        ## ------end------
         input_data.append(tem2)
     input_data = np.array(input_data)
     org_df = pd.DataFrame(data=input_data)
@@ -265,11 +302,13 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
     #3 : label이 1인 것에 대해, 경로 만들고 실제 가능 여부 계산
     constructed_bundles = []
     labels = []
+    labels_larger_1 = []
     count = 0
     count1 = 0
     for label in pred_onx[0]:
-        labels.append(label)
-        if label >= thres_label:
+        labels.append(int(label))
+        if 0 < label <= thres_label: #todo : 0916 label
+        #if label >= thres_label:
             #print('라벨',label)
             if thres < 100 :
                 print('1::',M1[count])
@@ -283,8 +322,9 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
                 tem = BundleConsist2(M1[count], orders, p2, speed = speed,
                                      bundle_permutation_option = bundle_permutation_option, uncertainty = uncertainty, platform_exp_error =  platform_exp_error,
                                      feasible_return = True, now_t = now_t, max_dist= 15) #max_dist= 15
-                print('구성 된 라벨 1 ::', label)
-                print(tem)
+                #print('구성 된 라벨 1 ::', label)
+                #print(tem)
+                labels_larger_1.append(int(label))
             if len(tem) > 0:
                 #constructed_bundles.append(tem)
                 constructed_bundles += tem
@@ -292,17 +332,24 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
             #    break
             count1 += 1
         count += 1
+    if len(labels_larger_1) > 0 :
+        print('계산된 label 있음',len(labels_larger_1), sum(labels_larger_1)/len(labels_larger_1))
+    else:
+        print('계산된 label 없음')
     counter2('sess2', count1)
     label_check = np.append(label_check, pred_onx[0])
-    print('확인용1',label_check)
+    print('확인용1',labels)
+    print('확인용2',labels_larger_1)
     #label_check = np.concatenate((label_check, pred_onx[0]))
     #unique, counts = np.unique(pred_onx[0], return_counts=True)
     #print(str(dict(zip(unique, counts))))
     #print('1:{}; 2:{}; 3:{};4:{};'.format(pred_onx[0].count(1),pred_onx[0].count(2),pred_onx[0].count(3),pred_onx[0].count(4)))
     #input('숫자 확인')
     if sum(pred_onx[0]) > 0:
-        print(constructed_bundles)
+        #print(constructed_bundles)
         #input('확인2')
+        print('번들 발생함::',len(constructed_bundles))
+        pass
     return constructed_bundles, np.array(labels)
 
 

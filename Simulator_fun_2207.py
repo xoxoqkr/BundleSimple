@@ -213,8 +213,8 @@ def BundleFeaturesCalculator2(customer_data, names_set, label = 0, add_info = No
             #input('확인')
             distOD.append(distance(customer_data[int(name)].location,customer_data[int(name)].store_loc))
         eachother = itertools.combinations(names,2)
-        distS = []
-        distC = []
+        distS = [] #DD거리
+        distC = [] #OO거리
         for info in eachother:
             distS.append(distance(customer_data[int(info[0])].location,customer_data[int(info[1])].location))
             distC.append(distance(customer_data[int(info[0])].store_loc, customer_data[int(info[1])].store_loc))
@@ -247,7 +247,7 @@ def BundleFeaturesCalculator2(customer_data, names_set, label = 0, add_info = No
         if len(names) == 2:
             triangles = [0,0]
         else:
-            if  min(distS) <= 0:
+            if min(distS) <= 0:
                 v1 = 0.0
             else:
                 s1 = sum(distS)/2
