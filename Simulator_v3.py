@@ -10,7 +10,7 @@ import numpy as np
 import simpy
 import random
 from re_A1_class import scenario,Platform_pool
-from A1_BasicFunc import ResultSave, GenerateStoreByCSV, RiderGeneratorByCSV, OrdergeneratorByCSV, distance, counter, check_list, t_counter, GenerateStoreByCSVStressTest, OrdergeneratorByCSVForStressTest, RiderGenerator, counter2
+from A1_BasicFunc import ResultSave, GenerateStoreByCSV, RiderGeneratorByCSV, OrdergeneratorByCSV, distance, counter, check_list, t_counter, GenerateStoreByCSVStressTest, OrdergeneratorByCSVForStressTest, RiderGenerator, counter2, SaveSscenario
 from A2_Func import ResultPrint
 from re_platform import Platform_process5,Rider_Bundle_plt
 from datetime import datetime
@@ -45,14 +45,14 @@ global service_time_diff
 """
 
 
-instance_type = 'Instance_cluster' #'Instance_random' 'Instance_cluster'
+instance_type = 'Instance_random' #'Instance_random' 'Instance_cluster'
 ellipse_w=10
 heuristic_theta=10
 heuristic_r1=10
-heuristic_type = 'XGBoost'#'XGBoost'#'enumerate'
+heuristic_type = 'enumerate'#'XGBoost'#'enumerate'
 rider_num= 175 #8
 mix_ratios=None
-exp_range = [0,1,2,3,4]
+exp_range = [0,1,2,3,4,5,6,7,8,9]#list(range(10))#[0,1]
 unit_fee = 110
 fee_type = 'linear'
 service_time_diff = True
@@ -60,11 +60,11 @@ thres_label = 25
 
 
 setting = 'stresstest'
-stress_lamda = 40 # 분당 주문 발생 수 # (2400/60)/5 #기준은 한 구에 분당 3750/60
+stress_lamda = 40 # 분당 주문 발생 수 # (2400/60)/5 #기준은 한 구에 분당 3750/60 #원래 40
 stress_rider_num = 320  #기준은 한 구에 400명
 # Parameter define
 interval = 5
-run_time = 120
+run_time = 120 # 120
 cool_time = 30  # run_time - cool_time 시점까지만 고객 생성
 uncertainty_para = True  # 음식 주문 불확실성 고려
 rider_exp_error = 1.5  # 라이더가 가지는 불확실성
@@ -95,8 +95,8 @@ obj_types = ['simple_max_s'] #['simple_max_s', 'max_s+probability', 'simple_over
 wait_para = False  # True: 음식조리로 인한 대기시간 발생 #False : 음식 대기로 인한 대기시간 발생X
 scenarios = []
 run_para = True  # True : 시뮬레이션 작동 #False 데이터 저장용
-r2_onx = 'pipeline_xgboost2_r_2_ver7'
-r3_onx = 'pipeline_xgboost3_r_3_ver6'
+r2_onx = 'pipeline_xgboost2_r_ver11'# 'pipeline_xgboost2_r_2_ver7'
+r3_onx = 'pipeline_xgboost3_r_ver11'#'pipeline_xgboost3_r_3_ver6'
 c2_onx = 'pipeline_xgboost2_c_ver9'
 c3_onx = 'pipeline_xgboost3_c_ver10'
 f = open("결과저장0706.txt", 'a')
@@ -169,12 +169,18 @@ print('시나리오 확인3')
 print(heuristic_type)
 for sc3 in scenarios:
     #sc3.search_type = heuristic_type
-    sc3.platform_recommend = True
+    sc3.platform_recommend = False
     sc3.rider_bundle_construct = False
     print(sc3.platform_recommend, sc3.rider_bundle_construct,sc3.obj_type, sc3.search_type)
 scenarios = scenarios[:1]
+
 scenarios[0].obj_type = 'simple_max_s'
-print(scenarios, scenarios[0].obj_type)
+
+print('시나리오 확인 Start')
+print(scenarios)
+#scenarios[1].platform_recommend = False
+for sc4 in scenarios:
+    print(sc4.platform_recommend, sc4.rider_bundle_construct, sc4.obj_type, sc4.search_type)
 
 input('시나리오 확인')
 
@@ -188,8 +194,8 @@ if heuristic_type == 'XGBoost':
     see_dir = 'C:/Users/xoxoq/OneDrive/Ipython/handson-gb-main/handson-gb-main/Chapter05/'
     if instance_type == 'Instance_random':
         sees2 = rt.InferenceSession(see_dir + r2_onx + '.onnx')  # "pipeline_xgboost2_r_2_ver3.onnx"
-        #sess3 = rt.InferenceSession(see_dir + r3_onx + '.onnx')  #pipeline_xgboost2_r_3
-        sess3 = None
+        sess3 = rt.InferenceSession(see_dir + r3_onx + '.onnx')  #pipeline_xgboost2_r_3
+        #sess3 = None
     else:
         sees2 = rt.InferenceSession(see_dir + c2_onx + '.onnx')  # "pipeline_xgboost2_c_2_ver1.onnx"
         sess3 = rt.InferenceSession(see_dir + c3_onx + '.onnx') #"pipeline_xgboost2_c_3_ver1.onnx"
@@ -216,6 +222,27 @@ for ite in exp_range:#range(0, 1):
     foodlead_time_ratio_stroage =[]
     labels = []
     num_bundles = []
+
+    ###외부 데이터를 읽어 오는 과정
+    customer_file = 'E:/학교업무 동기화용/py_charm/BundleSimple/' + instance_type + '/고객_coord_정보' + str(ite) + '_' + instance_type + '.txt'
+    store_file = 'E:/학교업무 동기화용/py_charm/BundleSimple/' + instance_type + '/가게_coord_정보' + str(ite) + '_' + instance_type + '.txt'
+    CustomerCoord = []
+    StoreCoord = []
+    f_c = open(customer_file, 'r')
+    lines = f_c.readlines()
+    for line in lines[:-1]:
+        line1 = line.split(';')
+        CustomerCoord.append([int(line1[0]),float(line1[1]),float(line1[2]),int(line1[3]),float(line1[4]),float(line1[5]),float(line1[6])])
+    f_c.close()
+
+    f_s = open(store_file, 'r')
+    lines = f_s.readlines()
+    for line in lines[:-1]:
+        line1 = line.split(';')
+        CustomerCoord.append([int(line1[0]),int(line1[1]),int(line1[2])])
+    f_s.close()
+
+
     for sc in scenarios:
         ##count 확인
         counter.dist1 = 0
@@ -256,7 +283,7 @@ for ite in exp_range:#range(0, 1):
         # run
         env = simpy.Environment()
         if setting == 'stresstest':
-            GenerateStoreByCSVStressTest(env, 200, Platform2, Store_dict, store_type=instance_type)
+            GenerateStoreByCSVStressTest(env, 200, Platform2, Store_dict, store_type=instance_type, ITE = ite)
             env.process(OrdergeneratorByCSVForStressTest(env, Orders, Store_dict, stress_lamda, platform=Platform2, p2_ratio=customer_p2, rider_speed=rider_speed,
                                              unit_fee=unit_fee, fee_type=fee_type))
             env.process(RiderGenerator(env, Rider_dict, Platform2, Store_dict, Orders, capacity=rider_capacity, speed=rider_speed,working_duration=run_time, interval=0.01,
@@ -274,6 +301,7 @@ for ite in exp_range:#range(0, 1):
                                       search_type = sc.search_type, print_fig = print_fig, bundle_print_fig = bundle_print_fig, bundle_infos = bundle_infos,
                                       ellipse_w = ellipse_w, heuristic_theta = heuristic_theta,heuristic_r1 = heuristic_r1,XGBmodel3 = XGBmodel3, XGBmodel2 = XGBmodel2, thres_label = thres_label))
         env.run(run_time)
+
         res = ResultPrint(sc.name + str(ite), Orders, speed=rider_speed, riders = Rider_dict)
         sc.res.append(res)
         #end_time_sec = time.time()
@@ -294,8 +322,12 @@ for ite in exp_range:#range(0, 1):
         print('Name :: dist :: p2 :: ratio')
         for ct_num in Orders:
             ct = Orders[ct_num]
-            print(ct_num, '::', distance(ct.location, ct.store_loc), '::', ct.p2, '::',
-                  distance(ct.location, ct.store_loc) / ct.p2)
+            try:
+                print(ct_num, '::', distance(ct.location, ct.store_loc), '::', ct.p2, '::',
+                      distance(ct.location, ct.store_loc) / ct.p2)
+            except:
+                pass
+
         #input('확인')
 
         #저장 부
@@ -335,7 +367,7 @@ for ite in exp_range:#range(0, 1):
                 tem_info = '{};{};{};{};'.format(rider.visited_route[node_index - 1][2][0], rider.visited_route[node_index - 1][2][1], round(check_t, 2),rider.visited_route[node_index - 1][3])
                 check_data[node_index] += tem_info
                 #print('{};{};{};{};'.format(rider.visited_route[node_index-1][2][0],rider.visited_route[node_index-1][2][1], round(check_t,2), rider.visited_route[node_index-1][3]))
-            print('라이더 {} 페이지 선택 난수 :: {}'.format(rider.name, rider.pages_history))
+            #print('라이더 {} 페이지 선택 난수 :: {}'.format(rider.name, rider.pages_history))
             #라이더 경로 그림 그리기
             x1 = []
             y1 = []
@@ -461,6 +493,7 @@ for ite in exp_range:#range(0, 1):
             print('페이지 밖 번들이 없음 {}'.format(near_bundle))
         print('번들 정보',snapshot_dict)
         #input('확인')
+        SaveSscenario(sc, len(Rider_dict), instance_type, ite)
     rev_label = []
     count1 = 0
     for label in labels:
@@ -491,6 +524,7 @@ for ite in exp_range:#range(0, 1):
         b_count += 1
     print('uniqe 번들 수::',len(check_list.suggested_bundle))
     print(check_list.suggested_bundle)
+
 
 #input('테스트 종료')
 for sc in scenarios:

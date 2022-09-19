@@ -202,15 +202,17 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
         if customer_name != target_order.name and orders[customer_name].time_info[1] == None and orders[customer_name].cancel == False:
             d.append(customer_name)
     # 1 : M1의 데이터에 대해서 attribute 계산 후 dataframe으로 만들기
-    print(d)
+    #print(d)
     #input('XGBoost_Bundle_Construct')
     if len(d) <= s-1:
         return [], np.array([])
     M1 = []
     input_data = []
     M2 = itertools.permutations(d, s - 1)
+    customer_names = []
     for m in M2:
         q = list(m) + [target_order.name]
+        customer_names.append(q)
         tem1 = []
         tem2 = []
         # OD
@@ -282,8 +284,8 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
     X_test = org_df.iloc[:,s:] #탐색 번들에 따라, 다른 index 시작 지점을 가짐.
     X_test_np = np.array(X_test)
     counter2('sess1',len(X_test_np))
-    print(input_data[:2])
-    print(X_test_np[:2])
+    #print(input_data[:2])
+    #print(X_test_np[:2])
     #input('test중')
     #2 : XGModel에 넣기
     #start_time_sec = datetime.now()
@@ -294,7 +296,7 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
     duration = end_time_sec - start_time_sec
     #duration = duration.seconds + duration.microseconds / 1000000
     t_counter('sess', duration)
-    print("predict", pred_onx[0], type(pred_onx[0]))
+    #print("predict", pred_onx[0], type(pred_onx[0]))
     print("predict_proba", pred_onx[1][:1])
     #input('test중2')
     #y_pred = XGBmodel.predict(X_test)
@@ -338,7 +340,7 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
         print('계산된 label 없음')
     counter2('sess2', count1)
     label_check = np.append(label_check, pred_onx[0])
-    print('확인용1',labels)
+    #print('확인용1',labels)
     print('확인용2',labels_larger_1)
     #label_check = np.concatenate((label_check, pred_onx[0]))
     #unique, counts = np.unique(pred_onx[0], return_counts=True)
@@ -351,6 +353,128 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
         print('번들 발생함::',len(constructed_bundles))
         pass
     return constructed_bundles, np.array(labels)
+
+def XGBoost_Bundle_Construct2(target_order, orders, s, XGBmodel):
+    d = []
+    for customer_name in orders:
+        O_dist = distance(target_order.store_loc, orders[customer_name].store_loc)
+        if customer_name != target_order.name and orders[customer_name].time_info[1] == None and orders[customer_name].cancel == False and O_dist <= 10:
+            d.append(customer_name)
+    # 1 : M1의 데이터에 대해서 attribute 계산 후 dataframe으로 만들기
+    #print(d)
+    start_time_sec = time.time()
+    if len(d) <= s-1:
+        return []
+    M1 = []
+    input_data = []
+    M2 = itertools.permutations(d, s - 1)
+    customer_names = []
+    for m in M2:
+        q = list(m) + [target_order.name]
+        customer_names.append(q)
+        tem1 = []
+        tem2 = []
+        # OD
+        distOD = []
+        gen_t = []
+        ser_t = []
+        for name in q:
+            ct = orders[name]
+            tem1.append(ct)
+            tem2.append(ct.name)
+            distOD.append(distance(ct.store_loc, ct.location, rider_count='xgboost'))
+            gen_t.append(ct.time_info[0])
+            ser_t.append(ct.time_info[7])
+        M1.append(tem1)
+        eachother = itertools.combinations(q, 2)
+        distS = [] ##DD거리
+        distC = [] #OO거리
+        for info in eachother:
+            ct1 = orders[info[0]]
+            ct2 = orders[info[1]]
+            distS.append(distance(ct1.store_loc, ct2.store_loc, rider_count='xgboost'))
+            distC.append(distance(ct1.location, ct2.location, rider_count='xgboost'))
+        distOD.sort()
+        distS.sort()
+        distC.sort()
+        gen_t.sort()
+        ser_t.sort()
+        tem2 += distOD + distC + distS + gen_t + ser_t
+        ##0916 추가된 부분
+        ## --------start------
+        vectors = []
+        for name in q:
+            vectors += [orders[name].store_loc[0] - orders[name].location[0],
+                        orders[name].store_loc[1] - orders[name].location[1]]
+        if len(q) == 2:
+            triangles = [0, 0]
+        else:
+            if min(distS) <= 0:
+                v1 = 0.0
+            else:
+                s1 = sum(distS) / 2
+                try:
+                    v1 = float(np.sqrt(s1 * (s1 - distS[0]) * (s1 - distS[1]) * (s1 - distS[2])))
+                except:
+                    v1 = - 1
+                    print('distS', distS)
+                    # input('distS;확인1')
+            if min(distC) <= 0:
+                v2 = 0.0
+            else:
+                s2 = sum(distC) / 2
+                try:
+                    v2 = float(np.sqrt(s2 * (s2 - distC[0]) * (s2 - distC[1]) * (s2 - distC[2])))
+                except:
+                    v2 = - 1
+                    print('distC', distC)
+                    # input('distC;확인1')
+            if type(v1) != float or type(v2) != float:
+                print(distC, distS)
+                print('확인2', v1, v2, type(v1), type(v2))
+                # input('VVV;확인3')
+            triangles = [v2,v1]
+        tem2 += vectors + triangles
+        ##0916 추가된 부분
+        ## ------end------
+        input_data.append(tem2)
+    input_data = np.array(input_data)
+    org_df = pd.DataFrame(data=input_data)
+    X_test = org_df.iloc[:,s:] #탐색 번들에 따라, 다른 index 시작 지점을 가짐.
+    X_test_np = np.array(X_test)
+    counter2('sess1',len(X_test_np))
+    #print(input_data[:2])
+    #print(X_test_np[:2])
+    #input('test중')
+    #2 : XGModel에 넣기
+    #start_time_sec = datetime.now()
+    end_time_sec = time.time()
+    duration = end_time_sec - start_time_sec
+    print('XGBmodel 전처리 계산 시간', duration, '대상 고객',len(d), '발생 조합 수',len(M1))
+    start_time_sec = time.time()
+    pred_onx = XGBmodel.run(None, {"feature_input": X_test_np.astype(np.float32)})  # Input must be a list of dictionaries or a single numpy array for input 'input'.
+
+    #with tf.Session() as sess:
+    #    sess.run(tf.global_variables_initializer())
+    #end_time_sec = datetime.now()
+    end_time_sec = time.time()
+    duration = end_time_sec - start_time_sec
+    #duration = duration.seconds + duration.microseconds / 1000000
+    t_counter('sess', duration)
+    print('XGBmodel 계산시간', duration)
+    #print("predict", pred_onx[0], type(pred_onx[0]))
+    #print("predict_proba", pred_onx[1][:1])
+    res = []
+    count = 0
+    for label in pred_onx[0]:
+        if label > 0:
+            res.append([customer_names[count]] + [label])
+        count += 1
+    return res
+
+
+
+
 
 
 def SearchRaidar_heuristic(target, customers, platform, r1 = 10, theta = 90, now_t = 0, print_fig = False):

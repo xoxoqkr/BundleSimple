@@ -870,6 +870,7 @@ class Customer(object):
         self.cooking_process = None
         self.rider_wait3 = None
         self.food_wait3 = None
+        self.near_rider = []
 
 
     def CustomerLeave(self, env, platform):

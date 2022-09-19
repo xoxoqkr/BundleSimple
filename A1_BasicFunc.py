@@ -4,8 +4,9 @@ import math
 import random
 import csv
 import numpy.random
+import numpy
 import time
-
+from numba import jit
 from numpy.random import poisson
 
 import re_A1_class
@@ -28,6 +29,23 @@ def distance(p1, p2, rider_count = None):
         pass
     euc_dist = math.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
     return round(euc_dist,4)
+
+@jit(nopython=True)
+def distance2(p1, p2, rider_count = None):
+    p1 = numpy.array(p1)
+    p2 = numpy.array(p2)
+
+    counter('distance1')
+    if rider_count == 'rider':
+        counter('distance2')
+    elif rider_count == 'xgboost':
+        counter('distance3')
+    else:
+        pass
+    euc_dist = math.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
+    return round(euc_dist,4)
+
+
 
 def counter(func_name):
     if func_name == 'distance1':
@@ -361,13 +379,18 @@ def GenerateStoreByCSV(env, csv_dir, platform,Store_dict, mus = [5,10,15], std_r
         Store_dict[name] = store
 
 
-def GenerateStoreByCSVStressTest(env, num, platform,Store_dict, mus = [5,10,15], std_ratio = 0.2, store_type = 'Instance_random'):
+def GenerateStoreByCSVStressTest(env, num, platform,Store_dict, mus = [5,10,15], std_ratio = 0.2, store_type = 'Instance_random', ITE = 1, output_data = None):
     #mus = [11.5,13.5,15.5]
     for count in range(num):
-        if store_type == 'Instance_random':
-            loc = [random.randint(10, 40), random.randint(10, 40)]
+        if output_data == None:
+            if store_type == 'Instance_random':
+                loc = [random.randint(10, 40), random.randint(10, 40)]
+            else:
+                loc = [random.randint(20, 30), random.randint(20, 30)]
         else:
-            loc = [random.randint(20, 30), random.randint(20, 30)]
+            if count > len(output_data) - 1:
+                break
+            loc = [output_data[count][1],output_data[count][2]]
         #['name', 'start_loc_x', 'start_loc_y', 'order_ready_time', 'capacity', 'slack']
         name = count
         order_ready_time = 5
@@ -381,8 +404,15 @@ def GenerateStoreByCSVStressTest(env, num, platform,Store_dict, mus = [5,10,15],
         else:
             store.FRT = numpy.random.normal(mus[2], mus[2] * std_ratio, 1000)
         Store_dict[name] = store
-
-
+    """
+    f3 = open("가게_coord_정보" + str(ITE) + '_' + store_type + ".txt", 'a')
+    for store_name in Store_dict:
+        store = Store_dict[store_name]
+        con = '{};{};{};\n'.format(store.name, store.location[0], store.location[1])
+        f3.write(con)
+    f3.write('Exp End' + '\n')
+    f3.close()
+    """
 
 def Ordergenerator(env, orders, stores, max_range = 50, interval = 5, runtime = 100, history = None, p2 = 15, p2_set = False, speed = 4, cooking_time = [2,5], cook_time_type = 'random'):
     """
@@ -533,7 +563,7 @@ def OrdergeneratorByCSV(env, csv_dir, orders, stores, platform = None, p2_ratio 
 
 
 
-def OrdergeneratorByCSVForStressTest(env, orders, stores, lamda, platform = None, p2_ratio = 1, rider_speed = 1, unit_fee = 110, fee_type = 'linear'):
+def OrdergeneratorByCSVForStressTest(env, orders, stores, lamda, platform = None, p2_ratio = 1, rider_speed = 1, unit_fee = 110, fee_type = 'linear', output_data = None):
     """
     Generate customer order
     :param env: Simpy Env
@@ -545,20 +575,27 @@ def OrdergeneratorByCSVForStressTest(env, orders, stores, lamda, platform = None
     """
     dist_distribution = numpy.random.poisson(20,7) #todo: 0915 거리 조절
     for count in range(1000000):
-        store_name = random.choice(range(len(stores)))
-        store = stores[store_name]
-        store_loc = store.location
-        #req_dist = random.randint(5,20)*rider_speed
-        req_dist = max(random.choice(dist_distribution), 7)
-        angle = math.radians(random.randrange(0, 360))
-        num = 0
-        while num < 1000:
-            customer_loc = [store_loc[0] + round(req_dist*math.cos(angle),4),store_loc[1] + round(req_dist*math.sin(angle),4) ]
-            if customer_loc[0] <= 50 and customer_loc[1] <= 50 :
+        if output_data == None:
+            store_name = random.choice(range(len(stores)))
+            store = stores[store_name]
+            store_loc = store.location
+            #req_dist = random.randint(5,20)*rider_speed
+            req_dist = max(random.choice(dist_distribution), 7)
+            angle = math.radians(random.randrange(0, 360))
+            num = 0
+            while num < 1000:
+                customer_loc = [store_loc[0] + round(req_dist*math.cos(angle),4),store_loc[1] + round(req_dist*math.sin(angle),4) ]
+                if customer_loc[0] <= 50 and customer_loc[1] <= 50 and store_loc != customer_loc:
+                    break
+                num += 1
+            if num == 1000:
+                customer_loc = [random.randint(0,50),random.randint(0,50)]
+        else:
+            if count > len(output_data) - 2:
                 break
-            num += 1
-        if num == 1000:
-            customer_loc = [random.randint(0,50),random.randint(0,50)]
+            store_name = output_data[count][3]
+            store_loc = [output_data[count][4], output_data[count][5]]
+            customer_loc = [output_data[count][1], output_data[count][2]]
         name = count
         OD_dist = distance(store_loc, customer_loc)
         p2 = (OD_dist / rider_speed) * p2_ratio
@@ -583,7 +620,6 @@ def OrdergeneratorByCSVForStressTest(env, orders, stores, lamda, platform = None
         else:
             print('현재 T :{} / 마지막 고객 {} 생성'.format(int(env.now), name))
             pass
-
 
 
 
@@ -843,3 +879,82 @@ def PrintSearchCandidate(target_customer, res_C_T, now_t = 0, titleinfo = 'None'
         plt.close()
         #input('그림 확인')
 
+
+def SaveSscenario(scenario, rider_num, instance_type, ite, ellipse_w = 'None', heuristic_theta= 'None', heuristic_r1 = 'None',count = 'None'):
+    print('"요약 정리/ 라이더 수 {}'.format(rider_num))
+    print_count = 0
+    f3 = open("결과저장_sc_저장.txt", 'a')
+    f3.write('ITE'+str(ite)+'결과저장 시작' + '\n')
+    sc = scenario
+    res_info = []
+    #input(sc.res)
+
+    #index = -1
+
+    for index in list(range(len(sc.res[0]))):
+        tem = []
+        for info in sc.res:
+            if type(info) == list:
+                tem.append(info[index])
+            else:
+                #print(info)
+                pass
+        if None in tem:
+            res_info.append(None)
+        else:
+            res_info.append(tem[-1])
+    tem = []
+    for info in sc.res:
+        if type(info) == list:
+            tem.append(info[index])
+        else:
+            # print(info)
+            pass
+    if None in tem:
+        res_info.append(None)
+    else:
+        res_info.append(sum(tem) / len(tem))
+    try:
+        res_info.append(sum(sc.bundle_snapshots['size'])/len(sc.bundle_snapshots['size']))
+        res_info.append(sum(sc.bundle_snapshots['length']) / len(sc.bundle_snapshots['length']))
+        res_info.append(sum(sc.bundle_snapshots['od']) / len(sc.bundle_snapshots['od']))
+    except:
+        res_info += [None,None,None]
+    offered_bundle_num = len(sc.bundle_snapshots['size'])
+    #print(len(res_info))
+    #input(res_info)
+    if print_count == 0:
+        head = '인스턴스종류;SC;번들탐색방식;연산시간(sec);플랫폼;라이더;라이더수;obj;전체 고객;서비스된 고객;서비스율;평균LT;평균FLT;직선거리 대비 증가분;원래 O-D길이;라이더 수익 분산;LT분산;' \
+               'OD증가수;OD증가 분산;OD평균;수행된 번들 수;수행된번들크기평균;b1;b2;b3;b4;b5;p1;p2;p3;p4;r1;r2;r3;r4;r5;평균서비스시간;(테스트)음식 대기 시간;(테스트)버려진 음식 수;(테)음식대기;' \
+               '(테)라이더대기;(테)15분이하 음식대기분;(테)15분이상 음식대기분;(테)15분이하 음식대기 수;(테)15분이상 음식대기 수;(테)라이더 대기 수;라이더평균운행시간;제안된 번들수;라이더수수료;size;length;ods;ellipse_w; ' \
+               'heuristic_theta; heuristic_r1;rider_ratio;#dist;#bc1;#bc2;#dist(xgb);#t1;#t2;#t3'
+        #print('인스턴스종류;SC;번들탐색방식;연산시간(sec);플랫폼;라이더;obj;전체 고객;서비스된 고객;서비스율;평균LT;평균FLT;직선거리 대비 증가분;원래 O-D길이;라이더 수익 분산;LT분산;'
+        #     'OD증가수;OD증가 분산;OD평균;수행된 번들 수;수행된번들크기평균;제안된 번들수;size;length;ods')
+        print(head)
+        f3.write(head + '\n')
+    ave_duration = sc.durations[-1]
+    try:
+        tem_data = '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};'.format(
+                instance_type , str(sc.name[0]),sc.search_type, ave_duration,sc.platform_recommend,sc.rider_bundle_construct,rider_num,sc.obj_type, res_info[0],res_info[1],
+                res_info[2], res_info[3], res_info[4], res_info[5], res_info[6], res_info[7], res_info[8],res_info[9],res_info[10],res_info[11],res_info[12],res_info[13],
+            res_info[14], res_info[15], res_info[16],res_info[17], res_info[18], res_info[19],res_info[20],res_info[21],res_info[22],res_info[23], res_info[24],res_info[25],
+            res_info[26],res_info[27],res_info[28],res_info[29],res_info[30],res_info[31],res_info[32], res_info[33],res_info[34], res_info[35],res_info[36], res_info[37],res_info[38],
+            offered_bundle_num,res_info[39], res_info[40], res_info[41],res_info[42],ellipse_w, heuristic_theta, heuristic_r1, sc.mix_ratio, sc.countf[0], sc.countf[1], sc.countf[2], sc.countf[3],
+        sc.countt[0], sc.countt[1],sc.countt[2])
+        """
+        print(
+            '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{}'.format(
+                instance_type , str(sc.name[0]),sc.search_type, ave_duration,sc.platform_recommend,sc.rider_bundle_construct,sc.obj_type, res_info[0],res_info[1],
+                res_info[2], res_info[3], res_info[4], res_info[5], res_info[6], res_info[7], res_info[8],res_info[9],res_info[10],res_info[11],res_info[12],res_info[13],
+            offered_bundle_num,res_info[14], res_info[15], res_info[16]))        
+        """
+        print(tem_data)
+        f3.write(tem_data + '\n')
+    except:
+        tem_data = '시나리오 {} ITE {} 결과 없음'.format(sc.name, count)
+        #print('시나리오 {} ITE {} 결과 없음'.format(sc.name, count))
+        print(tem_data)
+        f3.write(tem_data + '\n')
+    print_count += 1
+    f3.write('Exp End' + '\n')
+    f3.close()
