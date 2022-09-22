@@ -49,10 +49,10 @@ instance_type = 'Instance_random' #'Instance_random' 'Instance_cluster'
 ellipse_w=10
 heuristic_theta=10
 heuristic_r1=10
-heuristic_type = 'enumerate'#'XGBoost'#'enumerate'
+heuristic_type = 'XGBoost'#'XGBoost'#'enumerate'
 rider_num= 175 #8
 mix_ratios=None
-exp_range = [0,1,2,3,4,5,6,7,8,9]#list(range(10))#[0,1]
+exp_range = [0]#list(range(10))#[0,1] [0,1,2,3,4,5,6,7,8,9]
 unit_fee = 110
 fee_type = 'linear'
 service_time_diff = True
@@ -169,7 +169,7 @@ print('시나리오 확인3')
 print(heuristic_type)
 for sc3 in scenarios:
     #sc3.search_type = heuristic_type
-    sc3.platform_recommend = False
+    sc3.platform_recommend = True
     sc3.rider_bundle_construct = False
     print(sc3.platform_recommend, sc3.rider_bundle_construct,sc3.obj_type, sc3.search_type)
 scenarios = scenarios[:1]
@@ -239,7 +239,7 @@ for ite in exp_range:#range(0, 1):
     lines = f_s.readlines()
     for line in lines[:-1]:
         line1 = line.split(';')
-        CustomerCoord.append([int(line1[0]),int(line1[1]),int(line1[2])])
+        StoreCoord.append([int(line1[0]),int(line1[1]),int(line1[2])])
     f_s.close()
 
 
@@ -260,6 +260,13 @@ for ite in exp_range:#range(0, 1):
         t_counter.t2 = 0
         t_counter.t3 = 0
         t_counter.t4 = 0
+        t_counter.t5 = 0
+        t_counter.t6 = 0
+        t_counter.t7 = 0
+        t_counter.t8 = 0
+        t_counter.t9 = 0
+        t_counter.t10 = 0
+        t_counter.t11 = 0
         counter2.num1 = []
         counter2.num2 = []
         counter2.num3 = []
@@ -283,9 +290,9 @@ for ite in exp_range:#range(0, 1):
         # run
         env = simpy.Environment()
         if setting == 'stresstest':
-            GenerateStoreByCSVStressTest(env, 200, Platform2, Store_dict, store_type=instance_type, ITE = ite)
+            GenerateStoreByCSVStressTest(env, 200, Platform2, Store_dict, store_type=instance_type, ITE = ite, output_data= StoreCoord)
             env.process(OrdergeneratorByCSVForStressTest(env, Orders, Store_dict, stress_lamda, platform=Platform2, p2_ratio=customer_p2, rider_speed=rider_speed,
-                                             unit_fee=unit_fee, fee_type=fee_type))
+                                             unit_fee=unit_fee, fee_type=fee_type, output_data= CustomerCoord))
             env.process(RiderGenerator(env, Rider_dict, Platform2, Store_dict, Orders, capacity=rider_capacity, speed=rider_speed,working_duration=run_time, interval=0.01,
                            gen_num=stress_rider_num,  wait_para=wait_para))
         else:

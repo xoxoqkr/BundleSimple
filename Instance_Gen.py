@@ -49,7 +49,7 @@ instance_type = 'Instance_random' #'Instance_random' 'Instance_cluster'
 ellipse_w=10
 heuristic_theta=10
 heuristic_r1=10
-heuristic_type = 'enumerate'#'XGBoost'#'enumerate'
+heuristic_type = 'XGBoost'#'XGBoost'#'enumerate'
 rider_num= 175 #8
 mix_ratios=None
 exp_range = [0,1,2,3,4,5,6,7,8,9]
@@ -169,7 +169,7 @@ print('시나리오 확인3')
 print(heuristic_type)
 for sc3 in scenarios:
     #sc3.search_type = heuristic_type
-    sc3.platform_recommend = False
+    sc3.platform_recommend = True
     sc3.rider_bundle_construct = False
     print(sc3.platform_recommend, sc3.rider_bundle_construct,sc3.obj_type, sc3.search_type)
 scenarios = scenarios[:1]

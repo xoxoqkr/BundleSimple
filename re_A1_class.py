@@ -432,7 +432,10 @@ class Rider(object):
                         mv_time += customers[rev_route[node_index][0]].time_info[7]
                     except:
                         pass
-            WagePerMin = round(task.fee / mv_time, 4)  # 분당 이익
+            try:
+                WagePerMin = round(task.fee / mv_time, 4)  # 분당 이익
+            except:
+                WagePerMin = 100
             if type(task.route) == tuple:
                 task.route = list(task.route)
             #if len(task.route) > 2:

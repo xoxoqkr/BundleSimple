@@ -158,11 +158,14 @@ def Bundle_selection_problem4(phi_b, D, s_b, lt_matrix,min_pr=0.05, obj_type = '
     #풀이
     m.optimize()
     m.write("out_test.lp")
-    test = []
     count = 0
+    """
+    test = []
     for val in m.getVars():
         if val.VarName[0] == 'x' and float(val.x) == 1.0:
             test.append(phi_b[count])
+        count += 1
+    """
     try:
         #input('선택된 번들 p_b 평균 : {} // p_b {} '.format(sum(test)/len(test), test))
         pass

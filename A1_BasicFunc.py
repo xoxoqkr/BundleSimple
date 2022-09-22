@@ -3,10 +3,12 @@
 import math
 import random
 import csv
+from re import search
+
 import numpy.random
 import numpy
 import time
-from numba import jit
+#from numba import jit
 from numpy.random import poisson
 
 import re_A1_class
@@ -29,22 +31,6 @@ def distance(p1, p2, rider_count = None):
         pass
     euc_dist = math.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
     return round(euc_dist,4)
-
-@jit(nopython=True)
-def distance2(p1, p2, rider_count = None):
-    p1 = numpy.array(p1)
-    p2 = numpy.array(p2)
-
-    counter('distance1')
-    if rider_count == 'rider':
-        counter('distance2')
-    elif rider_count == 'xgboost':
-        counter('distance3')
-    else:
-        pass
-    euc_dist = math.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
-    return round(euc_dist,4)
-
 
 
 def counter(func_name):
@@ -77,24 +63,39 @@ def counter2(func_name, num):
 
 
 def t_counter(func_name, t):
-    if func_name == 'XGBoost':
+    if func_name == 'XGBoost': #RouteConstruct for XGBoost
         #print(t_counter.t1,'->')
         t_counter.t1 += t
         #print(t_counter.t1, t)
         #input('check1:')
-    elif func_name == 'old':
+    elif func_name == 'old': #BundleConsist
         #print(t_counter.t2, '->')
         t_counter.t2 += t
         #print(t_counter.t2, t)
         #input('check2')
-    elif func_name == 'sess':
+    elif func_name == 'sess': #XGBoost 실행 sess.run()
         #print(t_counter.t3, '->')
         t_counter.t3 += t
         #print(t_counter.t3, t)
         #input('check3')
-    else:
+    elif func_name == 'enumerate': #RouteConstruct for enumerate
         t_counter.t4 += t
         #input('check4')
+    elif func_name == 'score_cal': #Bundle 계산 이후 점수 계산 시간
+        t_counter.t5 += t
+    elif func_name == 'test1':
+        t_counter.t6 += t
+    elif func_name == 'test2':
+        t_counter.t7 += t
+    elif func_name == 'test3':
+        t_counter.t8 += t
+    elif func_name == 'test4':
+        t_counter.t9 += t
+    elif func_name == 'test5':
+        t_counter.t10 += t
+    elif func_name == 'test6':
+        t_counter.t11 += t
+    else:
         pass
 
 def check_list(b_type, element):
@@ -413,6 +414,8 @@ def GenerateStoreByCSVStressTest(env, num, platform,Store_dict, mus = [5,10,15],
     f3.write('Exp End' + '\n')
     f3.close()
     """
+    print(len(Store_dict))
+    #input('가게')
 
 def Ordergenerator(env, orders, stores, max_range = 50, interval = 5, runtime = 100, history = None, p2 = 15, p2_set = False, speed = 4, cooking_time = [2,5], cook_time_type = 'random'):
     """
@@ -884,7 +887,8 @@ def SaveSscenario(scenario, rider_num, instance_type, ite, ellipse_w = 'None', h
     print('"요약 정리/ 라이더 수 {}'.format(rider_num))
     print_count = 0
     f3 = open("결과저장_sc_저장.txt", 'a')
-    f3.write('ITE'+str(ite)+'결과저장 시작' + '\n')
+    con = 'ITE;{};instance_type;{};search_type;{};플랫폼번들;{};라이더번들;{};\n'.format(ite, instance_type, scenario.search_type, scenario.platform_recommend,scenario.rider_bundle_construct)
+    f3.write(con)
     sc = scenario
     res_info = []
     #input(sc.res)

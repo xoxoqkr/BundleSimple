@@ -117,7 +117,8 @@ def MIN_OD_pair(orders, q,s,):
 
 #todo: 번들 생성 관련자
 def ConstructFeasibleBundle_TwoSided(target_order, orders, s, p2, thres = 0.05, speed = 1, bundle_permutation_option = False, uncertainty = False,
-                                     platform_exp_error = 1, print_option = True, sort_index = 5, now_t = 0, XGBoostModel = None, search_type = 'enumerate'):
+                                     platform_exp_error = 1, print_option = True, sort_index = 5, now_t = 0, XGBoostModel = None, search_type = 'enumerate',
+                                     feasible_return = True):
     """
     Construct s-size bundle pool based on the customer in orders.
     And select n bundle from the pool
@@ -156,10 +157,10 @@ def ConstructFeasibleBundle_TwoSided(target_order, orders, s, p2, thres = 0.05, 
             if search_type == 'enumerate':
                 counter2('old1',len(subset_orders))
                 if thres < 100:
-                    tem_route_info = BundleConsist(subset_orders, orders, p2, speed = speed, bundle_permutation_option= bundle_permutation_option, time_thres= time_thres, uncertainty = uncertainty, platform_exp_error = platform_exp_error, feasible_return = True, now_t = now_t)
+                    tem_route_info = BundleConsist(subset_orders, orders, p2, speed = speed, bundle_permutation_option= bundle_permutation_option, time_thres= time_thres, uncertainty = uncertainty, platform_exp_error = platform_exp_error, feasible_return = feasible_return, now_t = now_t)
                     # ver0: feasible_routes.append([route, round(max(ftds),2), round(sum(ftds)/len(ftds),2), round(min(ftds),2), order_names, round(route_time,2)])
                 else:
-                    tem_route_info = BundleConsist2(subset_orders, orders, p2, speed = speed, bundle_permutation_option= bundle_permutation_option, time_thres= time_thres, uncertainty = uncertainty, platform_exp_error = platform_exp_error, feasible_return = True, now_t = now_t)
+                    tem_route_info = BundleConsist2(subset_orders, orders, p2, speed = speed, bundle_permutation_option= bundle_permutation_option, time_thres= time_thres, uncertainty = uncertainty, platform_exp_error = platform_exp_error, feasible_return = feasible_return, now_t = now_t)
                     # ver1: [route, unsync_t[0], round(sum(ftds) / len(ftds), 2), unsync_t[1], order_names, round(route_time, 2),min(time_buffer), round(P2P_dist - route_time, 2)]
             elif search_type == 'XGBoost':
                 #dataset 구성
@@ -196,7 +197,8 @@ def ConstructFeasibleBundle_TwoSided(target_order, orders, s, p2, thres = 0.05, 
         return []
 
 
-def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, speed = 1 , bundle_permutation_option = False, uncertainty = False,thres = 1, platform_exp_error = 1,  thres_label = 1, label_check = None):
+def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, speed = 1 , bundle_permutation_option = False, uncertainty = False,thres = 1,
+                             platform_exp_error = 1,  thres_label = 1, label_check = None, feasible_return = True):
     d = []
     for customer_name in orders:
         if customer_name != target_order.name and orders[customer_name].time_info[1] == None and orders[customer_name].cancel == False:
@@ -323,7 +325,7 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
                 #print('ct# :: store_loc :: ct_loc')
                 tem = BundleConsist2(M1[count], orders, p2, speed = speed,
                                      bundle_permutation_option = bundle_permutation_option, uncertainty = uncertainty, platform_exp_error =  platform_exp_error,
-                                     feasible_return = True, now_t = now_t, max_dist= 15) #max_dist= 15
+                                     feasible_return = feasible_return, now_t = now_t, max_dist= 15) #max_dist= 15
                 #print('구성 된 라벨 1 ::', label)
                 #print(tem)
                 labels_larger_1.append(int(label))
