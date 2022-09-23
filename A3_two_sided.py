@@ -299,7 +299,7 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
     #duration = duration.seconds + duration.microseconds / 1000000
     t_counter('sess', duration)
     #print("predict", pred_onx[0], type(pred_onx[0]))
-    print("predict_proba", pred_onx[1][:1])
+    #print("predict_proba", pred_onx[1][:1])
     #input('test중2')
     #y_pred = XGBmodel.predict(X_test)
     #labeled_org_df = pd.merge(y_pred, org_df, left_index=True, right_index=True)

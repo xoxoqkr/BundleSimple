@@ -26,7 +26,8 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                       divide_option = False,unserved_bundle_order_break = True, bundle_para = False,
                       delete_para = True, obj_type = 'simple_max_s', search_type = 'enumerate', print_fig = False,
                       bundle_print_fig = False, bundle_infos = None,ellipse_w = 1.5, heuristic_theta = 100,heuristic_r1 = 10,
-                      XGBmodel3 = None, XGBmodel2 = None, thres_label = 1):
+                      XGBmodel3 = None, XGBmodel2 = None, thres_label = 1, considered_customer_type = 'all',search_range_index = 15,
+                      pr_para = False):
     f = open("loop시간정보.txt", 'a')
     f.write('연산 시작; obj;{};searchTypt;{};threslabel;{};#Riders;{};'.format(obj_type,search_type,thres_label,len(riders)))
     f.write('\n')
@@ -45,9 +46,9 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
             p = CalculateRho(lamda1, lamda2, mu1, mu2)
             active_rider_names, d_infos = CountActiveRider(riders, interval, min_pr= 0.05, t_now=env.now, option='w', point_return=True)
             if p > thres_p:
-                pr_para = True
-                if search_type == 'XGBoost' or search_type == 'enumerate':
-                    pr_para = False
+                #pr_para = True
+                #if search_type == 'XGBoost' or search_type == 'enumerate':
+                #    pr_para = False
                 #feasible_bundle_set, phi_b, d_matrix, s_b, D, lt_matrix = Bundle_Ready_Processs(env.now, platform, orders, riders, p2, interval,
                 #                                                                                speed = riders[0].speed, bundle_permutation_option= True, search_type = search_type, print_fig = print_fig,
                 #                                                                                ellipse_w = ellipse_w, heuristic_theta = heuristic_theta,heuristic_r1 = heuristic_r1)
@@ -55,7 +56,8 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                 feasible_bundle_set, phi_b, d_matrix, s_b, D, lt_matrix, act_considered_ct_num, label_infos = Bundle_Ready_Processs2(env.now, platform, orders, riders, p2, interval,
                                                                                                 speed = riders[0].speed, bundle_permutation_option= True, search_type = search_type, print_fig = print_fig,
                                                                                                 ellipse_w = ellipse_w, heuristic_theta = heuristic_theta,heuristic_r1 = heuristic_r1, XGBmodel3 = XGBmodel3,
-                                                                                                                        XGBmodel2 = XGBmodel2, considered_customer_type = 'all', thres_label=thres_label,pr_para=pr_para)
+                                                                                                                        XGBmodel2 = XGBmodel2, considered_customer_type = considered_customer_type,
+                                                                                                                                     thres_label=thres_label,pr_para=pr_para, search_range_index = search_range_index)
                 """
                 feasible_bundle_set, phi_b, d_matrix, s_b, D, lt_matrix, act_considered_ct_num, label_infos = Bundle_Ready_Processs3(
                     env.now, platform, orders, riders, p2, interval,
@@ -73,6 +75,9 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                 unique_bundle_indexs, num_const = Bundle_selection_problem4(phi_b, D, s_b, lt_matrix, min_pr = 1, obj_type= obj_type, pr_para=pr_para) #todo : 0317_수정본. min_pr을 무의미한 제약식으로 설정
                 mip_end = time.time()
                 mip_duration = mip_end - mip_s
+
+                start_test9 = time.time()
+
                 lens_b = len(s_b)
                 print(len(s_b), num_const)
                 #input('제약식 확인')
@@ -148,10 +153,15 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                     platform.platform = new_orders                    
                     """
                     print('주문 수2 {}'.format(len(platform.platform)))
+                end_test9 = time.time()
+                t_counter('test9', end_test9 - start_test9)
             else:
+                start_test10 = time.time()
                 print('번들 삭제 수행')
                 org_bundle_num, rev_bundle_num = RequiredBreakBundleNum(platform, lamda2, mu1, mu2, thres=thres_p)
                 Break_the_bundle(platform, orders, org_bundle_num, rev_bundle_num)
+                end_test10 = time.time()
+                t_counter('test10', end_test10 - start_test10)
         loop_e = time.time()
         yield env.timeout(interval)
         loop_s1 = time.time()
@@ -173,10 +183,10 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
         duration3 = (loop_s1 - loop_e) #시뮬레이션 시간
         f = open("loop시간정보.txt", 'a')
         if env.now < 6 + interval:
+            f.write('considered_customer_type;{};search_range_index;{};pr_para;{}; \n'.format(considered_customer_type, search_range_index,pr_para))
             head_str = '현재시간;연산소요시간;플랫폼연산시간1;플랫폼연산시간2;시뮬레이션시간;undone_num;선택을 기다리는 고객 수;전체 고객 수;라이더 수;MIP 푸는데 걸린 시간;의사결정변수;제약식 수;xgboost;old;sess;enumerate;점수계산;sess1;sess2;sess3;enu1;enu2;bundle_consist2호출수;수정된 고려 고객;0;1;2;3;4;unique_bundle#;선택할라이더수;'
-            head_str += 'test1;test2;test3;test4;test5;test6;'
+            head_str += 'test1;test2;test3;test4;test5;test6;test7;test8;test9;test10;test11;test12;'
             f.write(head_str + '\n')
-            f.write('현재시간;연산소요시간;플랫폼연산시간1;플랫폼연산시간2;시뮬레이션시간;undone_num;선택을 기다리는 고객 수;전체 고객 수;라이더 수;MIP 푸는데 걸린 시간;의사결정변수;제약식 수;xgboost;old;sess;enumerate;점수계산;sess1;sess2;sess3;enu1;enu2;bundle_consist2호출수;수정된 고려 고객;0;1;2;3;4;unique_bundle#;선택할라이더수;\n')
         unselected_num = 0
         done_num = 0
         for order_name in orders:
@@ -188,7 +198,7 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
             info = '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};'.format(round(env.now,2),duration,duration1,duration2,duration3, done_num,unselected_num,len(orders), len(riders),mip_duration, lens_b,num_const,t_counter.t1,t_counter.t2,t_counter.t3,t_counter.t4,t_counter.t5,
                                                                     sum(counter2.num1), sum(counter2.num2),sum(counter2.num3),sum(counter2.num4),sum(counter2.num5), counter.bundle_consist2,act_considered_ct_num,label_infos[0],label_infos[1],label_infos[2],label_infos[3],label_infos[4],
                                                                                                                  unique_bundle_num, len(active_rider_names))
-            info += '{};{};{};{};{};{};'.format(t_counter.t6,t_counter.t7,t_counter.t8,t_counter.t9,t_counter.t10,t_counter.t11)
+            info += '{};{};{};{};{};{};{};{};{};{};{};{};'.format(t_counter.t6,t_counter.t7,t_counter.t8,t_counter.t9,t_counter.t10,t_counter.t11,t_counter.t12,t_counter.t13,t_counter.t14,t_counter.t15,t_counter.t16,t_counter.t17)
             f.write(info)
             f.write('\n')
         except:
@@ -237,6 +247,47 @@ def Calculate_Phi(rider, customers, bundle_infos, l=4):
         dp_br.append(1-gamma*sum(tem_dp_br))
         #dp_br.append(gamma * (1 - sum(tem_dp_br)))
     return dp_br
+
+def Calculate_Phi2(rider, customers, ava_customernames, bundle_infos, l=4, M = 10000, search_index = 30, search_dist = 15):
+    #라이더와 번들들에 대해서, t시점에서 phi_b...r을 계산 할 것.
+    #1 라이더가 주문을 선택하는 시점에서 고려할 주문들 정보 계산
+    dist_list = []
+    displayed_values = []
+    rider_end_point = rider.resource.users[0].loc
+    for customer_name in ava_customernames:
+        customer = customers[customer_name]
+        dist = distance(rider_end_point,customer.location)
+        if customer.done == False and customer.cancel == False and dist < search_dist:
+            try:
+                displayed_value = customer.fee / ((dist + distance(customer.store_loc, customer.location))/rider.speed)
+            except:
+                pass
+        dist_list.append([customer.name, dist, displayed_value])
+    dist_list.sort(key = operator.itemgetter(1))
+    displayed_dist = []
+    for info in dist_list:
+        displayed_values.append(info[2])
+        displayed_dist.append(info[1])
+    #2 우리 번들이 선택될 가능성 탐색
+    dp_br = []
+    for bundle_info in bundle_infos:
+        #input(bundle_info)
+        tem_dp_br = []
+        bundle_start_point = customers[M - bundle_info[0][0]].store_loc
+        bundle_fee = 0
+        for customer_name in bundle_info[4]:
+            bundle_fee += customers[customer_name].fee
+        tobundle = distance(rider_end_point, bundle_start_point)/ rider.speed
+        bundle_value = bundle_fee / (tobundle + bundle_info[6]) #번들의 분당 가치
+        for page_index in range(len(rider.p_j)):
+            # print('dist_list {} page_index {} displayed_values {} bundle_info {}'.format(dist_list,page_index,displayed_values, bundle_info[6]))
+            if bundle_value > max(displayed_values[:(page_index + 1) * l]) and bundle_dist < max(
+                    displayed_dist[:(page_index + 1) * l]): #라이더에게 번들이 보임
+                # if len(dist_list) <= (page_index + 1)*l or (bundle_dist < dist_list[(page_index + 1)*l][1] and bundle_info[6] > max(displayed_values[:(page_index + 1)*l])):
+                dp_br.append(rider.p_j[page_index])
+            else:
+                dp_br.append(0) #라이더에게 번들이 보이지 않음
+        return dp_br
 
 
 def Bundle_Ready_Processs(now_t, platform_set, orders, riders, p2,interval, bundle_permutation_option = False, speed = 1, min_pr = 0.05,
@@ -384,8 +435,10 @@ def Bundle_Ready_Processs(now_t, platform_set, orders, riders, p2,interval, bund
 def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bundle_permutation_option = False, speed = 1, min_pr = 0.05,
                       unserved_bundle_order_break = True, considered_customer_type = 'all', search_type = 'enumerate', print_fig = False,
                           ellipse_w = 1.5, heuristic_theta = 100,heuristic_r1 = 10, min_time_buffer = 5, XGBmodel3 = None, XGBmodel2 = None, thres_label = 1,
-                           MAX_RouteConstruct = 100000, MAX_MIP = 5000, pr_para = True):
+                           MAX_RouteConstruct = 100000, MAX_MIP = 5000, pr_para = True, search_range_index = 15):
     # 번들이 필요한 라이더에게 번들 계산.
+    start_test7 = time.time()
+
     if considered_customer_type == 'new':
         considered_customers_names = NewCustomer(orders, now_t, interval=interval)
     else:
@@ -395,7 +448,7 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
     ###todo : 0913 Time save IDEA 01 START
     max_d_list = []
     tem_count = 0
-    search_index = 10 #이전에는 30
+    search_index = search_range_index #이전에는 30
     for p1 in d_infos:
         tem = []
         for order_name in orders:
@@ -423,8 +476,14 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
         input('T {};;번들 존재{}'.format(now_t, BundleCheck))
     check_considered_customers = []
     check_label = numpy.array([])
+
+    end_test7 = time.time()
+    t_counter('test7', end_test7 - start_test7)
+
     for customer_name in considered_customers_names:
+
         start = time.time()
+        start_test8 = time.time()
         target_order = orders[customer_name]
         in_max_d = False
         for d_info in max_d_list:
@@ -467,6 +526,11 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
             considered_customers = enumerate_C_T
         thres = 100
         #start_time_sec = datetime.now()
+
+        end_test8 = time.time()
+        t_counter('test8', end_test8 - start_test8)
+
+
         start_time_sec = time.time()
         if search_type == 'XGBoost':
             #input('XGBoost')

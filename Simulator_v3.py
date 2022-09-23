@@ -57,7 +57,9 @@ unit_fee = 110
 fee_type = 'linear'
 service_time_diff = True
 thres_label = 25
-
+considered_customer_type = 'all' #'all' 'new'
+search_range_index = 20
+pr_para = False
 
 setting = 'stresstest'
 stress_lamda = 40 # 분당 주문 발생 수 # (2400/60)/5 #기준은 한 구에 분당 3750/60 #원래 40
@@ -267,6 +269,12 @@ for ite in exp_range:#range(0, 1):
         t_counter.t9 = 0
         t_counter.t10 = 0
         t_counter.t11 = 0
+        t_counter.t12 = 0
+        t_counter.t13 = 0
+        t_counter.t14 = 0
+        t_counter.t15 = 0
+        t_counter.t16 = 0
+        t_counter.t17 = 0
         counter2.num1 = []
         counter2.num2 = []
         counter2.num3 = []
@@ -306,7 +314,8 @@ for ite in exp_range:#range(0, 1):
         #env.process(OrdergeneratorByCSV(env, sc.customer_dir, Orders, Store_dict, Platform2, p2_ratio = customer_p2,rider_speed= rider_speed, unit_fee = unit_fee, fee_type = fee_type, service_time_diff = service_time_diff))
         env.process(Platform_process5(env, Platform2, Orders, Rider_dict, platform_p2,thres_p,interval, bundle_para= sc.platform_recommend, obj_type = sc.obj_type,
                                       search_type = sc.search_type, print_fig = print_fig, bundle_print_fig = bundle_print_fig, bundle_infos = bundle_infos,
-                                      ellipse_w = ellipse_w, heuristic_theta = heuristic_theta,heuristic_r1 = heuristic_r1,XGBmodel3 = XGBmodel3, XGBmodel2 = XGBmodel2, thres_label = thres_label))
+                                      ellipse_w = ellipse_w, heuristic_theta = heuristic_theta,heuristic_r1 = heuristic_r1,XGBmodel3 = XGBmodel3, XGBmodel2 = XGBmodel2, thres_label = thres_label,
+                                      considered_customer_type = considered_customer_type, search_range_index= search_range_index, pr_para = pr_para))
         env.run(run_time)
 
         res = ResultPrint(sc.name + str(ite), Orders, speed=rider_speed, riders = Rider_dict)
@@ -500,7 +509,7 @@ for ite in exp_range:#range(0, 1):
             print('페이지 밖 번들이 없음 {}'.format(near_bundle))
         print('번들 정보',snapshot_dict)
         #input('확인')
-        SaveSscenario(sc, len(Rider_dict), instance_type, ite)
+        SaveSscenario(sc, len(Rider_dict), instance_type, ite, considered_customer_type = considered_customer_type, search_range_index = search_range_index, pr_para = pr_para)
     rev_label = []
     count1 = 0
     for label in labels:
@@ -575,6 +584,7 @@ for sc in scenarios:
     #print(len(res_info))
     #input(res_info)
     if print_count == 0:
+        f3.write('considered_customer_type;{};search_range_index;{};pr_para;{}; \n'.format(considered_customer_type, search_range_index,pr_para))
         head = '인스턴스종류;SC;번들탐색방식;연산시간(sec);플랫폼;라이더;라이더수;obj;전체 고객;서비스된 고객;서비스율;평균LT;평균FLT;직선거리 대비 증가분;원래 O-D길이;라이더 수익 분산;LT분산;' \
                'OD증가수;OD증가 분산;OD평균;수행된 번들 수;수행된번들크기평균;b1;b2;b3;b4;b5;p1;p2;p3;p4;r1;r2;r3;r4;r5;평균서비스시간;(테스트)음식 대기 시간;(테스트)버려진 음식 수;(테)음식대기;' \
                '(테)라이더대기;(테)15분이하 음식대기분;(테)15분이상 음식대기분;(테)15분이하 음식대기 수;(테)15분이상 음식대기 수;(테)라이더 대기 수;라이더평균운행시간;제안된 번들수;라이더수수료;size;length;ods;ellipse_w; ' \

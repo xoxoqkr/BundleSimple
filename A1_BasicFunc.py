@@ -95,6 +95,18 @@ def t_counter(func_name, t):
         t_counter.t10 += t
     elif func_name == 'test6':
         t_counter.t11 += t
+    elif func_name == 'test7':
+        t_counter.t12 += t
+    elif func_name == 'test8':
+        t_counter.t13 += t
+    elif func_name == 'test9':
+        t_counter.t14 += t
+    elif func_name == 'test10':
+        t_counter.t15 += t
+    elif func_name == 'test11':
+        t_counter.t16 += t
+    elif func_name == 'test12':
+        t_counter.t17 += t
     else:
         pass
 
@@ -883,12 +895,14 @@ def PrintSearchCandidate(target_customer, res_C_T, now_t = 0, titleinfo = 'None'
         #input('그림 확인')
 
 
-def SaveSscenario(scenario, rider_num, instance_type, ite, ellipse_w = 'None', heuristic_theta= 'None', heuristic_r1 = 'None',count = 'None'):
+def SaveSscenario(scenario, rider_num, instance_type, ite, ellipse_w = 'None', heuristic_theta= 'None', heuristic_r1 = 'None',count = 'None',considered_customer_type = 'all',
+                  search_range_index = 15, pr_para = False ):
     print('"요약 정리/ 라이더 수 {}'.format(rider_num))
     print_count = 0
     f3 = open("결과저장_sc_저장.txt", 'a')
-    con = 'ITE;{};instance_type;{};search_type;{};플랫폼번들;{};라이더번들;{};\n'.format(ite, instance_type, scenario.search_type, scenario.platform_recommend,scenario.rider_bundle_construct)
-    f3.write(con)
+    con = 'ITE;{};instance_type;{};search_type;{};플랫폼번들;{};라이더번들;{};'.format(ite, instance_type, scenario.search_type, scenario.platform_recommend,scenario.rider_bundle_construct)
+    con1 = 'considered_customer_type;{};search_range_index;{};pr_para;{};'.format(considered_customer_type, search_range_index, pr_para)
+    f3.write(con + con1 + '\n')
     sc = scenario
     res_info = []
     #input(sc.res)
