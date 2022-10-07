@@ -231,7 +231,7 @@ def BundleConsist(orders, customers, p2, time_thres = 0, speed = 1,M = 10000, bu
         test = []
         test_names = itertools.permutations(order_names, 2)
         for names in test_names:
-            dist = distance(customers[names[0]].location, customers[names[1]].location)
+            dist = distance(customers[names[0]].location[0],customers[names[0]].location[1], customers[names[1]].location[0],customers[names[1]].location[1])
             if dist > 15:
                 #print('거리에 의한 종료')
                 return []
@@ -283,7 +283,7 @@ def BundleConsist(orders, customers, p2, time_thres = 0, speed = 1,M = 10000, bu
 
 
 def BundleConsist2(orders, customers, p2, time_thres = 0, speed = 1,M = 10000, bundle_permutation_option = False,
-                   uncertainty = False, platform_exp_error =  1, feasible_return = False, now_t = 0, min_time_buffer = 10, max_dist = 15, sort_index = 8):
+                   uncertainty = False, platform_exp_error =  1, feasible_return = False, now_t = 0, min_time_buffer = 10, max_dist = 15, sort_index = 8, fix_start = True):
     """
     Construct bundle consists of orders
     :param orders: customer order in the route. type: customer class
@@ -297,11 +297,14 @@ def BundleConsist2(orders, customers, p2, time_thres = 0, speed = 1,M = 10000, b
     #start_time_sec = datetime.now()
     start_time_sec = time.time()
     order_names = [] #가게 이름?
+    fixed_start_point = orders[-1].name + M
     for order in orders:
         order_names.append(order.name)
     store_names = []
     for name in order_names:
         store_names.append(name + M)
+    if fix_start == True: #제일 끝에 target 고객이 위치
+        store_names = store_names[:-1]
     candi = order_names + store_names
     #print(candi)
     #input('candi check')
@@ -315,7 +318,7 @@ def BundleConsist2(orders, customers, p2, time_thres = 0, speed = 1,M = 10000, b
         test = []
         test_names = itertools.permutations(order_names, 2)
         for names in test_names:
-            dist = distance(customers[names[0]].location, customers[names[1]].location)
+            dist = distance(customers[names[0]].location[0],customers[names[0]].location[1], customers[names[1]].location[0],customers[names[1]].location[1])
             if dist > max_dist:
                 #print('거리에 의한 종료')
                 return []
@@ -328,7 +331,10 @@ def BundleConsist2(orders, customers, p2, time_thres = 0, speed = 1,M = 10000, b
     #print(subset)
     #input('경로 확인')
     feasible_subset = []
-    for route in subset:
+    for route_org in subset:
+        route = list(route_org)
+        if fix_start == True:
+            route = [fixed_start_point] + list(route_org)
         sequence_feasiblity = True #모든 가게가 고객 보다 앞에 오는 경우.
         for order_name in order_names: # order_name + M : store name ;
             if route.index(order_name + M) < route.index(order_name):
@@ -338,7 +344,7 @@ def BundleConsist2(orders, customers, p2, time_thres = 0, speed = 1,M = 10000, b
                 break
         P2P_dist = 0
         for order_name in order_names:
-            P2P_dist += distance(customers[order_name].store_loc, customers[order_name].location)/speed
+            P2P_dist += distance(customers[order_name].store_loc[0],customers[order_name].store_loc[1], customers[order_name].location[0],customers[order_name].location[1])/speed
         if sequence_feasiblity == True:
             ftd_feasiblity, ftds = FLT_Calculate(orders, customers, route, p2, [],M = M ,speed = speed, uncertainty =uncertainty, exp_error=platform_exp_error, now_t = now_t)
             if ftd_feasiblity == True:
@@ -347,8 +353,8 @@ def BundleConsist2(orders, customers, p2, time_thres = 0, speed = 1,M = 10000, b
                 if min(time_buffer) >= min_time_buffer:
                     origin = customers[route[0] - M].store_loc
                     destination = customers[route[-1]].location
-                    line_dist = round(route_time, 2) - (distance(origin, destination)/speed)
-                    tem = [route, unsync_t[0], round(sum(ftds) / len(ftds), 2), unsync_t[1], order_names, round(route_time, 2),min(time_buffer), round(P2P_dist - route_time, 2), line_dist, round(P2P_dist,4), distance(origin, destination)/speed]
+                    line_dist = round(route_time, 2) - (distance(origin[0],origin[1], destination[0],destination[1])/speed)
+                    tem = [route, unsync_t[0], round(sum(ftds) / len(ftds), 2), unsync_t[1], order_names, round(route_time, 2),min(time_buffer), round(P2P_dist - route_time, 2), line_dist, round(P2P_dist,4), distance(origin[0],origin[1], destination[0],destination[1])/speed]
                     if line_dist <= 0.1 :
                         print_route = []
                         try:
@@ -357,7 +363,7 @@ def BundleConsist2(orders, customers, p2, time_thres = 0, speed = 1,M = 10000, b
                                     print_route.append(customers[value - M].store_loc)
                                 else:
                                     print_route.append(customers[value].location)
-                            #print(origin, destination, round(route_time, 2) , distance(origin, destination)/speed, line_dist)
+                            #print(origin, destination, round(route_time, 2) , distance(origin[0],origin[1], destination[0],destination[1])/speed, line_dist)
                             #print(print_route)
                             #input('거리 에러')
                         except:
@@ -455,7 +461,7 @@ def ConstructBundle(orders, s, n, p2, speed = 1, option = False, uncertainty = F
         dist_thres = order.p2
         for order2_name in orders:
             order2 = orders[order2_name]
-            dist = distance(order.store_loc, order2.store_loc)/speed
+            dist = distance(order.store_loc[0],order.store_loc[1], order2.store_loc[0],order2.store_loc[1])/speed
             if order2 != order and dist <= dist_thres:
                 d.append(order2.name)
         M = itertools.permutations(d, s - 1)
@@ -562,7 +568,7 @@ def GenSingleOrder(order_index, customer, platform_exp_error = 1):
     return o
 
 
-def GenBundleOrder(order_index, bundie_info, customer_set, now_t, M = 10000, platform_exp_error = 1):
+def GenBundleOrder(order_index, bundie_info, customer_set, now_t, M = 10000, platform_exp_error = 1, add_fee = 0):
     route = []
     for node in bundie_info[0]:
         if node >= M:
@@ -576,10 +582,11 @@ def GenBundleOrder(order_index, bundie_info, customer_set, now_t, M = 10000, pla
     fee = 0
     for customer_name in bundie_info[4]:
         fee += customer_set[customer_name].fee  # 주문의 금액 더하기.
-        customer_set[customer_name].in_bundle_time = now_t
+        #customer_set[customer_name].in_bundle_time = now_t
         pool = np.random.normal(customer.cook_info[1][0], customer.cook_info[1][1] * platform_exp_error, 1000)
         customer_set[customer_name].platform_exp_cook_time = random.choice(pool)
         customer_set[customer_name].in_bundle_t = now_t
+    fee += add_fee
     o = A1_Class.Order(order_index, bundie_info[4], route, 'bundle', fee=fee, parameter_info=bundie_info[7:10])
     o.gen_t = now_t
     o.olf_info = bundie_info
@@ -607,7 +614,7 @@ def ResultPrint(name, customers, speed = 1, riders = None):
     MFLT = []
     OD_ratios = []
     b1 = [] #14
-    b2 = [] # 15
+    b2 = [] #15
     b3 = [] #16
     b4 = [] #17
     b5 = [] #18
@@ -620,6 +627,9 @@ def ResultPrint(name, customers, speed = 1, riders = None):
     r3 = [] #25
     r4 = [] #26
     r5 = [] #27
+    count_b = 0 #28
+    count_p = 0
+    count_r = 0
     test1 = []
     service_times = []
     unselected_ct = 0 #조리가 시작 되었지만, 조리 되지 못하고 버려지는 음식
@@ -627,6 +637,7 @@ def ResultPrint(name, customers, speed = 1, riders = None):
     rider_wait3 = []
     food_wait1 = [] #15분 미만 음식
     food_wait2 = [] #15분 이상 음식
+    cancel_ct = 0
     for customer_name in customers:
         if customer_name == 0 :
             continue
@@ -634,11 +645,11 @@ def ResultPrint(name, customers, speed = 1, riders = None):
         if customer.time_info[3] != None:
             lt = customer.time_info[3] - customer.time_info[0]
             try:
-                flt = round(customer.time_info[3] - customer.time_info[2],2)
+                flt = round(customer.time_info[3] - customer.time_info[2],5)
             except:
                 flt  = 10
                 input('FLT = 0 : {}'.format(customer.time_info))
-            mflt = round(distance(customer.store_loc, customer.location)/speed,2)
+            mflt = round(distance(customer.store_loc[0],customer.store_loc[1], customer.location[0],customer.location[1])/speed,5)
             TLT.append(lt)
             FLT.append(flt)
             MFLT.append(mflt)
@@ -654,6 +665,7 @@ def ResultPrint(name, customers, speed = 1, riders = None):
                 b3.append(customer.time_info[2] - customer.time_info[1])
                 b4.append(customer.time_info[3] - customer.time_info[2])
                 b5.append(customer.time_info[3] - customer.time_info[2] - mflt)
+                count_b += 1
             else:
                 if customer.time_info[3] - customer.time_info[2] - mflt > 0.001:
                     r1.append(max(0,customer.rider_bundle_t - customer.time_info[0]))
@@ -661,11 +673,13 @@ def ResultPrint(name, customers, speed = 1, riders = None):
                     r3.append(customer.time_info[2] - customer.time_info[1])
                     r4.append(customer.time_info[3] - customer.time_info[2])
                     r5.append(customer.time_info[3] - customer.time_info[2] - mflt)
+                    count_r += 1
                 else:
                     p1.append(customer.time_info[1] - customer.time_info[0])
                     p2.append(customer.time_info[2] - customer.time_info[1])
                     p3.append(customer.time_info[3] - customer.time_info[2])
                     p4.append(customer.time_info[3] - customer.time_info[2] - mflt)
+                    count_p += 1
             test1.append(customer.time_info[3]- (customer.cook_start_time + customer.actual_cook_time + customer.time_info[7]))
             if customer.food_wait3 != None:
                 food_wait3.append(customer.food_wait3)
@@ -677,6 +691,8 @@ def ResultPrint(name, customers, speed = 1, riders = None):
                 rider_wait3.append(customer.rider_wait3)
             print('확인용',customer.name, customer.food_wait3, customer.rider_wait3)
         else:
+            if customer.cancel == True:
+                cancel_ct += 1
             if customer.cook_start_time > 0 and customer.time_info[1] == None:
                 unselected_ct += 1
     customer_lead_time_var = np.var(TLT)
@@ -744,7 +760,7 @@ def ResultPrint(name, customers, speed = 1, riders = None):
         print('시나리오 명 {} 전체 고객 {} 중 서비스 고객 {}/ 서비스율 {}/ 평균 LT :{}/ 평균 FLT : {}/직선거리 대비 증가분 : {}'.format(name, len(customers), len(TLT),served_ratio,av_TLT,
                                                                              av_FLT, av_MFLT))
         return [len(customers), len(TLT),served_ratio,av_TLT,av_FLT, av_MFLT, round(sum(MFLT)/len(MFLT),2), rider_income_var,customer_lead_time_var,len(OD_ratios),OD_ratio_value,ave_OD_ratio_value,len(done_bundle),ave_done_bundle,
-                ave_b1,ave_b2,ave_b3,ave_b4,ave_b5,ave_p1,ave_p2,ave_p3,ave_p4,ave_r1,ave_r2,ave_r3,ave_r4,ave_r5, ave_servie_time, ave_test1 ,unselected_ct,ave_food_wait3,ave_rider_wait3,ave_food_wait1,ave_food_wait2,len(food_wait1),len(food_wait2),len(rider_wait3)]
+                ave_b1,ave_b2,ave_b3,ave_b4,ave_b5,count_b,ave_p1,ave_p2,ave_p3,ave_p4,count_p,ave_r1,ave_r2,ave_r3,ave_r4,ave_r5, count_r,ave_servie_time, ave_test1 ,unselected_ct,ave_food_wait3,ave_rider_wait3,ave_food_wait1,ave_food_wait2,len(food_wait1),len(food_wait2),len(rider_wait3)]
     except:
         print('TLT 수:  {}'.format(len(TLT)))
         return None

@@ -120,13 +120,13 @@ print(len(Orders))
 print('Name :: dist :: p2 :: ratio')
 for ct_num in Orders:
     ct = Orders[ct_num]
-    print(ct_num, '::',distance(ct.location, ct.store_loc), '::',ct.p2,'::',distance(ct.location, ct.store_loc) / ct.p2)
+    print(ct_num, '::',distance(ct.location[0],ct.location[1], ct.store_loc[0],ct.store_loc[1]), '::',ct.p2,'::',distance(ct.location[0],ct.location[1], ct.store_loc[0],ct.store_loc[1]) / ct.p2)
 
 saved_orders = []
 print('이름;시간;x;y;s_x;s_y;p2;od_dist;service_time')
 for ct_num in Orders:
     ct = Orders[ct_num]
-    print(ct_num,';',ct.time_info[0], ';',ct.location[0], ';',ct.location[1], ';',ct.store_loc[0], ';',ct.store_loc[1], ';',ct.p2, ';',distance(ct.location, ct.store_loc),';',ct.time_info[7])
+    print(ct_num,';',ct.time_info[0], ';',ct.location[0], ';',ct.location[1], ';',ct.store_loc[0], ';',ct.store_loc[1], ';',ct.p2, ';',distance(ct.location[0],ct.location[1], ct.store_loc[0],ct.store_loc[1]),';',ct.time_info[7])
     tem = [ct.name,ct.time_info[0],ct.location[0],ct.location[1],ct.store, ct.store_loc[0],ct.store_loc[1],ct.p2,ct.cook_time,ct.cook_info[1][0],ct.cook_info[1][1],ct.time_info[6],ct.time_info[7], 3]
     saved_orders.append(tem)
 

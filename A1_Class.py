@@ -106,7 +106,7 @@ class Rider(object):
                 #print('T: {} 라이더 :{} 노드 정보 {} 경로 {}'.format(int(env.now),self.name, node_info,self.route))
                 order = customers[node_info[0]]
                 store_name = order.store
-                move_t = Basic.distance(self.last_departure_loc, node_info[2]) / self.speed
+                move_t = Basic.distance(self.last_departure_loc[0],self.last_departure_loc[1], node_info[2][0],node_info[2][1]) / self.speed
                 self.next_search_time = env.now + move_t
                 print('라이더 {}/ 현재 시간 {} /다음 선택 시간 {}/ OnHandOrder{}/ 최대 주문 수{}'.format(self.name, env.now, self.next_search_time, len(self.onhand), self.capacity))
                 if len(self.route) == 1:
@@ -260,7 +260,7 @@ class Rider(object):
         score = []
         bound_order_names = []
         bundle_task_names = []
-        if Basic.ActiveRiderCalculator(self) == True:
+        if Basic.ActiveRiderCalculator(self, print_option= False) == True:
             for index in platform.platform:
                 # 현재의 경로를 반영한 비용
                 order = platform.platform[index]
@@ -269,9 +269,9 @@ class Rider(object):
                     if type(order.route[0]) != list:
                         input('에러 확인 {} : {}'.format(self.last_departure_loc,order.route))
                     if current_loc != None:
-                        dist = Basic.distance(current_loc, order.route[0][2]) / self.speed
+                        dist = Basic.distance(current_loc[0],current_loc[1], order.route[0][2][0],order.route[0][2][1]) / self.speed
                     else:
-                        dist = Basic.distance(self.last_departure_loc, order.route[0][2])/self.speed #자신의 현재 위치와 order의 시작점(가게) 사이의 거리.
+                        dist = Basic.distance(self.last_departure_loc[0],self.last_departure_loc[1], order.route[0][2][0],order.route[0][2][1])/self.speed #자신의 현재 위치와 order의 시작점(가게) 사이의 거리.
                         if len(order.customers) > 1:
                             bundle_task_names.append([order.index,dist])
                     info = [order.index,dist]
@@ -298,7 +298,7 @@ class Rider(object):
                     for route_info in order.route:
                         rev_route.append(route_info[2])
                     for node_index in range(1,len(rev_route)):
-                        mv_time += Basic.distance(rev_route[node_index - 1],rev_route[node_index])/self.speed
+                        mv_time += Basic.distance(rev_route[node_index - 1][0],rev_route[node_index - 1][1],rev_route[node_index][0],rev_route[node_index][1])/self.speed
                     for customer_name in order.customers:
                         mv_time += customers[customer_name].time_info[6] #예상 가게 준비시간
                         mv_time += customers[customer_name].time_info[7] #예상 고객 준비시간
@@ -518,7 +518,7 @@ class Rider(object):
             return nodeA
         else:
             t = t_now - self.visited_route[-1][3] # nodeA출발 후 경과한 시간.
-            ratio = t / Basic.distance(nodeA, nodeB)
+            ratio = t / Basic.distance(nodeA[0],nodeA[1], nodeB[0],nodeB[1])
             x_inc = (nodeB[0] - nodeA[0])*ratio
             y_inc = (nodeB[1] - nodeA[1])*ratio
             return [nodeA[0] + x_inc, nodeA[1] + y_inc]
@@ -648,10 +648,10 @@ class Customer(object):
         self.store = store
         self.type = 'single_order'
         self.min_FLT = p2 #Basic.distance(input_location, store_loc) #todo: 고객이 기대하는 FLT 시간.
-        self.fee = fee + 150*Basic.distance(input_location, store_loc)
+        self.fee = fee + 150*Basic.distance(input_location[0],input_location[1], store_loc[0],store_loc[1])
         self.ready_time = None #가게에서 음식이 조리 완료된 시점
         self.who_serve = []
-        self.distance = Basic.distance(input_location, store_loc)
+        self.distance = Basic.distance(input_location[0],input_location[1], store_loc[0],store_loc[1])
         self.p2 = p2
         self.cook_time = cooking_time
         self.inbundle = False

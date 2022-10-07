@@ -26,7 +26,7 @@ class Order(object):
 
 
 class Rider(object):
-    def __init__(self, env, i, platform, customers, stores, start_time = 0, speed = 1, capacity = 3, end_t = 120, p2= 2, bound = 5, freedom = True,
+    def __init__(self, env, i, platform, customers, stores, start_time = 0, speed = 1, capacity = 3, max_order_num = 4,end_t = 120, p2= 2, bound = 5, freedom = True,
                  order_select_type = 'simple', wait_para = False, uncertainty = False, exp_error = 1, platform_recommend = False, p_ij = [0.5,0.3,0.2],
                  bundle_construct = False, lamda = 5, ite = 1):
         self.name = i
@@ -47,7 +47,7 @@ class Rider(object):
         self.served = []
         self.p2 = p2
         self.start_time = start_time
-        self.max_order_num = capacity #max_order_num
+        self.max_order_num = max_order_num  #max_order_num
         self.bound = bound
         self.idle_time = 0
         self.candidates = []
@@ -83,8 +83,11 @@ class Rider(object):
         self.onhand_bundle = []
         self.rider_select_print_fig = False
         self.rider_wait2 = []
+        self.selected_info = [] #선택한 번들 중 번들이 있었는가?
+        self.searched_info = [] #탐색한 고객 중 번들이 있었는가?
+        self.pick_loc_history = []
         env.process(self.RunProcess(env, platform, customers, stores, self.p2, freedom= freedom, order_select_type = order_select_type, uncertainty = uncertainty))
-        env.process(self.TaskSearch(env, platform, customers, p2=self.p2, order_select_type=order_select_type, uncertainty=uncertainty))
+        #env.process(self.TaskSearch(env, platform, customers, p2=self.p2, order_select_type=order_select_type, uncertainty=uncertainty))
 
     def RiderMoving(self, env, time, info = '가게'):
         """
@@ -114,12 +117,12 @@ class Rider(object):
                 #print('T: {} 라이더 :{} 노드 정보 {} 경로 {}'.format(int(env.now),self.name, node_info,self.route))
                 order = customers[node_info[0]]
                 store_name = order.store
-                move_t = Basic.distance(self.last_departure_loc, node_info[2], rider_count= True) / self.speed
-                self.next_search_time = env.now + move_t
+                move_t = Basic.distance(self.last_departure_loc[0],self.last_departure_loc[1], node_info[2][0],node_info[2][1], rider_count= True) / self.speed
+                self.next_search_time2 = env.now + move_t
                 print('라이더 {}/ 현재 시간 {} /다음 선택 시간 {}/ OnHandOrder{}/ 최대 주문 수{}'.format(self.name, env.now, self.next_search_time, len(self.onhand), self.capacity))
                 if len(self.route) == 1:
                     exp_idle_t = round(env.now + move_t + order.service_time,1) + 0.1
-                    self.next_search_time = min(exp_idle_t, self.next_search_time)
+                    self.next_search_time2 = min(exp_idle_t, self.next_search_time2)
                 with self.resource.request() as req:
                     print('T: {} 노드 {} 시작'.format(int(env.now), node_info))
                     yield req  # users에 들어간 이후에 작동
@@ -176,7 +179,7 @@ class Rider(object):
                         print('T: {} 라이더 {} 고객 {} 도착 서비스 종료'.format(int(env.now),self.name, node_info[0]))
                         order.time_info[3] = env.now
                         real_flt = round(order.time_info[3] - order.time_info[2],4)
-                        exp_flt = round(Basic.distance(order.location, order.store_loc)/self.speed,4)
+                        exp_flt = round(Basic.distance(order.location[0],order.location[1], order.store_loc[0],order.store_loc[1])/self.speed,4)
                         yield env.timeout(order.time_info[7]) #todo: 고객의 시간 발생.
                         order.time_info[4] = env.now
                         if real_flt < exp_flt:
@@ -214,23 +217,27 @@ class Rider(object):
                                 input('에러 발생')
                     self.last_departure_loc = self.route[0][2]
                     self.visited_route.append(self.route[0])
-                    self.visited_route[-1][3] = int(env.now)
+                    self.visited_route[-1][3] = round(env.now,4)
                     #input('방문 경로 확인 {}'.format(self.visited_route))
                     del self.route[0]
                     print('남은 경로 {}'.format(self.route))
             else:
                 self.empty_serach_count += 1
-                self.next_search_time2 = round(env.now,4) - 0.001
+                self.next_search_time2 = round(env.now,4) + self.check_t
+                print('ord1')
                 self.OrderSelect_module(self.env, platform, customers, p2 = self.p2)
+                print('ord1 end')
                 yield env.timeout(self.check_t)
 
 
     def OrderSelect_module(self,env, platform, customers, p2=0, order_select_type='simple', uncertainty=False, score_type = 'simple'):
         if self.bundle_construct == True:  # FT/ TT
             # 주문 고르기 #번들 생성 가능하도록
+            print('FT/TT')
             order_info, self_bundle = self.OrderSelect(platform, customers, p2=p2, uncertainty=uncertainty)
         elif len(self.onhand) == 0:  # FF/ TF
             # 플랫폼에 있는 주문만 고르기
+            print('# FF/ TF')
             order_info, self_bundle = self.OrderSelect(platform, customers, p2=p2, uncertainty=uncertainty)
         else:
             order_info = None
@@ -289,8 +296,8 @@ class Rider(object):
         while int(env.now) < self.end_t:
             onhand_slack = self.max_order_num - len(self.onhand)
             if env.now >= self.next_search_time2 and (onhand_slack > 0 or len(self.onhand_bundle) == 0):
-                self.OrderSelect_module(self.env, platform, customers, p2=p2)
-                """
+                print('ord2')
+                #self.OrderSelect_module(self.env, platform, customers, p2=p2)
                 if self.bundle_construct == True: #FT/ TT
                     #주문 고르기 #번들 생성 가능하도록
                     order_info, self_bundle = self.OrderSelect(platform, customers, p2=p2, uncertainty=uncertainty)
@@ -299,6 +306,7 @@ class Rider(object):
                     order_info, self_bundle = self.OrderSelect(platform, customers, p2=p2, uncertainty=uncertainty)
                 else:
                     order_info = None
+                """
                 #선택된 번들 반영 부분
                 empty_t = 1000
                 if order_info != None:
@@ -337,13 +345,13 @@ class Rider(object):
                         input('라이더 선택 확인2')
                         plt.close()
                         #target_customer, res_C_T, now_t = 0, titleinfo = 'None'
-                    #print('F:TaskSearch/라이더#:{}/order_info:{}'.format(self.name, order_info))
-                    self.OrderPick(order_info, order_info[1], customers, env.now,route_revise_option=self.bundle_construct, self_bundle = self_bundle)  # 라우트 결정 후
-                    if order_info[8] == 'platform' and len(order_info[5]) > 1:
-                        self.b_select += 1
-                        self.num_bundle_customer += len(order_info[5])
-                    Basic.UpdatePlatformByOrderSelection(platform,order_info[0])  # 만약 개별 주문 선택이 있다면, 해당 주문이 선택된 번들을 제거.
-                """
+                    """
+                print('F:TaskSearch/라이더#:{}/order_info:{}'.format(self.name, order_info))
+                self.OrderPick(order_info, order_info[1], customers, env.now,route_revise_option=self.bundle_construct, self_bundle = self_bundle)  # 라우트 결정 후
+                if order_info[8] == 'platform' and len(order_info[5]) > 1:
+                    self.b_select += 1
+                    self.num_bundle_customer += len(order_info[5])
+                Basic.UpdatePlatformByOrderSelection(platform,order_info[0])  # 만약 개별 주문 선택이 있다면, 해당 주문이 선택된 번들을 제거.
                 #종류에 따른 다음 선택 시간 결정 :todo 라이더의 효율에 영향을 미침.
                 if self.bundle_construct == True:
                     pr = 1/(onhand_slack + 1)
@@ -360,6 +368,7 @@ class Rider(object):
                 self.order_select_time.append(env.now)
                 yield env.timeout(next)
             else:
+                self.next_search_time2 += self.check_t
                 yield env.timeout(self.check_t) #시간을 흘려 보내기 위한 장치
 
 
@@ -371,6 +380,14 @@ class Rider(object):
         time_check = []
         for index in platform.platform:
             task = platform.platform[index]
+
+            cancel = False #todo : 0929 실험 환경 통제를 위한 조작
+            for name in task.customers:
+                if customers[name].cancel == True:
+                    cancel = True
+                    break
+            if cancel == True:
+                continue
             duplicated_para = False
             for name in task.customers:
                 if len(customers[name].who_picked) > 0:
@@ -378,15 +395,16 @@ class Rider(object):
             if duplicated_para == True: #Step 1-1 : 이미 다른 라이더가 선택한 고객의 경우 고려하지 않음
                 continue
             elif task.picked == False and len(task.customers) + len(self.onhand) <= self.max_order_num: #Step 1-2 : 아직 선택되지 않은 task에 대해 라이더의 현재 위치와의 거리 계산
-                #dist = Basic.distance(self.last_departure_loc,task.route[0][2]) / self.speed  # 자신의 현재 위치와 order의 시작점(가게) 사이의 거리.
-                dist = Basic.distance(self.CurrentLoc(self.env.now),task.route[0][2],rider_count= True)  # 자신의 현재 위치와 order의 시작점(가게) 사이의 거리.
+                #dist = Basic.distance(self.last_departure_loc[0],self.last_departure_loc[1] ,task.route[0][2][0],task.route[0][2][1]) / self.speed  # 자신의 현재 위치와 order의 시작점(가게) 사이의 거리.
+                current_loc = self.CurrentLoc(self.env.now, tag = 'tr1')
+                dist = Basic.distance(current_loc[0],current_loc[1],task.route[0][2][0],task.route[0][2][1],rider_count= True)  # 자신의 현재 위치와 order의 시작점(가게) 사이의 거리.
                 if len(task.customers) > 1:
                     bundle_task_names.append([task.index, dist])
-                bound_order_names.append([task.index, dist])
+                bound_order_names.append([task.index, dist, task.customers])
             else: #Step 1-3 : 에러 출력
                 print('F:OrderSelect-E1/task{}/선택 정보 {}/ 주문 채택시 onhand주문수:{} > {}:maxonhand'.format(task.index, task.picked, len(task.customers) + len(self.onhand) ,self.max_order_num))
-
         bound_order_names.sort(key=operator.itemgetter(1))
+        bundle_task_names.sort(key=operator.itemgetter(1))
         #Step 2 : 라이더가 확인할 페이지를 결정
         rv = float(self.Rand.random(size=1)) #Step 2 - 1 : 확인할 페이지 확률 변수 rv 생성
         page = 1
@@ -396,7 +414,19 @@ class Rider(object):
                 page = index + 1
                 self.pages_history.append(rv)
                 break
+        nearest_b = [-1,-1]
+        tem_count = 0
+        for bound_info in bound_order_names:
+            if len(bound_info[2]) > 1:
+                nearest_b =  bound_info[:2] + [tem_count]
+                break
+            tem_count += 1
+        #page = 4
         considered_tasks = bound_order_names[:page*l] #Step 2 - 2 : 라이더가 확인할 주문 목록
+
+        if len(considered_tasks) > 0 and self.env.now > 15 and len(bundle_task_names) > 0:
+            print('라이더 {} 확인{}까지 max 거리 {} 번들의 위치{} 전체 번들 {}'.format(self.name, page*l, considered_tasks[-1], nearest_b, len(bundle_task_names)))
+            #input('확인')
         nearest_bundle = 0 #Step 2 - 3 : 정보 저장 부분
         out_count = 0
         for outer_task in bound_order_names[page*l:]:
@@ -421,9 +451,11 @@ class Rider(object):
                 rev_route = [self.visited_route[-1]]
                 print('경로 X :{}'.format(rev_route))
             rev_route += task.route
+            fromheredist = Basic.distance(rev_route[0][2][0],rev_route[0][2][1], rev_route[1][2][0],rev_route[1][2][1]) / self.speed
+
             for node_index in range(1, len(rev_route)):
-                print('bf {} -> {} af/ T:{}'.format(rev_route[node_index - 1][2], rev_route[node_index][2],Basic.distance(rev_route[node_index - 1][2], rev_route[node_index][2],rider_count= True) / self.speed))
-                mv_time += Basic.distance(rev_route[node_index - 1][2], rev_route[node_index][2],rider_count= True) / self.speed
+                print('bf {} -> {} af/ T:{}'.format(rev_route[node_index - 1][2], rev_route[node_index][2],Basic.distance(rev_route[node_index - 1][2][0],rev_route[node_index - 1][2][1], rev_route[node_index][2][0],rev_route[node_index][2][1],rider_count= True) / self.speed))
+                mv_time += Basic.distance(rev_route[node_index - 1][2][0],rev_route[node_index - 1][2][1], rev_route[node_index][2][0],rev_route[node_index][2][1],rider_count= True) / self.speed
                 if rev_route[node_index][1] == 0:
                     mv_time += customers[rev_route[node_index][0]].time_info[6]
                     tem_time_check.append(round(self.env.now - customers[rev_route[node_index][0]].time_info[0],4))
@@ -440,7 +472,7 @@ class Rider(object):
                 task.route = list(task.route)
             #if len(task.route) > 2:
             #    WagePerMin += 10000
-            scores.append([task.index,task.route, None, None, None, task.customers, None,WagePerMin,'platform'])
+            scores.append([task.index,task.route, None, None, None, task.customers, None,WagePerMin,'platform',fromheredist])
             print('시간 정보1  {} '.format(mv_time))
             print('시간 계산 경로1 {}'.format(rev_route))
             print('단건:: 라이더#{}/경로 {} /리스트 확인 {}'.format(self.name, self.route, scores[-1]))
@@ -452,9 +484,9 @@ class Rider(object):
                     if len(self.route) > 0:
                         bf = self.route[-1][2]
                         af = best_route_info[0][0][2]
-                        org_route_t = Basic.distance(bf, af,rider_count= True)/ self.speed
+                        org_route_t = Basic.distance(bf[0],bf[1], af[0],af[1],rider_count= True)/ self.speed
                     else:
-                        org_route_t = Basic.distance(self.visited_route[-1][2],best_route_info[0][0][2],rider_count= True)/ self.speed
+                        org_route_t = Basic.distance(self.visited_route[-1][2][0],self.visited_route[-1][2][1],best_route_info[0][0][2][0],best_route_info[0][0][2][1],rider_count= True)/ self.speed
                         print('af {} -> {} bf'.format(self.visited_route[-1][2],best_route_info[0][0][2]))
                     if len(best_route_info) < 5:
                         input('best_route_info {} '.format(best_route_info))
@@ -464,7 +496,7 @@ class Rider(object):
                     benefit = round(task.fee / (best_route_info[5] +org_route_t),4)  # 이익 / 운행 시간
                     benefit2 = round(task.fee / best_route_info[6],4)
                     print('inc_t1:{}/inc_t2:{}'.format(best_route_info[5] +org_route_t, best_route_info[6]))
-                    scores.append([task.index] + best_route_info[:6] + [benefit2] + ['rider'])
+                    scores.append([task.index] + best_route_info[:6] + [benefit2] + ['rider'] + [org_route_t])
                     if WagePerMin < benefit2:
                         rider_bundle = True
                     print('번들:: 라이더#{}/경로 {} /리스트 확인 {}'.format(self.name, self.route, scores[-1]))
@@ -479,7 +511,9 @@ class Rider(object):
                 #input('확인{}'.format(time_check[-1]))
             else:
                 time_check.append([scores[-1][7]] + ['N',[-1,-1],0] + [tem_time_check,[-1,-1]])
-        scores.sort(key=operator.itemgetter(7), reverse=True)
+        scores.sort(key=operator.itemgetter(7), reverse=True) #todo : 0929 실험 통제
+        #scores.sort(key=operator.itemgetter(9))
+        #scores = scores[:]
         time_check.sort(key=operator.itemgetter(0), reverse=True)
         ave_wait = []
         #print(time_check)
@@ -501,7 +535,8 @@ class Rider(object):
             snapshot_info = self.SnapShotSaver(scores, page,l)
             nearest_bundle_page = int(nearest_bundle / l) + 1
             self.snapshots.append(snapshot_info + [nearest_bundle, nearest_bundle_page])
-            #[라이더 이름, 시간, 확인 페이지, 번들 수, 번들 최대 가치, 단건 주문 최대 가치, 가장 가까운 주문 정렬 순서, 가장 가까운 주문 정렬 순서 페이지]
+            # [라이더 이름, 시간, 확인 페이지, 페이지당 주문수, 페이지 내 번들 수, 번들 최대 가치, 단건 주문 최대 가치, type]
+            # [self.name, now_t, page,l, len(bundle_values) - 1, max_bundle_value, max_single_value, type, nearest_bundle, nearest_bundle_page]
             print('스냅샷 {}'.format(self.snapshots[-1]))
             print('T{} /라이더 {}/확인 페이지{}/번들 수{}/번들 최대 가치{}/단건 주문 최대 가치{}/타입{}'.format(round(self.env.now,4), self.snapshots[-1][0],
                                                                                 self.snapshots[-1][2],self.snapshots[-1][4],self.snapshots[-1][5],
@@ -625,11 +660,17 @@ class Rider(object):
         @param customers: 발생한 고객들 {[KY]customer name : [Value]class customer, ...}
         @param now_t: 현재 시간
         """
+        self.pick_loc_history.append([env.now, self.CurrentLoc(env.now, tag = 'tr2')])
         names = order_info[5]
         if len(names) > 1:
             self.bundles_infos.append(route)
             self.bundle_count.append(len(names))
             self.onhand_bundle = names
+            self.selected_info.append([round(env.now, 2), names, 1])
+            #input('번들 선택')
+        else:
+            self.selected_info.append([round(env.now, 2), names, 0])
+            pass
         for name in names:
             customer = customers[name]
             customer.time_info[1] = now_t
@@ -683,7 +724,7 @@ class Rider(object):
         return res
 
 
-    def CurrentLoc(self, t_now):
+    def CurrentLoc(self, t_now, tag = 'tr1'):
         """
         현재의 위치를 물어 보는 함수.
         @return:
@@ -692,13 +733,20 @@ class Rider(object):
         try:
             nodeB = self.resource.users[0].loc
         except:
-            #print(' T {} 출발 위치 에러 ; 마지막 노드 {}'.format(t_now, self.last_departure_loc))
+            if tag == 'tr1':
+                pass
+            else:
+                print(self.resource.users)
+                print(self.visited_route)
+                print(' T {} 출발 위치 에러 ; 마지막 노드 {};nodeA ; {}; tag {}; 실제 시간 {}; 라이더 ;{};checkt ;{}'.format(t_now, self.last_departure_loc,nodeA, tag, self.env.now, self.name, self.check_t))
             nodeB = self.last_departure_loc
+        #print('Loc 정보 ::',nodeA, nodeB)
         if nodeA == nodeB:
+            #print('')
             return nodeA
         else:
             t = t_now - self.visited_route[-1][3] # nodeA출발 후 경과한 시간.
-            ratio = t / Basic.distance(nodeA, nodeB)
+            ratio = t / (Basic.distance(nodeA[0],nodeA[1], nodeB[0],nodeB[1])/self.speed)
             x_inc = (nodeB[0] - nodeA[0])*ratio
             y_inc = (nodeB[1] - nodeA[1])*ratio
             return [nodeA[0] + x_inc, nodeA[1] + y_inc]
@@ -838,15 +886,15 @@ class Customer(object):
         self.store_loc = store_loc
         self.store = store
         self.type = 'single_order'
-        self.min_FLT = p2 #Basic.distance(input_location, store_loc) #todo: 고객이 기대하는 FLT 시간.
-        self.fee = fee + 110*Basic.distance(input_location, store_loc) #원래 150원
+        self.min_FLT = p2 #Basic.distance(input_location[0],input_location[1], store_loc[0],store_loc[1]) #todo: 고객이 기대하는 FLT 시간.
+        self.fee = fee + 110*Basic.distance(input_location[0],input_location[1], store_loc[0],store_loc[1]) #원래 150원
         if fee_type == 'linear':
-            self.fee = fee + unit_fee * max(0 , Basic.distance(input_location, store_loc)-10)  # 원래 150원
+            self.fee = fee + unit_fee * max(0 , Basic.distance(input_location[0],input_location[1], store_loc[0],store_loc[1])-10)  # 원래 150원
         else:
-            self.fee = fee + unit_fee * Basic.distance(input_location, store_loc)
+            self.fee = fee + unit_fee * Basic.distance(input_location[0],input_location[1], store_loc[0],store_loc[1])
         self.ready_time = None #가게에서 음식이 조리 완료된 시점
         self.who_serve = []
-        self.distance = Basic.distance(input_location, store_loc)
+        self.distance = Basic.distance(input_location[0],input_location[1], store_loc[0],store_loc[1])
         self.p2 = p2
         self.cook_time = cooking_time
         self.inbundle = False
@@ -859,7 +907,7 @@ class Customer(object):
         self.food_wait = None
         self.service_time = service_time
         self.priority_weight = 1
-        self.cancel = False
+        self.cancel = True
         self.rider_bundle = [None, None]
         self.who_picked = []
         self.in_bundle_t = 0
@@ -869,12 +917,11 @@ class Customer(object):
         self.actual_cook_time = 0
         self.dp_cook_time = 0
         self.food_wait2 = []
-        env.process(self.CustomerLeave(env, platform))
         self.cooking_process = None
         self.rider_wait3 = None
         self.food_wait3 = None
         self.near_rider = []
-
+        env.process(self.CustomerLeave(env, platform))
 
     def CustomerLeave(self, env, platform):
         yield env.timeout(self.time_info[5])

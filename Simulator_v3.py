@@ -9,8 +9,11 @@ import time
 import numpy as np
 import simpy
 import random
+
+from sympy import cancel
+
 from re_A1_class import scenario,Platform_pool
-from A1_BasicFunc import ResultSave, GenerateStoreByCSV, RiderGeneratorByCSV, OrdergeneratorByCSV, distance, counter, check_list, t_counter, GenerateStoreByCSVStressTest, OrdergeneratorByCSVForStressTest, RiderGenerator, counter2, SaveSscenario
+from A1_BasicFunc import ResultSave, GenerateStoreByCSV, RiderGeneratorByCSV, OrdergeneratorByCSV, distance, counter, check_list, t_counter, GenerateStoreByCSVStressTest, OrdergeneratorByCSVForStressTest, RiderGenerator, counter2, SaveScenario
 from A2_Func import ResultPrint
 from re_platform import Platform_process5,Rider_Bundle_plt
 from datetime import datetime
@@ -20,6 +23,7 @@ from onnxmltools.convert.xgboost.operator_converters.XGBoost import convert_xgbo
 import onnxruntime as rt
 #from skl2onnx import convert_sklearn, update_registered_converter
 from skl2onnx.common.shape_calculator import calculate_linear_classifier_output_shapes  # noqa
+from Simulator_fun_2207 import BundleFeaturesCalculator2
 import platform
 print(platform.architecture())
 #input('버전 확인')
@@ -50,16 +54,25 @@ ellipse_w=10
 heuristic_theta=10
 heuristic_r1=10
 heuristic_type = 'XGBoost'#'XGBoost'#'enumerate'
-rider_num= 175 #8
+rider_num= 320 #8
 mix_ratios=None
-exp_range = [0]#list(range(10))#[0,1] [0,1,2,3,4,5,6,7,8,9]
+exp_range = [0] #list(range(10))#[0,1] [0,1,2,3,4,5,6,7,8,9]
 unit_fee = 110
 fee_type = 'linear'
 service_time_diff = True
 thres_label = 25
 considered_customer_type = 'all' #'all' 'new'
-search_range_index = 20
+search_range_index = 15
 pr_para = False
+save_data = False
+bundle_start_fix = False
+if save_data == True:
+    save_root_dir = 'E:/GXBoost/old3/'
+    save_id = 'xgb_1'
+
+cut_info3 = [15,25]#[7.5,10]#[7.5,10] #B3의 거리를 줄이는 함수
+cut_info2 = [100,100]#[10,10]#[10,10]
+stopping_index = 40
 
 setting = 'stresstest'
 stress_lamda = 40 # 분당 주문 발생 수 # (2400/60)/5 #기준은 한 구에 분당 3750/60 #원래 40
@@ -81,7 +94,7 @@ rider_working_time = 120
 store_num = 20
 rider_gen_interval = 2  # 라이더 생성 간격.
 rider_speed = 3 #10
-rider_capacity = 3
+rider_capacity = 1
 start_ite = 0
 ITE_NUM = 1
 option_para = True  # True : 가게와 고객을 따로 -> 시간 단축 가능 :: False : 가게와 고객을 같이 -> 시간 증가
@@ -97,8 +110,8 @@ obj_types = ['simple_max_s'] #['simple_max_s', 'max_s+probability', 'simple_over
 wait_para = False  # True: 음식조리로 인한 대기시간 발생 #False : 음식 대기로 인한 대기시간 발생X
 scenarios = []
 run_para = True  # True : 시뮬레이션 작동 #False 데이터 저장용
-r2_onx = 'pipeline_xgboost2_r_ver11'# 'pipeline_xgboost2_r_2_ver7'
-r3_onx = 'pipeline_xgboost3_r_ver11'#'pipeline_xgboost3_r_3_ver6'
+r2_onx = 'pipeline_xgboost2_r_ver11'#'pipeline_xgboost2_r_ver13RandomTrue_0.9_25_5_5_0.2_dart_' # 'pipeline_xgboost2_r_ver11'# 'pipeline_xgboost2_r_2_ver7'
+r3_onx = 'pipeline_xgboost3_r_ver11'#'pipeline_xgboost3_r_ver13RandomTrue_0.6_50_1_6_0.3_dart_'#'pipeline_xgboost3_r_ver11'#'pipeline_xgboost3_r_3_ver6'
 c2_onx = 'pipeline_xgboost2_c_ver9'
 c3_onx = 'pipeline_xgboost3_c_ver10'
 f = open("결과저장0706.txt", 'a')
@@ -214,6 +227,8 @@ else:
 
 rv_count = 0
 for ite in exp_range:#range(0, 1):
+    ML_Saved_Data_B2 = []
+    ML_Saved_Data_B3 = []
     rv_count += 1
     # instance generate
     lamda_list = []
@@ -246,6 +261,8 @@ for ite in exp_range:#range(0, 1):
 
 
     for sc in scenarios:
+        #if sc.rider_bundle_construct == False:
+        #    rider_capacity = 3
         ##count 확인
         counter.dist1 = 0
         counter.dist2 = 0
@@ -302,7 +319,8 @@ for ite in exp_range:#range(0, 1):
             env.process(OrdergeneratorByCSVForStressTest(env, Orders, Store_dict, stress_lamda, platform=Platform2, p2_ratio=customer_p2, rider_speed=rider_speed,
                                              unit_fee=unit_fee, fee_type=fee_type, output_data= CustomerCoord))
             env.process(RiderGenerator(env, Rider_dict, Platform2, Store_dict, Orders, capacity=rider_capacity, speed=rider_speed,working_duration=run_time, interval=0.01,
-                           gen_num=stress_rider_num,  wait_para=wait_para))
+                           gen_num=stress_rider_num,  wait_para=wait_para, platform_recommend = sc.platform_recommend, input_order_select_type = order_select_type,
+                                       bundle_construct= sc.rider_bundle_construct))
         else:
             GenerateStoreByCSV(env, sc.store_dir, Platform2, Store_dict)
             env.process(OrdergeneratorByCSV(env, sc.customer_dir, Orders, Store_dict, Platform2, p2_ratio=customer_p2,
@@ -315,7 +333,8 @@ for ite in exp_range:#range(0, 1):
         env.process(Platform_process5(env, Platform2, Orders, Rider_dict, platform_p2,thres_p,interval, bundle_para= sc.platform_recommend, obj_type = sc.obj_type,
                                       search_type = sc.search_type, print_fig = print_fig, bundle_print_fig = bundle_print_fig, bundle_infos = bundle_infos,
                                       ellipse_w = ellipse_w, heuristic_theta = heuristic_theta,heuristic_r1 = heuristic_r1,XGBmodel3 = XGBmodel3, XGBmodel2 = XGBmodel2, thres_label = thres_label,
-                                      considered_customer_type = considered_customer_type, search_range_index= search_range_index, pr_para = pr_para))
+                                      considered_customer_type = considered_customer_type, search_range_index= search_range_index, pr_para = pr_para, ML_Saved_Data_B2=ML_Saved_Data_B2,
+                                      ML_Saved_Data_B3=ML_Saved_Data_B3, fix_start = bundle_start_fix, ite = ite, cut_info3= cut_info3, cut_info2= cut_info2, stopping_index = stopping_index))
         env.run(run_time)
 
         res = ResultPrint(sc.name + str(ite), Orders, speed=rider_speed, riders = Rider_dict)
@@ -339,8 +358,8 @@ for ite in exp_range:#range(0, 1):
         for ct_num in Orders:
             ct = Orders[ct_num]
             try:
-                print(ct_num, '::', distance(ct.location, ct.store_loc), '::', ct.p2, '::',
-                      distance(ct.location, ct.store_loc) / ct.p2)
+                print(ct_num, '::', distance(ct.location[0],ct.location[1], ct.store_loc[0],ct.store_loc[1]), '::', ct.p2, '::',
+                      distance(ct.location[0],ct.location[1], ct.store_loc[0],ct.store_loc[1]) / ct.p2)
             except:
                 pass
 
@@ -378,7 +397,7 @@ for ite in exp_range:#range(0, 1):
             check_data[0] += 'x;y;계산시간;기록시간;'
             for node_index in range(1,len(rider.visited_route)):
                 #input('기록')
-                check_t += distance(rider.visited_route[node_index-1][2],rider.visited_route[node_index][2])/rider_speed
+                check_t += distance(rider.visited_route[node_index-1][2][0],rider.visited_route[node_index-1][2][1],rider.visited_route[node_index][2][0],rider.visited_route[node_index][2][1])/rider_speed
                 #check_data[rider_name][node_index] += [rider.visited_route[node_index-1][2][0],rider.visited_route[node_index-1][2][1], round(check_t,2), rider.visited_route[node_index-1][3]]
                 tem_info = '{};{};{};{};'.format(rider.visited_route[node_index - 1][2][0], rider.visited_route[node_index - 1][2][1], round(check_t, 2),rider.visited_route[node_index - 1][3])
                 check_data[node_index] += tem_info
@@ -475,15 +494,19 @@ for ite in exp_range:#range(0, 1):
         tem = []
         tem2 = []
         tem3 = []
+        canceled_ct = 0
         for customer_name in Orders:
             customer = Orders[customer_name]
             if customer.time_info[3] != None:
                 tem.append(customer.time_info[3] - customer.time_info[0])
                 tem2.append(customer.time_info[3] - customer.time_info[2])
-                p2p_time = distance(customer.store_loc, customer.location)/rider_speed
+                p2p_time = distance(customer.store_loc[0],customer.store_loc[1], customer.location[0],customer.location[1])/rider_speed
                 over_ratio = (customer.time_info[3] - customer.time_info[2])/ p2p_time
                 if customer.type == 'bundle' and over_ratio > 1:
                     tem3.append(over_ratio)
+            else:
+                if customer.cancel == True and customer.time_info[0]  < run_time - interval*2:
+                    canceled_ct += 1
         lead_time_stroage.append(tem)
         foodlead_time_stroage.append(tem2)
         foodlead_time_ratio_stroage.append(tem3)
@@ -509,7 +532,49 @@ for ite in exp_range:#range(0, 1):
             print('페이지 밖 번들이 없음 {}'.format(near_bundle))
         print('번들 정보',snapshot_dict)
         #input('확인')
-        SaveSscenario(sc, len(Rider_dict), instance_type, ite, considered_customer_type = considered_customer_type, search_range_index = search_range_index, pr_para = pr_para)
+        SaveScenario(sc, len(Rider_dict), instance_type, ite, considered_customer_type = considered_customer_type, search_range_index = search_range_index, pr_para = pr_para, add_info= [canceled_ct])
+        #탐색한 번들 저장
+        b_size = 2
+        for ML_Saved_Data in [ML_Saved_Data_B2, ML_Saved_Data_B3]:
+            label_datas = []
+            ML_count = 0
+            label1_names = []
+            label1_infos = []
+            for data in ML_Saved_Data:
+                # ver1: [route, unsync_t[0], round(sum(ftds) / len(ftds), 2), unsync_t[1], order_names, round(route_time, 2),min(time_buffer), round(P2P_dist - route_time, 2), round(route_time, 2) - 시작점 지점과 끝점 이동 시간]
+                tem = [ML_count, len(data[4])]
+                tem += data[4]
+                tem += data[0]
+                tem += [data[2]]
+                tem += [data[5]]
+                tem += [data[6]]  # todo: 추가된 부분
+                # 거리 계산하기
+                # print('거리 계산',Orders[data[0][0]- 1000].store_loc, Orders[data[0][-1]].location)
+                # origin = Orders[data[0][0]- 1000].store_loc
+                # destination = Orders[data[0][-1]].location
+                # line_dist = data[5] - distance(origin[0],origin[1],destination[0],destination[1])/rider_speed
+                tem += [data[8]]
+                label_datas.append(tem)
+                label1_names.append(data[4])
+                label1_infos.append([data[8], data[5], data[9], data[10]])
+                points = []
+                vectors = []
+                triangles = []
+                for name in data[4]:
+                    points += [Orders[name].store_loc, Orders[name].location]
+                    vectors += [Orders[name].store_loc[0] - Orders[name].location[0],
+                                Orders[name].store_loc[1] - Orders[name].location[1]]
+                # label1_infos.app
+                ML_count += 1
+            if save_data == True:
+                label_datas_np = np.array(label_datas)
+                label1_data = BundleFeaturesCalculator2(Orders, label1_names, label=1, add_info=label1_infos, print_option=False)
+                raw_data = label1_data
+                raw_data_np = np.array(raw_data, dtype=np.float64)
+                # np.save('./GXBoost'+str(gen_B_size)+'/'+save_id+'raw_data_np_'+instance_type_i+'_'+str(gen_B_size), raw_data_np)
+                np.save(save_root_dir + str(ite) + 'raw_data_np_' + instance_type + '_' + str(b_size)+'_'+save_id, raw_data_np)
+            b_size += 1
+
     rev_label = []
     count1 = 0
     for label in labels:
@@ -586,7 +651,7 @@ for sc in scenarios:
     if print_count == 0:
         f3.write('considered_customer_type;{};search_range_index;{};pr_para;{}; \n'.format(considered_customer_type, search_range_index,pr_para))
         head = '인스턴스종류;SC;번들탐색방식;연산시간(sec);플랫폼;라이더;라이더수;obj;전체 고객;서비스된 고객;서비스율;평균LT;평균FLT;직선거리 대비 증가분;원래 O-D길이;라이더 수익 분산;LT분산;' \
-               'OD증가수;OD증가 분산;OD평균;수행된 번들 수;수행된번들크기평균;b1;b2;b3;b4;b5;p1;p2;p3;p4;r1;r2;r3;r4;r5;평균서비스시간;(테스트)음식 대기 시간;(테스트)버려진 음식 수;(테)음식대기;' \
+               'OD증가수;OD증가 분산;OD평균;수행된 번들 수;수행된번들크기평균;b1;b2;b3;b4;b5;b수;p1;p2;p3;p4;p수;r1;r2;r3;r4;r5;r수;평균서비스시간;(테스트)음식 대기 시간;(테스트)버려진 음식 수;(테)음식대기;' \
                '(테)라이더대기;(테)15분이하 음식대기분;(테)15분이상 음식대기분;(테)15분이하 음식대기 수;(테)15분이상 음식대기 수;(테)라이더 대기 수;라이더평균운행시간;제안된 번들수;라이더수수료;size;length;ods;ellipse_w; ' \
                'heuristic_theta; heuristic_r1;rider_ratio;#dist;#bc1;#bc2;#dist(xgb);#t1;#t2;#t3'
         #print('인스턴스종류;SC;번들탐색방식;연산시간(sec);플랫폼;라이더;obj;전체 고객;서비스된 고객;서비스율;평균LT;평균FLT;직선거리 대비 증가분;원래 O-D길이;라이더 수익 분산;LT분산;'
@@ -595,12 +660,12 @@ for sc in scenarios:
         f3.write(head + '\n')
     ave_duration = sum(sc.durations)/len(sc.durations)
     try:
-        tem_data = '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};'.format(
+        tem_data = '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};'.format(
                 instance_type , str(sc.name[0]),sc.search_type, ave_duration,sc.platform_recommend,sc.rider_bundle_construct,rider_num,sc.obj_type, res_info[0],res_info[1],
                 res_info[2], res_info[3], res_info[4], res_info[5], res_info[6], res_info[7], res_info[8],res_info[9],res_info[10],res_info[11],res_info[12],res_info[13],
             res_info[14], res_info[15], res_info[16],res_info[17], res_info[18], res_info[19],res_info[20],res_info[21],res_info[22],res_info[23], res_info[24],res_info[25],
-            res_info[26],res_info[27],res_info[28],res_info[29],res_info[30],res_info[31],res_info[32], res_info[33],res_info[34], res_info[35],res_info[36], res_info[37],res_info[38],
-            offered_bundle_num,res_info[39], res_info[40], res_info[41],res_info[42],ellipse_w, heuristic_theta, heuristic_r1, sc.mix_ratio, sc.countf[0], sc.countf[1], sc.countf[2], sc.countf[3],
+            res_info[26],res_info[27],res_info[28],res_info[29],res_info[30],res_info[31],res_info[32], res_info[33],res_info[34], res_info[35],res_info[36], res_info[37],res_info[38],res_info[39], res_info[40], res_info[41],
+            offered_bundle_num,res_info[42], res_info[43], res_info[44],res_info[45],ellipse_w, heuristic_theta, heuristic_r1, sc.mix_ratio, sc.countf[0], sc.countf[1], sc.countf[2], sc.countf[3],
         sc.countt[0], sc.countt[1],sc.countt[2])
         """
         print(

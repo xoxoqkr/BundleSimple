@@ -161,13 +161,13 @@ def BundleFeaturesCalculator(customer_data, names_set, label = 0):
             #print('name', name)
             #print(customer_data[name])
             #input('확인')
-            distOD.append(distance(customer_data[int(name)][2:4],customer_data[int(name)][5:7]))
+            distOD.append(distance(customer_data[int(name)][2],customer_data[int(name)][3],customer_data[int(name)][5],customer_data[int(name)][6]))
         eachother = itertools.combinations(names,2)
         distS = []
         distC = []
         for info in eachother:
-            distS.append(distance(customer_data[int(info[0])][2:4],customer_data[int(info[1])][2:4]))
-            distC.append(distance(customer_data[int(info[0])][5:7], customer_data[int(info[1])][5:7]))
+            distS.append(distance(customer_data[int(info[0])][2],customer_data[int(info[0])][3],customer_data[int(info[1])][2],customer_data[int(info[1])][3]))
+            distC.append(distance(customer_data[int(info[0])][5],customer_data[int(info[0])][6], customer_data[int(info[1])][5],customer_data[int(info[1])][6]))
         #Times_Feature
         gen_t = []
         for name in names:
@@ -211,13 +211,13 @@ def BundleFeaturesCalculator2(customer_data, names_set, label = 0, add_info = No
             #print('name', name)
             #print(customer_data[name])
             #input('확인')
-            distOD.append(distance(customer_data[int(name)].location,customer_data[int(name)].store_loc))
+            distOD.append(distance(customer_data[int(name)].location[0],customer_data[int(name)].location[1],customer_data[int(name)].store_loc[0],customer_data[int(name)].store_loc[1]))
         eachother = itertools.combinations(names,2)
         distS = [] #DD거리
         distC = [] #OO거리
         for info in eachother:
-            distS.append(distance(customer_data[int(info[0])].location,customer_data[int(info[1])].location))
-            distC.append(distance(customer_data[int(info[0])].store_loc, customer_data[int(info[1])].store_loc))
+            distS.append(distance(customer_data[int(info[0])].location[0],customer_data[int(info[0])].location[1],customer_data[int(info[1])].location[0],customer_data[int(info[1])].location[1]))
+            distC.append(distance(customer_data[int(info[0])].store_loc[0],customer_data[int(info[0])].store_loc[1], customer_data[int(info[1])].store_loc[0],customer_data[int(info[1])].store_loc[1]))
         #Times_Feature
         gen_t = []
         for name in names:
@@ -396,7 +396,7 @@ def SavedDataCalculator(Routes, Customers, thres1 = 15):
             customer1 = Customers[ct_name1]
             for ct_name2 in Customers:
                 customer2 = Customers[ct_name2]
-                if ct_name1 != ct_name2 and distance(customer1.store_loc,customer2.store_loc) <= thres1 \
+                if ct_name1 != ct_name2 and distance(customer1.store_loc[0],customer1.store_loc[1],customer2.store_loc[0],customer2.store_loc[1]) <= thres1 \
                         and customer2.time_info[0] <= customer1.time_info[1] \
                         and (customer1.time_info[1] <= customer2.time_info[1] or customer2.time_info[1] == None):
                     tem_info[0].append(ct_name2) #주문 선택 당시의 플랫폼 state
@@ -410,7 +410,7 @@ def SavedDataCalculator(Routes, Customers, thres1 = 15):
         tw = 0
         for ct_name1 in bundle[0]: #Attach additional information
             customer1 = Customers[ct_name1]
-            p2p_dist += distance(customer1.store_loc,customer1.location)
+            p2p_dist += distance(customer1.location[0],customer1.location[1],customer1.store_loc[0],customer1.store_loc[1])
             tw += customer1.time_info[0] + customer1.time_info[5] - customer1.time_info[4]
         reward.append(p2p_dist, tw)
     return bundles

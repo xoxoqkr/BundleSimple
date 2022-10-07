@@ -4,7 +4,7 @@ import math
 import random
 import csv
 from re import search
-
+from numba import jit
 import numpy.random
 import numpy
 import time
@@ -14,13 +14,15 @@ from numpy.random import poisson
 import re_A1_class
 import matplotlib.pyplot as plt
 
-def distance(p1, p2, rider_count = None):
+@jit(nopython=True)
+def distance(p1_x, p1_y, p2_x,p2_y, rider_count = None):
     """
     Calculate 4 digit rounded euclidean distance between p1 and p2
     :para
     m p1:
     :param p2:
     :return: 4 digit rounded euclidean distance between p1 and p2
+    """
     """
     counter('distance1')
     if rider_count == 'rider':
@@ -29,8 +31,9 @@ def distance(p1, p2, rider_count = None):
         counter('distance3')
     else:
         pass
-    euc_dist = math.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
-    return round(euc_dist,4)
+    """
+    euc_dist = math.sqrt((p1_x - p2_x)**2 + (p1_y - p2_y)**2)
+    return euc_dist
 
 
 def counter(func_name):
@@ -158,7 +161,7 @@ def RouteTime(orders, route, M = 10000, speed = 1, uncertainty = False, error = 
         af = route[index]
         #print(1, bf,af,time)
         af_loc = locs[af][0]
-        time += distance(bf_loc,af_loc)/speed + locs[af][2]
+        time += distance(bf_loc[0],bf_loc[1],af_loc[0],af_loc[1])/speed + locs[af][2]
         if af > M:
             for order in orders:
                 if order.name == af - M:
@@ -273,7 +276,9 @@ def FLT_Calculate(customer_in_order, customers, route, p2, except_names , M = 10
 
 
 def RiderGenerator(env, Rider_dict, Platform, Store_dict, Customer_dict, capacity = 3, speed = 1, working_duration = 120, interval = 1, runtime = 1000,
-                   gen_num = 10, history = None, freedom = True, score_type = 'simple', wait_para = False, uncertainty = False, exp_error = 1, exp_WagePerHr = 9000):
+                   gen_num = 10, history = None, freedom = True, score_type = 'simple', wait_para = False, uncertainty = False, exp_error = 1, exp_WagePerHr = 9000,
+                   platform_recommend = False, input_order_select_type = None, bundle_construct = False,  p2 = 1.5, ite = 1,
+                   ):
     """
     Generate the rider until t <= runtime and rider_num<= gen_num
     :param env: simpy environment
@@ -290,7 +295,16 @@ def RiderGenerator(env, Rider_dict, Platform, Store_dict, Customer_dict, capacit
     rider_num = 0
     while env.now <= runtime and rider_num <= gen_num:
         #single_rider = A1_Class.Rider(env,rider_num,Platform, Customer_dict,  Store_dict, start_time = env.now ,speed = speed, end_t = working_duration, capacity = capacity, freedom=freedom, order_select_type = score_type, wait_para =wait_para, uncertainty = uncertainty, exp_error = exp_error)
-        single_rider = re_A1_class.Rider(env,rider_num,Platform, Customer_dict,  Store_dict, start_time = env.now ,speed = speed, end_t = working_duration, capacity = capacity, freedom=freedom, order_select_type = score_type, wait_para =wait_para, uncertainty = uncertainty, exp_error = exp_error)
+        """
+        single_rider = re_A1_class.Rider(env,rider_num,Platform, Customer_dict,  Store_dict, start_time = env.now ,speed = speed,
+                                         end_t = working_duration, capacity = capacity, freedom=freedom, order_select_type = score_type,
+                                         wait_para =wait_para, uncertainty = uncertainty, exp_error = exp_error)
+        """
+        single_rider = re_A1_class.Rider(env,rider_num,Platform, Customer_dict,  Store_dict, start_time = env.now ,speed = speed, end_t = working_duration, \
+                                   capacity = capacity, freedom=freedom, order_select_type = input_order_select_type, wait_para =wait_para, \
+                                      uncertainty = uncertainty, exp_error = exp_error, platform_recommend = platform_recommend,
+                                         bundle_construct= bundle_construct)
+
         single_rider.exp_wage = exp_WagePerHr
         Rider_dict[rider_num] = single_rider
         #print('T {} 라이더 {} 생성'.format(int(env.now), rider_num))
@@ -538,8 +552,8 @@ def OrdergeneratorByCSV(env, csv_dir, orders, stores, platform = None, p2_ratio 
             p2 = data[7]
         else:
             #p2 = (data[7] / rider_speed) * p2_ratio
-            OD_dist = distance(input_location,store_loc)
-            if abs(distance(input_location,store_loc) - data[7]) > 0.5:
+            OD_dist = distance(input_location[0],input_location[1],store_loc[0],store_loc[1])
+            if abs(distance(input_location[0],input_location[1],store_loc[0],store_loc[1]) - data[7]) > 0.5:
                 p2 = (OD_dist/rider_speed)*p2_ratio
             else:
                 p2 = (data[7]/rider_speed)*p2_ratio
@@ -612,7 +626,7 @@ def OrdergeneratorByCSVForStressTest(env, orders, stores, lamda, platform = None
             store_loc = [output_data[count][4], output_data[count][5]]
             customer_loc = [output_data[count][1], output_data[count][2]]
         name = count
-        OD_dist = distance(store_loc, customer_loc)
+        OD_dist = distance(store_loc[0],store_loc[1], customer_loc[0],customer_loc[1])
         p2 = (OD_dist / rider_speed) * p2_ratio
         cook_time = 7
         cook_time_type = 0
@@ -681,24 +695,27 @@ def UpdatePlatformByOrderSelection(platform, order_index):
         del platform.platform[order_index]
 
 
-def ActiveRiderCalculator(rider, t_now = 0, option = None, interval = 5, print_option = False):
+def ActiveRiderCalculator(rider, t_now = 0, option = None, interval = 5, print_option = True):
     """
     현재 라이더가 새로운 주문을 선택할 수 있는지 유/무를 계산.
     @param rider: class rider
     @return: True/ False
     """
     if t_now <= rider.end_t :
+        #print('ActiveRiderCalculator check')
+        #print (rider.name ,'::', len(rider.picked_orders) , rider.max_order_num, '::',t_now , rider.next_search_time2 , t_now + interval)
         if option == None:
             if len(rider.picked_orders) < rider.max_order_num:
                 if print_option == True:
-                    print('문구1/ 라이더 {} / 현재 OnHandOrder# {} / 최대 주문 수{} / 예상 선택 시간 {} / 다음 interval 시간 {}'.format(rider.name,len(rider.picked_orders), rider.max_order_num, round(rider.next_search_time,2), t_now + interval))
+                    print('문구1/ 라이더 {} / 현재 OnHandOrder# {} / 최대 주문 수{} / 예상 선택 시간 {} / 다음 interval 시간 {}'.format(rider.name,len(rider.picked_orders), rider.max_order_num, round(rider.next_search_time2,2), t_now + interval))
                 return True
         else:
-            if len(rider.picked_orders) <= rider.max_order_num and t_now <= rider.next_search_time <= t_now + interval:
+            if len(rider.picked_orders) <= rider.max_order_num and (t_now <= rider.next_search_time2 <= t_now + interval or len(rider.resource.users) == 0):
                 if print_option == True:
-                    print('문구2/ 라이더 {} / 현재 OnHandOrder# {} / 최대 주문 수{} / 예상 선택 시간 {} / 다음 interval 시간 {}'.format(rider.name,len(rider.picked_orders), rider.max_order_num, round(rider.next_search_time,2), t_now + interval))
+                    print('문구2/ 라이더 {} / 현재 OnHandOrder# {} / 최대 주문 수{} / 예상 선택 시간 {} / 다음 interval 시간 {}'.format(rider.name,len(rider.picked_orders), rider.max_order_num, round(rider.next_search_time2,2), t_now + interval))
                 return True
     else:
+        print('False time3')
         return False
 
 
@@ -895,8 +912,8 @@ def PrintSearchCandidate(target_customer, res_C_T, now_t = 0, titleinfo = 'None'
         #input('그림 확인')
 
 
-def SaveSscenario(scenario, rider_num, instance_type, ite, ellipse_w = 'None', heuristic_theta= 'None', heuristic_r1 = 'None',count = 'None',considered_customer_type = 'all',
-                  search_range_index = 15, pr_para = False ):
+def SaveScenario(scenario, rider_num, instance_type, ite, ellipse_w = 'None', heuristic_theta= 'None', heuristic_r1 = 'None',count = 'None',considered_customer_type = 'all',
+                  search_range_index = 15, pr_para = False, add_info = [None,None] ):
     print('"요약 정리/ 라이더 수 {}'.format(rider_num))
     print_count = 0
     f3 = open("결과저장_sc_저장.txt", 'a')
@@ -938,35 +955,30 @@ def SaveSscenario(scenario, rider_num, instance_type, ite, ellipse_w = 'None', h
         res_info.append(sum(sc.bundle_snapshots['od']) / len(sc.bundle_snapshots['od']))
     except:
         res_info += [None,None,None]
+    res_info += ['dummy','dummy','dummy']
     offered_bundle_num = len(sc.bundle_snapshots['size'])
     #print(len(res_info))
     #input(res_info)
     if print_count == 0:
         head = '인스턴스종류;SC;번들탐색방식;연산시간(sec);플랫폼;라이더;라이더수;obj;전체 고객;서비스된 고객;서비스율;평균LT;평균FLT;직선거리 대비 증가분;원래 O-D길이;라이더 수익 분산;LT분산;' \
-               'OD증가수;OD증가 분산;OD평균;수행된 번들 수;수행된번들크기평균;b1;b2;b3;b4;b5;p1;p2;p3;p4;r1;r2;r3;r4;r5;평균서비스시간;(테스트)음식 대기 시간;(테스트)버려진 음식 수;(테)음식대기;' \
+               'OD증가수;OD증가 분산;OD평균;수행된 번들 수;수행된번들크기평균;b1;b2;b3;b4;b5;b수;p1;p2;p3;p4;p수;r1;r2;r3;r4;r5;r수;평균서비스시간;(테스트)음식 대기 시간;(테스트)버려진 음식 수;(테)음식대기;' \
                '(테)라이더대기;(테)15분이하 음식대기분;(테)15분이상 음식대기분;(테)15분이하 음식대기 수;(테)15분이상 음식대기 수;(테)라이더 대기 수;라이더평균운행시간;제안된 번들수;라이더수수료;size;length;ods;ellipse_w; ' \
-               'heuristic_theta; heuristic_r1;rider_ratio;#dist;#bc1;#bc2;#dist(xgb);#t1;#t2;#t3'
+               'heuristic_theta; heuristic_r1;rider_ratio;#dist;#bc1;#bc2;#dist(xgb);#t1;#t2;#t3;#취소된 고객'
         #print('인스턴스종류;SC;번들탐색방식;연산시간(sec);플랫폼;라이더;obj;전체 고객;서비스된 고객;서비스율;평균LT;평균FLT;직선거리 대비 증가분;원래 O-D길이;라이더 수익 분산;LT분산;'
         #     'OD증가수;OD증가 분산;OD평균;수행된 번들 수;수행된번들크기평균;제안된 번들수;size;length;ods')
         print(head)
         f3.write(head + '\n')
     ave_duration = sc.durations[-1]
     try:
-        tem_data = '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};'.format(
+        tem_data = '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};'.format(
                 instance_type , str(sc.name[0]),sc.search_type, ave_duration,sc.platform_recommend,sc.rider_bundle_construct,rider_num,sc.obj_type, res_info[0],res_info[1],
                 res_info[2], res_info[3], res_info[4], res_info[5], res_info[6], res_info[7], res_info[8],res_info[9],res_info[10],res_info[11],res_info[12],res_info[13],
             res_info[14], res_info[15], res_info[16],res_info[17], res_info[18], res_info[19],res_info[20],res_info[21],res_info[22],res_info[23], res_info[24],res_info[25],
-            res_info[26],res_info[27],res_info[28],res_info[29],res_info[30],res_info[31],res_info[32], res_info[33],res_info[34], res_info[35],res_info[36], res_info[37],res_info[38],
-            offered_bundle_num,res_info[39], res_info[40], res_info[41],res_info[42],ellipse_w, heuristic_theta, heuristic_r1, sc.mix_ratio, sc.countf[0], sc.countf[1], sc.countf[2], sc.countf[3],
-        sc.countt[0], sc.countt[1],sc.countt[2])
-        """
-        print(
-            '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{}'.format(
-                instance_type , str(sc.name[0]),sc.search_type, ave_duration,sc.platform_recommend,sc.rider_bundle_construct,sc.obj_type, res_info[0],res_info[1],
-                res_info[2], res_info[3], res_info[4], res_info[5], res_info[6], res_info[7], res_info[8],res_info[9],res_info[10],res_info[11],res_info[12],res_info[13],
-            offered_bundle_num,res_info[14], res_info[15], res_info[16]))        
-        """
-        print(tem_data)
+            res_info[26],res_info[27],res_info[28],res_info[29],res_info[30],res_info[31],res_info[32], res_info[33],res_info[34], res_info[35],res_info[36], res_info[37],res_info[38],res_info[39], res_info[40], res_info[41],
+            offered_bundle_num,res_info[42], res_info[44], res_info[45],res_info[46],ellipse_w, heuristic_theta, heuristic_r1, sc.mix_ratio, sc.countf[0], sc.countf[1], sc.countf[2], sc.countf[3],
+        sc.countt[0], sc.countt[1],sc.countt[2],add_info[0])
+
+        #print(tem_data)
         f3.write(tem_data + '\n')
     except:
         tem_data = '시나리오 {} ITE {} 결과 없음'.format(sc.name, count)
