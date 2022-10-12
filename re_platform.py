@@ -3,13 +3,13 @@ from numba import jit
 import time
 import math
 from A1_BasicFunc import PrintSearchCandidate, check_list, t_counter, counter2, counter
-from A2_Func import CountUnpickedOrders, CalculateRho, RequiredBreakBundleNum, BreakBundle, GenBundleOrder,  LamdaMuCalculate, NewCustomer
+from A2_Func import CountUnpickedOrders, CalculateRho, RequiredBreakBundleNum, BreakBundle, GenBundleOrder,  LamdaMuCalculate, NewCustomer, RebaseCustomer1, RebaseCustomer2
 from A3_two_sided import BundleConsideredCustomers, CountActiveRider,  ConstructFeasibleBundle_TwoSided, SearchRaidar_heuristic, SearchRaidar_ellipse, SearchRaidar_ellipseMJ, XGBoost_Bundle_Construct
 import operator
 from Bundle_selection_problem import Bundle_selection_problem4
 import numpy
 import matplotlib.pyplot as plt
-
+import copy
 
 @jit(nopython=True)
 def distance(p1_x, p1_y, p2_x,p2_y):
@@ -27,7 +27,7 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                       bundle_print_fig = False, bundle_infos = None,ellipse_w = 1.5, heuristic_theta = 100,heuristic_r1 = 10,
                       XGBmodel3 = None, XGBmodel2 = None, thres_label = 1, considered_customer_type = 'all',search_range_index = 15,
                       pr_para = False, ML_Saved_Data_B2 = [],ML_Saved_Data_B3 = [], fix_start = True, ite = 0,
-                      cut_info3 = [100,100], cut_info2= [100,100], stopping_index = 100):
+                      cut_info3 = [100,100], cut_info2= [100,100], stopping_index = 100, clustering = True):
     f = open("loop시간정보.txt", 'a')
     f.write('연산 시작; obj;{};searchTypt;{};threslabel;{};#Riders;{};ITE;{};'.format(obj_type,search_type,thres_label,len(riders), ite))
     f.write('\n')
@@ -66,7 +66,7 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                     XGBmodel3=XGBmodel3,
                     XGBmodel2=XGBmodel2, considered_customer_type=considered_customer_type,
                     thres_label=thres_label, pr_para=pr_para, search_range_index=search_range_index,
-                    fix_start=fix_start, cut_info3 = cut_info3, cut_info2= cut_info2, stopping_index= stopping_index)
+                    fix_start=fix_start, cut_info3 = cut_info3, cut_info2= cut_info2, stopping_index= stopping_index, clustering = clustering)
                 print('phi_b {}:{} d_matrix {}:{} s_b {}:{}'.format(len(phi_b), numpy.average(phi_b),
                                                                     d_matrix.shape, numpy.average(d_matrix),len(s_b),numpy.average(s_b),))
                 print('d_matrix : {}'.format(d_matrix))
@@ -328,7 +328,7 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
                       unserved_bundle_order_break = True, considered_customer_type = 'all', search_type = 'enumerate', print_fig = False,
                           ellipse_w = 1.5, heuristic_theta = 100,heuristic_r1 = 10, min_time_buffer = 5, XGBmodel3 = None, XGBmodel2 = None, thres_label = 1,
                            MAX_RouteConstruct = 100000, MAX_MIP = 5000, pr_para = True, search_range_index = 15, fix_start = True, cut_info3 = [100,100],
-                           cut_info2 = [100,100], stopping_index = 100):
+                           cut_info2 = [100,100], stopping_index = 100, clustering = True):
     # 번들이 필요한 라이더에게 번들 계산.
     # 단계 1 시작
     sucess_info_b3_DD = []
@@ -400,9 +400,39 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
                 break
         if closer_than_max_d == True:
             rev_considered_customers_names.append(customer_name)
+    #새로운 단계
+    if search_type == 'XGBoost' and len(rev_considered_customers_names) > 300 and clustering == True: #todo : 밀도 관련 threshold가 필요함.
+        print('rebase 문제 풀이 시작; 대상 고객 :', len(rev_considered_customers_names))
+        org_ct_num = copy.deepcopy(len(rev_considered_customers_names))
+        processed, rev_considered_customers_names = RebaseCustomer1(rev_considered_customers_names, orders, r_inc=0.5, max_r=3, end_ite=10, num_thres=300)
+        if processed == True:
+            print('처리 필요 고객 수',len(rev_considered_customers_names))
+            re_points = {}
+            #re_points = []
+            for org_close_names in rev_considered_customers_names:
+                tem = RebaseCustomer2(org_close_names, orders, n_clusters_divider = 3)
+                #input('D 묶기 확인')
+                for dict_name in tem:
+                    #re_points.append(tem[dict_name])
+
+                    try:
+                        re_points[tem[dict_name][0]] += tem[dict_name]
+                    except:
+                        re_points[tem[dict_name][0]] = []
+                        re_points[tem[dict_name][0]] += tem[dict_name]
+
+        if len(re_points) < org_ct_num:
+            pass
+        print(re_points)
+        #input('결과 확인')
+        rev_considered_customers_names = list(re_points.keys())
     #단계2 시작
     consider_ct_num = len(rev_considered_customers_names)
     for customer_name in rev_considered_customers_names:
+        try:
+            belonged_cts = re_points[customer_name]
+        except:
+            belonged_cts = []
         start = time.time()
         start_test8 = time.time()
         target_order = orders[customer_name]
@@ -441,13 +471,18 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
         end_test8 = time.time()
         t_counter('test8', end_test8 - start_test8)
         start_time_sec = time.time()
+        #print(belonged_cts)
+        #input('belonged_cts')
+        for belonged_ct_name in belonged_cts:
+            if belonged_ct_name not in list(considered_customers.keys()):
+                considered_customers[belonged_ct_name] = orders[belonged_ct_name]
         consider_ct_search_num += len(considered_customers)
         if search_type == 'XGBoost':
             #input('XGBoost')
             size3bundle, label3data, test_b33 = XGBoost_Bundle_Construct(target_order, considered_customers, 3, p2, XGBmodel3, now_t = now_t,
                                                                          speed = speed , bundle_permutation_option = bundle_permutation_option,
                                                                          thres = thres,thres_label=thres_label, label_check=check_label, feasible_return= False,
-                                                                         fix_start = fix_start, cut_info= cut_info3)
+                                                                         fix_start = fix_start, cut_info= cut_info3, belonged_cts = belonged_cts)
 
             #size3bundle = []
             #label3data = []

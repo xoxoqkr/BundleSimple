@@ -921,6 +921,7 @@ class Customer(object):
         self.rider_wait3 = None
         self.food_wait3 = None
         self.near_rider = []
+        self.neighbors = []
         env.process(self.CustomerLeave(env, platform))
 
     def CustomerLeave(self, env, platform):

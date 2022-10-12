@@ -279,7 +279,7 @@ def XGBoost_Bundle_Construct_tem(target_order, orders, s):
     return res
 
 def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, speed = 1 , bundle_permutation_option = False, uncertainty = False,thres = 1,
-                             platform_exp_error = 1,  thres_label = 1, label_check = None, feasible_return = True, fix_start = True, cut_info = [2500,2500]):
+                             platform_exp_error = 1,  thres_label = 1, label_check = None, feasible_return = True, fix_start = True, cut_info = [2500,2500], belonged_cts = []):
     #print('run1')
     d = []
     success_OO = [0]
@@ -439,8 +439,247 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
     for label in pred_onx[0]:
         labels.append(int(label))
         if 0 < label <= thres_label: #todo : 0916 label
-        #if label >= thres_label:
-            #print('라벨',label)
+            rev_M1 = [] # [M1[count]]
+            rev_M1_names =[]
+            for name in belonged_cts:
+                rev_M1.append(M1[count][:s-1] + [orders[name]])
+            for s_orders in rev_M1:
+                tem_name = []
+                for s_order in s_orders:
+                    tem_name.append(s_order.name)
+                rev_M1_names.append(tem_name)
+            if len(rev_M1_names) > 1:
+                print('Target',target_order.name)
+                print('확장 됨',rev_M1_names)
+                #input('rev_M1 확인')
+            for info in rev_M1:
+                #info = 이전의 M1[count]
+                #if label >= thres_label:
+                    #print('라벨',label)
+                rc_count += 1
+                if thres < 100 :
+                    print('1::',M1[count])
+                    tem = BundleConsist(info, orders, p2, speed = speed,
+                                         bundle_permutation_option = bundle_permutation_option, uncertainty = uncertainty, platform_exp_error =  platform_exp_error,
+                                         feasible_return = True, now_t = now_t)
+                else:
+                    #print('2::',M1[count])
+                    #print('orders',orders)
+                    #print('ct# :: store_loc :: ct_loc')
+                    tem = BundleConsist2(info, orders, p2, speed = speed,
+                                         bundle_permutation_option = bundle_permutation_option, uncertainty = uncertainty, platform_exp_error =  platform_exp_error,
+                                         feasible_return = feasible_return, now_t = now_t, max_dist= 15, fix_start = fix_start) #max_dist= 15
+                    #print('구성 된 라벨 1 ::', label)
+                    #print(tem)
+                    labels_larger_1.append(int(label))
+                if len(tem) > 0:
+                    #constructed_bundles.append(tem)
+                    constructed_bundles += tem
+                    #input('번들 생성')
+                    if s == 3:
+                        success_DD += list(X_test_np[count][3:6])
+                        success_OO += list(X_test_np[count][6:9])
+                        #print(success_DD)
+                        #print(success_OO)
+                #if count1 > 0.12*len(X_test_np):
+                #    break
+                count1 += 1
+            count += 1
+    f = open('부하정도.txt','a')
+    f.write('XGB T;{};고객이름;{};B크기;{};신규;{};후보 수;{};대상 조합;{};RC;{};후보 고객 수;{}; \n'.format(now_t, target_order.name,s, new,len(d),M2_count, rc_count, len(d)))
+    f.close()
+    """
+    if len(labels_larger_1) > 0 :
+        print('계산된 label 있음',len(labels_larger_1), sum(labels_larger_1)/len(labels_larger_1))
+    else:
+        print('계산된 label 없음')
+    """
+    counter2('sess2', count1)
+    label_check = np.append(label_check, pred_onx[0])
+    end_time_sec = time.time()
+    duration = end_time_sec - start_time_sec
+    t_counter('test12', duration)
+    #print('확인용1',labels)
+    #print('확인용2',labels_larger_1)
+    #label_check = np.concatenate((label_check, pred_onx[0]))
+    #unique, counts = np.unique(pred_onx[0], return_counts=True)
+    #print(str(dict(zip(unique, counts))))
+    #print('1:{}; 2:{}; 3:{};4:{};'.format(pred_onx[0].count(1),pred_onx[0].count(2),pred_onx[0].count(3),pred_onx[0].count(4)))
+    #input('숫자 확인')
+    if sum(pred_onx[0]) > 0:
+        #print(constructed_bundles)
+        #input('확인2')
+        #print('번들 발생함::',len(constructed_bundles))
+        pass
+    try:
+        pass
+    except:
+        input('확인')
+    add_info = [success_DD, success_OO]
+    return constructed_bundles, np.array(labels), add_info
+
+
+def XGBoost_Bundle_Construct_ORG(target_order, orders, s, p2, XGBmodel, now_t = 0, speed = 1 , bundle_permutation_option = False, uncertainty = False,thres = 1,
+                             platform_exp_error = 1,  thres_label = 1, label_check = None, feasible_return = True, fix_start = True, cut_info = [2500,2500], belonged_cts = None):
+    #print('run1')
+    d = []
+    success_OO = [0]
+    success_DD = [0]
+    for customer_name in orders:
+        if customer_name != target_order.name and orders[customer_name].time_info[1] == None and orders[customer_name].cancel == False:
+            d.append(customer_name)
+    # 1 : M1의 데이터에 대해서 attribute 계산 후 dataframe으로 만들기
+    #print(d)
+    #input('XGBoost_Bundle_Construct')
+    start_time_sec = time.time()
+    if len(d) <= s-1:
+        return [], np.array([]) ,[[],[]]
+
+    M1 = []
+    input_data = []
+    M2 = itertools.permutations(d, s - 1)
+    M2_count = 0
+    customer_names = []
+
+    for m in M2:
+        q = list(m) + [target_order.name]
+        customer_names.append(q)
+        tem1 = []
+        tem2 = []
+        # OD
+        distOD = []
+        gen_t = []
+        ser_t = []
+        for name in q:
+            ct = orders[name]
+            tem1.append(ct)
+            tem2.append(ct.name)
+            #distOD.append(ct.p2) #p2는 이동 시간임
+            distOD.append(distance(ct.store_loc[0],ct.store_loc[1], ct.location[0],ct.location[1], rider_count='xgboost'))
+            gen_t.append(ct.time_info[0])
+            ser_t.append(ct.time_info[7])
+        M1.append(tem1)
+        #continue
+        eachother = itertools.combinations(q, 2)
+        distS = [] ##DD거리
+        distC = [] #OO거리
+        break_para = False
+        for info in eachother:
+            ct1 = orders[info[0]]
+            ct2 = orders[info[1]]
+            val1 = distance(ct1.store_loc[0],ct1.store_loc[1], ct2.store_loc[0],ct2.store_loc[1], rider_count='xgboost')
+            if val1 > cut_info[0]:
+                break_para = True
+                break
+            val2 = distance(ct1.location[0],ct1.location[1], ct2.location[0],ct2.location[1], rider_count='xgboost')
+            if val2 > cut_info[1]:
+                break_para = True
+                break
+            distS.append(val1)
+            distC.append(val2)
+            """
+            if val1 > 5 or val2 > 5:
+                break_para = True
+                break
+            """
+        if break_para == True:
+            continue
+        distOD.sort()
+        distS.sort()
+        distC.sort()
+        gen_t.sort()
+        ser_t.sort()
+        tem2 += distOD + distC + distS + gen_t + ser_t
+        ##0916 추가된 부분
+        ## --------start------
+        vectors = []
+        for name in q:
+            vectors += [orders[name].store_loc[0] - orders[name].location[0],
+                        orders[name].store_loc[1] - orders[name].location[1]]
+        if len(q) == 2:
+            triangles = [0, 0]
+        else:
+            if min(distS) <= 0:
+                v1 = 0.0
+            else:
+                s1 = sum(distS) / 2
+                try:
+                    v1 = float(TriangleArea(s1,distS[0],distS[1],distS[2]))
+                    #v1 = float(np.sqrt(s1 * (s1 - distS[0]) * (s1 - distS[1]) * (s1 - distS[2])))
+                except:
+                    v1 = -1
+                    #print('SS TRIA ; distS;', distS)
+                    # input('distS;확인1')
+                    pass
+            if min(distC) <= 0:
+                v2 = 0.0
+            else:
+                s2 = sum(distC) / 2
+                try:
+                    v2 = float(TriangleArea(s2,distC[0],distC[1],distC[2]))
+                    #v2 = float(np.sqrt(s2 * (s2 - distC[0]) * (s2 - distC[1]) * (s2 - distC[2])))
+                except:
+                    v2 = -1
+                    #print('CC TRIA ; distC;', distC)
+                    # input('distC;확인1')
+                    pass
+            if type(v1) != float or type(v2) != float:
+                #print(distC, distS)
+                #print('확인2', v1, v2, type(v1), type(v2))
+                # input('VVV;확인3')
+                pass
+            triangles = [v2,v1]
+
+        tem2 += vectors + triangles
+        ##0916 추가된 부분
+        ## ------end------
+        input_data.append(tem2)
+        M2_count += 1
+    new = 0
+    if now_t - 5 <= target_order.time_info[0]:
+        new  = 1
+    input_data = np.array(input_data)
+    org_df = pd.DataFrame(data=input_data)
+    X_test = org_df.iloc[:,s:] #탐색 번들에 따라, 다른 index 시작 지점을 가짐.
+    X_test_np = np.array(X_test)
+    counter2('sess1',len(X_test_np))
+    end_time_sec = time.time()
+    duration = end_time_sec - start_time_sec
+    if s == 2:
+        t_counter('test10', duration)
+    else:
+        t_counter('test11', duration)
+    #print(input_data[:2])
+    #print(X_test_np[:2])
+    #input('test중')
+    #2 : XGModel에 넣기
+    #start_time_sec = datetime.now()
+    start_time_sec = time.time()
+    if len(X_test_np) > 0:
+        pred_onx = XGBmodel.run(None, {"feature_input": X_test_np.astype(np.float32)})  # Input must be a list of dictionaries or a single numpy array for input 'input'.
+    else:
+        return [], [],[]
+    #end_time_sec = datetime.now()
+    end_time_sec = time.time()
+    duration = end_time_sec - start_time_sec
+    #duration = duration.seconds + duration.microseconds / 1000000
+    t_counter('sess', duration)
+    start_time_sec = time.time()
+    #print("predict", pred_onx[0], type(pred_onx[0]))
+    #print("predict_proba", pred_onx[1][:1])
+    #input('test중2')
+    #y_pred = XGBmodel.predict(X_test)
+    #labeled_org_df = pd.merge(y_pred, org_df, left_index=True, right_index=True)
+    #3 : label이 1인 것에 대해, 경로 만들고 실제 가능 여부 계산
+    constructed_bundles = []
+    labels = []
+    labels_larger_1 = []
+    count = 0
+    count1 = 0
+    rc_count = 0
+    for label in pred_onx[0]:
+        labels.append(int(label))
+        if 0 < label <= thres_label: #todo : 0916 label
             rc_count += 1
             if thres < 100 :
                 print('1::',M1[count])

@@ -70,9 +70,10 @@ if save_data == True:
     save_root_dir = 'E:/GXBoost/old3/'
     save_id = 'xgb_1'
 
-cut_info3 = [15,25]#[7.5,10]#[7.5,10] #B3의 거리를 줄이는 함수
+cut_info3 = [1000,1000]# [12,24] [15,25] [7.5,10]#[7.5,10] #B3의 거리를 줄이는 함수
 cut_info2 = [100,100]#[10,10]#[10,10]
-stopping_index = 40
+stopping_index = 1000
+clustering_para = True
 
 setting = 'stresstest'
 stress_lamda = 40 # 분당 주문 발생 수 # (2400/60)/5 #기준은 한 구에 분당 3750/60 #원래 40
@@ -334,7 +335,8 @@ for ite in exp_range:#range(0, 1):
                                       search_type = sc.search_type, print_fig = print_fig, bundle_print_fig = bundle_print_fig, bundle_infos = bundle_infos,
                                       ellipse_w = ellipse_w, heuristic_theta = heuristic_theta,heuristic_r1 = heuristic_r1,XGBmodel3 = XGBmodel3, XGBmodel2 = XGBmodel2, thres_label = thres_label,
                                       considered_customer_type = considered_customer_type, search_range_index= search_range_index, pr_para = pr_para, ML_Saved_Data_B2=ML_Saved_Data_B2,
-                                      ML_Saved_Data_B3=ML_Saved_Data_B3, fix_start = bundle_start_fix, ite = ite, cut_info3= cut_info3, cut_info2= cut_info2, stopping_index = stopping_index))
+                                      ML_Saved_Data_B3=ML_Saved_Data_B3, fix_start = bundle_start_fix, ite = ite, cut_info3= cut_info3, cut_info2= cut_info2, stopping_index = stopping_index,
+                                      clustering = clustering_para))
         env.run(run_time)
 
         res = ResultPrint(sc.name + str(ite), Orders, speed=rider_speed, riders = Rider_dict)

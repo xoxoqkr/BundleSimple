@@ -10,8 +10,10 @@ import time
 import matplotlib.pyplot as plt
 import numpy as np
 import random
-
-
+from Bundle_selection_problem import RebaseProblem
+from sklearn.cluster import KMeans
+import os
+#os.environ["OMP_NUM_THREADS"] = '1'
 
 def LamdaMuCalculate(orders, riders, now_t, interval = 5, return_type = 'class'):
     unpicked_orders, lamda2 = CountUnpickedOrders(orders, now_t, interval=interval, return_type=return_type)  # lamda1
@@ -764,3 +766,73 @@ def ResultPrint(name, customers, speed = 1, riders = None):
     except:
         print('TLT 수:  {}'.format(len(TLT)))
         return None
+
+def RebaseCustomer1(order_names, orders, r_inc = 0.2, max_r = 3, end_ite = 10, num_thres = 50):
+    ite = 0
+    r = 1
+    re_points = []
+    while r <= max_r and ite <= end_ite:
+        N_set = []
+        N_set_names = []
+        index1 = 0
+        for name in order_names:
+            ct1 = orders[name]
+            index2 = 0
+            tem = [name]
+            tem2 = [index1]
+            for name2 in order_names:
+                ct2 = orders[name2]
+                if name != name2 and abs(ct1.store_loc[0] - ct2.store_loc[0]) < r and abs(ct1.store_loc[1] - ct2.store_loc[1]) < r :
+                    ct1.neighbors.append(name2)
+                    tem.append(name2)
+                    tem2.append(index2)
+                index2 += 1
+            index1 += 1
+            N_set.append(tem2)
+            N_set_names.append(tem)
+            ct1.neighbors.sort()
+        re_points, obj_val = RebaseProblem(N_set, print_para=False)
+        ite += 1
+        r += r_inc
+        if len(re_points) <= num_thres:
+            break
+    res = []
+    if len(re_points) > 0:
+        for index in re_points:
+            res.append(N_set_names[index])
+        print('문제 풀이 됨')
+        return True, res
+    else:
+        res = order_names
+        print('문제 풀이 X')
+        return False, res
+
+def RebaseCustomer2(order_names, orders, n_clusters_divider = 3):
+    #order names의 1 번째 주문이 기준 주문
+    ct_dict = {}
+    ct_coord = []
+    for ct_name in order_names:
+        order = orders[ct_name]
+        ct_coord.append(order.location)
+        ct_dict[tuple(order.location)] = ct_name
+    ct_coord = np.array(ct_coord)
+    n_clusters = int(len(ct_coord)/n_clusters_divider)
+    tem_res = []
+    if n_clusters > 1:
+        kmeans = KMeans(n_clusters = n_clusters, random_state=0).fit(ct_coord)
+        count = 0
+        for label in kmeans.labels_:
+            #ct_dict[tuple(ct_coord[count])] = label
+            tem_res.append([ct_dict[tuple(ct_coord[count])], label])
+            count += 1
+    else:
+        for name in order_names:
+            tem_res.append([name,0])
+    labelled = {}
+    if len(tem_res) > 0:
+        for i in range(max(1,n_clusters)):
+            labelled[i] = []
+        for info in tem_res:
+            labelled[info[1]].append(info[0])
+        print(labelled)
+    return labelled

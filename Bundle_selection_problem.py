@@ -186,3 +186,30 @@ def Bundle_selection_problem4(phi_b, D, s_b, lt_matrix,D_rev, min_pr=0.05, obj_t
     except:
         print('Infeasible')
         return [], None
+
+
+def RebaseProblem(N_set, print_para = False):
+    #print('풀이전 확인 ',D, s_b,obj_type)
+    N_indexs = list(range(len(N_set)))
+    m = gp.Model("mip1")
+    x = m.addVars(len(N_indexs), vtype=GRB.BINARY, name="x")
+    # Set objective function
+    m.setObjective(gp.quicksum(x[i] for i in N_indexs), GRB.MINIMIZE)
+    for ct_set in N_set:
+        m.addConstr(gp.quicksum(x[i] for i in ct_set) >= 1)
+    #풀이
+    m.optimize()
+    if print_para == True:
+        m.write("RebaseProblem.lp")
+    try:
+        print('Obj val: %g' % m.objVal)
+        res = []
+        count = 0
+        for val in m.getVars():
+            if val.VarName[0] == 'x' and float(val.x) == 1.0:
+                res.append(count)
+            count += 1
+        return res, len(m.getConstrs())
+    except:
+        print('Infeasible')
+        return [], None
