@@ -235,13 +235,15 @@ def FLT_Calculate(customer_in_order, customers, route, p2, except_names , M = 10
     for order_name in names:
         if order_name not in except_names:
             #rev_p2 = p2
-            rev_p2 = customers[order_name].p2*p2 + customers[order_name].time_info[6] + customers[order_name].time_info[7] #todo : 시간에 민감한 부분.
+            #rev_p2 = customers[order_name].p2*p2 + customers[order_name].time_info[6] + customers[order_name].time_info[7] #todo : 시간에 민감한 부분.
+            rev_p2 = customers[order_name].p2 + customers[order_name].time_info[6] + customers[order_name].time_info[7] # todo : 221101실험을 현실적으로 변경. -> 고객 마다 p2가 달라짐.
             #input('p2 확인 1 :: {}'.format(rev_p2))
             if customers[order_name].time_info[2] != None:
                 #print('FLT 고려 대상 {} 시간 정보 {}'.format(order_name,customers[order_name].time_info))
                 last_time = now_t - customers[order_name].time_info[2] #이미 음식이 실린 후 지난 시간
                 #rev_p2 = p2 - last_time
-                rev_p2 = customers[order_name].min_FLT - last_time
+                #rev_p2 = customers[order_name].min_FLT - last_time
+                rev_p2 = rev_p2 - last_time # todo : 221101실험을 현실적으로 변경. -> 고객 마다 p2가 달라짐.
                 #input('p2 확인 2 :: {}'.format(rev_p2))
             try:
                 s = route.index(order_name + M)
@@ -406,7 +408,8 @@ def GenerateStoreByCSV(env, csv_dir, platform,Store_dict, mus = [5,10,15], std_r
         Store_dict[name] = store
 
 
-def GenerateStoreByCSVStressTest(env, num, platform,Store_dict, mus = [5,10,15], std_ratio = 0.2, store_type = 'Instance_random', ITE = 1, output_data = None):
+def GenerateStoreByCSVStressTest(env, num, platform,Store_dict, mus = [5,10,15], std_ratio = 0.2, store_type = 'Instance_random', ITE = 1, output_data = None, detail_pr = None):
+    # detail_pr = [rest_type_list, pr_list, frt_list, temperature_list, p2_list] -> array
     #mus = [11.5,13.5,15.5]
     for count in range(num):
         if output_data == None:
@@ -430,6 +433,12 @@ def GenerateStoreByCSVStressTest(env, num, platform,Store_dict, mus = [5,10,15],
             store.FRT = numpy.random.normal(mus[1], mus[1]*std_ratio, 1000)
         else:
             store.FRT = numpy.random.normal(mus[2], mus[2] * std_ratio, 1000)
+        if detail_pr != None: # todo : 221101실험을 현실적으로 변경.
+            rest_type = numpy.random.choice(detail_pr[0],p = detail_pr[1])
+            store.FRT = detail_pr[2][detail_pr[0].index(rest_type)]
+            store.rest_type = rest_type
+            store.temperature = detail_pr[3][detail_pr[0].index(rest_type)]
+            store.p2 = detail_pr[4][detail_pr[0].index(rest_type)]
         Store_dict[name] = store
     """
     f3 = open("가게_coord_정보" + str(ITE) + '_' + store_type + ".txt", 'a')
@@ -592,7 +601,8 @@ def OrdergeneratorByCSV(env, csv_dir, orders, stores, platform = None, p2_ratio 
 
 
 
-def OrdergeneratorByCSVForStressTest(env, orders, stores, lamda, platform = None, p2_ratio = 1, rider_speed = 1, unit_fee = 110, fee_type = 'linear', output_data = None):
+def OrdergeneratorByCSVForStressTest(env, orders, stores, lamda, platform = None, p2_ratio = 1, rider_speed = 1, unit_fee = 110, fee_type = 'linear',
+                                     output_data = None, cooktime_detail = None, cook_first = False):
     """
     Generate customer order
     :param env: Simpy Env
@@ -627,17 +637,23 @@ def OrdergeneratorByCSVForStressTest(env, orders, stores, lamda, platform = None
             customer_loc = [output_data[count][1], output_data[count][2]]
         name = count
         OD_dist = distance(store_loc[0],store_loc[1], customer_loc[0],customer_loc[1])
-        p2 = (OD_dist / rider_speed) * p2_ratio
-        cook_time = 7
+        p2_ratio2 = store.p2
+        p2 = (OD_dist / rider_speed) * p2_ratio2 # todo : 221101실험을 현실적으로 변경.
+        #p2 = (OD_dist / rider_speed) * p2_ratio
+        cook_time = numpy.random.choice(cooktime_detail[0], p = cooktime_detail[1]) # todo : 221101실험을 현실적으로 변경.
         cook_time_type = 0
         cooking_time = [7,1]
         #order = A1_Class.Customer(env, name, input_location, store=store_num, store_loc=store_loc, p2=p2,
         #                       cooking_time=cook_time, cook_info=[cook_time_type, cooking_time])
         order = re_A1_class.Customer(env, name, customer_loc, store=store_name, store_loc=store_loc, p2=p2,
                                cooking_time=cook_time, cook_info=[cook_time_type, cooking_time], platform = platform, unit_fee = unit_fee, fee_type = fee_type)
-        order.actual_cook_time = random.choice(stores[store_name].FRT)
+        #order.actual_cook_time = random.choice(stores[store_name].FRT)
+        order.actual_cook_time = cook_time # todo : 221101실험을 현실적으로 변경.
+        order.dp_cook_time = cook_time # todo : 221101실험을 현실적으로 변경.
+        order.temperature = store.temperature
+        order.rest_type = store.rest_type
         order.dp_cook_time = 5*(1 + order.actual_cook_time//5)
-        if order.dp_cook_time >= 15:
+        if order.dp_cook_time >= 15 and cook_first == True:
             order.cooking_process = env.process(order.CookingFirst(env, order.actual_cook_time)) #todo : 15분 이상 음식은 미리 조리 시작
         print('T {} 음식 {} 조리 확인/ 시간 {}'.format(int(env.now), order.name,order.actual_cook_time))
         orders[name] = order

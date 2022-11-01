@@ -1,4 +1,59 @@
 # -*- coding: utf-8 -*-
+import time
+import math
+import numpy as np
+import random
+import itertools
+
+max_n = 1000
+exp_val = (max_n*(max_n-1)*(max_n-2))/6
+"""
+start_time_sec = time.time()
+try:
+    test = []
+    for i in range(max_n):
+        if i % int(max_n/10) == 0:
+            print('{}%진행; 현재 i ; {}'.format(i/max_n, i))
+        for j in range(i+1,max_n):
+            for k in range(j+1, max_n):
+                test.append([i,j,k])
+except:
+    pass
+print('예상 조합 수는?',len(test))
+end_time_sec = time.time()
+Appoxi_t = end_time_sec - start_time_sec
+print('3 forall문 시간;{};'.format(Appoxi_t))
+"""
+start_time_sec = time.time()
+possible_subset = []
+try:
+    customers = list(range(max_n))
+    possible_subset = list(itertools.permutations(customers, 3))
+except:
+    pass
+end_time_sec = time.time()
+Appoxi_t = end_time_sec - start_time_sec
+print('itertools.permutations ;{};길이;{};'.format(Appoxi_t, len(possible_subset)))
+
+start_time_sec = time.time()
+count = 0
+try:
+    subset = random.sample(possible_subset, 100)
+    for i in subset:
+        if i in possible_subset:
+            count += 1
+            pass
+        else:
+            pass
+except:
+    pass
+
+end_time_sec = time.time()
+Appoxi_t = end_time_sec - start_time_sec
+print(count)
+print('itertools.permutations에서 index 찾기 {};'.format(Appoxi_t))
+"""
+# -*- coding: utf-8 -*-
 from A3_two_sided import XGBoost_Bundle_Construct, ConstructFeasibleBundle_TwoSided
 import onnxruntime as rt
 import time
@@ -184,3 +239,4 @@ infoEnu = ';{};{}'.format(t_counter.t10,t_counter.t11)
 
 print('XG',XG_duration, infoXG)
 print('Enu',Enu_duration,infoEnu)
+"""

@@ -296,12 +296,19 @@ def BundleConsist2(orders, customers, p2, time_thres = 0, speed = 1,M = 10000, b
     :return: feasible route
     """
     counter('bundle_consist2')
+    #print('BundleConsist2 시작')
     #start_time_sec = datetime.now()
     start_time_sec = time.time()
     order_names = [] #가게 이름?
     fixed_start_point = orders[-1].name + M
+    bin_temperature = []
     for order in orders:
         order_names.append(order.name)
+        bin_temperature.append(order.temperature)
+    if 'C' in bin_temperature and 'W' in bin_temperature: # todo : 221101실험을 현실적으로 변경. - > 음식의 온도에 따라 번들이 될 수 없는 규칙을 설정(Cold와 Warm이 동시에 실릴 수 없음)
+        #print('온도 차이로 불발:: 온도::', bin_temperature)
+        #input('확인1101')
+        return []
     store_names = []
     for name in order_names:
         store_names.append(name + M)
@@ -667,6 +674,7 @@ def ResultPrint(name, customers, speed = 1, riders = None):
                 b3.append(customer.time_info[2] - customer.time_info[1])
                 b4.append(customer.time_info[3] - customer.time_info[2])
                 b5.append(customer.time_info[3] - customer.time_info[2] - mflt)
+                #b5.append(customer.time_info[4] - customer.time_info[2] - mflt) #가게 도착 부터 고객 도착까지 걸린 시간 -
                 count_b += 1
             else:
                 if customer.time_info[3] - customer.time_info[2] - mflt > 0.001:

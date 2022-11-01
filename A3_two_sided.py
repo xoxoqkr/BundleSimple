@@ -50,7 +50,7 @@ def CountActiveRider(riders, t, min_pr = 0, t_now = 0, option = 'w', point_retur
         return names
 
 
-def BundleConsideredCustomers(target_order, platform, riders, customers, speed = 1, bundle_search_variant = True, d_thres_option = True, max_d_infos = [], stopping = 0):
+def BundleConsideredCustomers(target_order, platform, riders, customers, speed = 1, bundle_search_variant = True, d_thres_option = True, max_d_infos = [], revise_type = 'None',stopping = 40, cut_info = [1000,1000]):
     #todo : 0907 정정
     not_served_ct_name_cls = {}
     not_served_ct_names = [] #번들 구성에 고려될 수 있는 고객들
@@ -69,6 +69,7 @@ def BundleConsideredCustomers(target_order, platform, riders, customers, speed =
     dec_weight = un_served_num / (50 * 50)
     store_min = 3
     loc_min = 5
+    candi_num = 0
     for customer_name in customers:
         customer = customers[customer_name]
         if customer.time_info[1] == None and customer.time_info[2] == None:
@@ -79,12 +80,13 @@ def BundleConsideredCustomers(target_order, platform, riders, customers, speed =
                     pass
                 else:
                     continue
+            candi_num += 1
             if d_thres_option == False:
                 d_thres = 100
             else:
                 d_thres = customer.p2
-            dist = distance(target_order.store_loc[0],target_order.store_loc[1], customer.store_loc[0],customer.store_loc[1]) / speed
-            dist2 = distance(target_order.location[0],target_order.location[1], customer.location[0],customer.location[1]) / speed
+            dist = distance(target_order.store_loc[0],target_order.store_loc[1], customer.store_loc[0],customer.store_loc[1]) / speed #OD거리
+            dist2 = distance(target_order.location[0],target_order.location[1], customer.location[0],customer.location[1]) / speed ##DD 거리
             #if target_order.name != customer.name and dist <= d_thres :
             in_max_d = False
             for d_info in max_d_infos:
@@ -94,11 +96,31 @@ def BundleConsideredCustomers(target_order, platform, riders, customers, speed =
                     break
             if len(max_d_infos) == 0:
                 in_max_d = True
-            if target_order.name != customer.name and dist <= d_thres*store_para and dist2 <= d_thres*loc_para and in_max_d == True:
+            dist3 = distance(target_order.store_loc[0], target_order.store_loc[1], customers[customer.name].location[0],customers[customer.name].location[1]) / speed  ##OO 거리
+            if revise_type == 'cut_info':
+                if target_order.name != customer.name and dist3 <= (cut_info[0] / speed) and dist2 <= (cut_info[1] / speed) and in_max_d == True:
+                    not_served_ct_names.append(customer_name)
+                    not_served_ct_name_cls[customer_name] = customer
+                    not_served_ct_names_infos.append([customer_name, dist, dist2,dist3])
+            else:
+                if target_order.name != customer.name and dist <= d_thres*store_para and dist2 <= d_thres*loc_para and in_max_d == True:
+                    not_served_ct_names.append(customer_name)
+                    not_served_ct_name_cls[customer_name] = customer
+                    not_served_ct_names_infos.append([customer_name, dist, dist2,dist3])
+            """
+            elif revise_type == 'cut_info2':
+                if target_order.name != customer.name and (dist3 <= (cut_info[0] / speed) or dist2 <= (cut_info[1] / speed)) and in_max_d == True:
+                    not_served_ct_names.append(customer_name)
+                    not_served_ct_name_cls[customer_name] = customer
+                    not_served_ct_names_infos.append([customer_name, dist, dist2,dist3])
+            """
+            """
             #if target_order.name != customer.name and dist <= store_min and dist2 <= loc_min and in_max_d == True:
+            if target_order.name != customer.name and dist <= cut_info[0]/speed and dist2 <= cut_info[1]/speed and in_max_d == True:
                 not_served_ct_names.append(customer_name)
                 not_served_ct_name_cls[customer_name] = customer
                 not_served_ct_names_infos.append([customer_name, dist, dist2])
+            """
     current_in_bundle = []
     current_in_single = []
     for order_index in platform.platform:
@@ -114,9 +136,8 @@ def BundleConsideredCustomers(target_order, platform, riders, customers, speed =
         rider_on_hand += rider.onhand
         rider_finished += rider.served
     res = {}
-    if stopping > 0:
+    if revise_type == 'stopping':
         rev_not_served_ct_names = []
-
         not_served_ct_names_infos.sort(key=operator.itemgetter(2))
         for info in not_served_ct_names_infos[:min(len(not_served_ct_names_infos),stopping)]:
             rev_not_served_ct_names.append(info[0])
@@ -133,6 +154,26 @@ def BundleConsideredCustomers(target_order, platform, riders, customers, speed =
         for info in pareto_score[:min(len(pareto_score),stopping)]:
             rev_not_served_ct_names.append(info[0])
         """
+    elif revise_type == 'cut_info': #현재 상태에서는 의미X
+        rev_not_served_ct_names = []
+        not_served_ct_names_infos.sort(key=operator.itemgetter(2))
+        count = 0
+        for info in not_served_ct_names_infos:
+            if count < stopping:
+                rev_not_served_ct_names.append(info[0])
+                count += 1
+                if info[3] > cut_info[0] / speed or info[2] > cut_info[1] / speed:
+                    break
+    elif revise_type == 'cut_info2': #현재 상태에서는 의미X
+        rev_not_served_ct_names = []
+        not_served_ct_names_infos.sort(key=operator.itemgetter(2))
+        count = 0
+        for info in not_served_ct_names_infos:
+            if ((info[3] < cut_info[0] / speed and info[2] < cut_info[1] / speed)) or count < stopping:
+                rev_not_served_ct_names.append(info[0])
+                count += 1
+                if count > stopping:
+                    break
     else:
         rev_not_served_ct_names = not_served_ct_names
     for ct_name in rev_not_served_ct_names:
@@ -141,6 +182,13 @@ def BundleConsideredCustomers(target_order, platform, riders, customers, speed =
         else:
             res[ct_name] = customers[ct_name]
     res[target_order.name] = target_order
+    try:
+        f = open('candi_num_cal.txt','a')
+        info = '{};{};{};{};\n'.format(int(riders[0].env.now),revise_type,candi_num,len(res))
+        f.write(info)
+        f.close()
+    except:
+        pass
     return res
 
 
@@ -184,17 +232,21 @@ def ConstructFeasibleBundle_TwoSided(target_order, orders, s, p2, thres = 0.05, 
     """
     d = []
     for customer_name in orders:
+        #print(orders[customer_name].time_info[1], orders[customer_name].cancel)
         if customer_name != target_order.name and orders[customer_name].time_info[1] == None and orders[customer_name].cancel == False:
             d.append(customer_name)
     #print(d,s)
     #input("확인2")
     new = 0
     M2_count = 0
+    if len(d) == 0:
+        #input('번들을 구성할 고객이 없음')
+        pass
     if len(d) > s - 1:
         M = itertools.permutations(d, s - 1)
         b = []
         if print_option == True:
-            print('대상 고객 {} ::고려 고객들 {}'.format(target_order.name, d))
+            print('대상 고객 {} ::고려 고객들 {}'.format(target_order.name, d[:min(len(d)-1,10)]))
         for m in M:
             #print('대상 seq :: {}'.format(m))
             q = list(m) + [target_order.name]

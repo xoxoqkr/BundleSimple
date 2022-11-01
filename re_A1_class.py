@@ -137,6 +137,8 @@ class Rider(object):
                             exp_cook_time = order.rider_exp_cook_time
                         else:  # 'bundle'
                             exp_cook_time = order.platform_exp_cook_time
+                        exp_cook_time = order.cook_time # todo : 221101실험을 현실적으로 변경.
+                        remain_cook_time = max(0, order.cook_time - (env.now - order.who_picked[-1][1]))
                         if exp_cook_time == None:
                             print(order.leave)
                             print(order.time_info)
@@ -156,7 +158,8 @@ class Rider(object):
                         cal_cook_time = max(0.001, (order.time_info[1] + order.actual_cook_time) - env.now)
                         expPickUpT = env.now + move_t
                         #yield env.process(stores[store_name].Cook(env, order, order.cook_info[0], manual_cook_time = cal_cook_time)) & env.process(self.RiderMoving(env, move_t))
-                        yield order.cooking_process & env.process(self.RiderMoving(env, move_t))
+                        #yield order.cooking_process & env.process(self.RiderMoving(env, move_t))
+                        yield env.process(order.FinsiehdCooking(env, remain_cook_time)) & env.process(self.RiderMoving(env, move_t))
                         if expPickUpT < env.now:
                             self.rider_wait2.append(env.now -expPickUpT)
                             order.rider_wait3 = env.now - expPickUpT
@@ -494,7 +497,10 @@ class Rider(object):
                     print('시간 정보2  {} : {} : {}'.format(best_route_info[5], org_route_t, best_route_info[5]+ org_route_t))
 
                     benefit = round(task.fee / (best_route_info[5] +org_route_t),4)  # 이익 / 운행 시간
-                    benefit2 = round(task.fee / best_route_info[6],4)
+                    try:
+                        benefit2 = round(task.fee / best_route_info[6],4)
+                    except:
+                        benefit2 = benefit
                     print('inc_t1:{}/inc_t2:{}'.format(best_route_info[5] +org_route_t, best_route_info[6]))
                     scores.append([task.index] + best_route_info[:6] + [benefit2] + ['rider'] + [org_route_t])
                     if WagePerMin < benefit2:
@@ -555,7 +561,7 @@ class Rider(object):
             return None, None
 
 
-    def ShortestRoute2(self, order, customers, now_t = 0, p2 = 0, M = 1000, uncertainty = False):
+    def ShortestRoute2(self, order, customers, now_t = 0, p2 = 0, M = 10000, uncertainty = False):
         """
         order를 수행할 수 있는 가장 짧은 경로를 계산 후, 해당 경로의 feasible 여/부를 계산
         반환 값 [경로, 최대 FLT, 평균 FLT, 최소FLT, 경로 내 고객 이름, 경로 운행 시간]
@@ -675,7 +681,7 @@ class Rider(object):
             customer = customers[name]
             customer.time_info[1] = now_t
             customer.who_picked.append([self.name, now_t,self_bundle,'single'])
-            if 0< customer.dp_cook_time < 15:
+            if 0 < customer.dp_cook_time < 15:
                 customer.cooking_process = env.process(customer.CookingFirst(env, customer.actual_cook_time))
             if len(names) > 1:
                 customer.inbundle = True
@@ -766,6 +772,8 @@ class Store(object):
     """
     def __init__(self, env, platform, name, loc = (25,25), order_ready_time = 7, capacity = 6, slack = 2, print_para = True):
         self.name = name  # 각 고객에게 unique한 이름을 부여할 수 있어야 함. dict의 key와 같이
+        self.rest_type = 0
+        self.temperature = 'Tepid'
         self.location = loc
         self.order_ready_time = order_ready_time
         self.resource = simpy.Resource(env, capacity = capacity)
@@ -876,7 +884,7 @@ class Store(object):
 
 
 class Customer(object):
-    def __init__(self, env, name, input_location, store = 0, store_loc = (25, 25),end_time = 60, ready_time=0, service_time=0,
+    def __init__(self, env, name, input_location, store = 0, store_loc = (25, 25),end_time = 60, ready_time=0, service_time=2,
                  fee = 2500, p2 = 15, cooking_time = (2,5), cook_info = (None, None), platform = None, unit_fee = 110, fee_type = 'linear'):
         self.name = name  # 각 고객에게 unique한 이름을 부여할 수 있어야 함. dict의 key와 같이
         self.time_info = [round(env.now, 2), None, None, None, None, end_time, ready_time, service_time, None]
@@ -922,6 +930,10 @@ class Customer(object):
         self.food_wait3 = None
         self.near_rider = []
         self.neighbors = []
+        self.rest_type = 0
+        self.cook_start_t = None
+        self.rider_select_t = None
+        self.temperature = None
         env.process(self.CustomerLeave(env, platform))
 
     def CustomerLeave(self, env, platform):
@@ -937,13 +949,20 @@ class Customer(object):
         else:
             pass
 
-
     def CookingFirst(self,env,time):
-        print('음식 {} 선 조리 시작/ T{}'.format(self.name,int(env.now)))
+        print('음식 {} 선 조리 시작1/ T{}'.format(self.name,int(env.now)))
         self.cook_start_time = env.now
         yield env.timeout(time)
         self.cook_finish_time = env.now
-        print('음식 {} 조리 완료/ T{}'.format(self.name, int(env.now)))
+        print('음식 {} 조리 완료1/ T{}'.format(self.name, int(env.now)))
+        #input('조리 경과 확인')
+
+    def FinsiehdCooking(self,env,time):
+        print('음식 {} 선 조리 시작2/ T{}'.format(self.name,int(env.now)))
+        self.cook_start_time = env.now
+        yield env.timeout(time)
+        self.cook_finish_time = env.now
+        print('음식 {} 조리 완료2/ T{}'.format(self.name, int(env.now)))
         #input('조리 경과 확인')
 
 

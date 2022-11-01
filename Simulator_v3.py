@@ -70,17 +70,21 @@ if save_data == True:
     save_root_dir = 'E:/GXBoost/old3/'
     save_id = 'xgb_1'
 
-cut_info3 = [1000,1000]# [12,24] [15,25] [7.5,10]#[7.5,10] #B3의 거리를 줄이는 함수
+cut_info3 = [12,24] # [12,24] [15,25] [7.5,10]#[7.5,10] #B3의 거리를 줄이는 함수
 cut_info2 = [100,100]#[10,10]#[10,10]
-stopping_index = 1000
+stopping_index = 100 #40
 clustering_para = True
+revise_type_para = 'cut_info2' #'stopping' ; 'cut_info';'cut_info2';
+cut_infoC = [100,100] #[8,16]
+search_type2 = 'XGBoost' #'XGBoost'#'enumerate'
+
 
 setting = 'stresstest'
 stress_lamda = 40 # 분당 주문 발생 수 # (2400/60)/5 #기준은 한 구에 분당 3750/60 #원래 40
 stress_rider_num = 320  #기준은 한 구에 400명
 # Parameter define
 interval = 5
-run_time = 120 # 120
+run_time = 90 # 120
 cool_time = 30  # run_time - cool_time 시점까지만 고객 생성
 uncertainty_para = True  # 음식 주문 불확실성 고려
 rider_exp_error = 1.5  # 라이더가 가지는 불확실성
@@ -185,8 +189,8 @@ print('시나리오 확인3')
 print(heuristic_type)
 for sc3 in scenarios:
     #sc3.search_type = heuristic_type
-    sc3.platform_recommend = True
-    sc3.rider_bundle_construct = False
+    sc3.platform_recommend = False
+    sc3.rider_bundle_construct = True
     print(sc3.platform_recommend, sc3.rider_bundle_construct,sc3.obj_type, sc3.search_type)
 scenarios = scenarios[:1]
 
@@ -336,7 +340,7 @@ for ite in exp_range:#range(0, 1):
                                       ellipse_w = ellipse_w, heuristic_theta = heuristic_theta,heuristic_r1 = heuristic_r1,XGBmodel3 = XGBmodel3, XGBmodel2 = XGBmodel2, thres_label = thres_label,
                                       considered_customer_type = considered_customer_type, search_range_index= search_range_index, pr_para = pr_para, ML_Saved_Data_B2=ML_Saved_Data_B2,
                                       ML_Saved_Data_B3=ML_Saved_Data_B3, fix_start = bundle_start_fix, ite = ite, cut_info3= cut_info3, cut_info2= cut_info2, stopping_index = stopping_index,
-                                      clustering = clustering_para))
+                                      clustering = clustering_para, revise_type = revise_type_para, cut_infoC = cut_infoC, search_type2 = search_type2))
         env.run(run_time)
 
         res = ResultPrint(sc.name + str(ite), Orders, speed=rider_speed, riders = Rider_dict)

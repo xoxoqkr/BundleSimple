@@ -69,12 +69,16 @@ def BundleProcess(env, customers,dummy_platform, heuristic_theta, heuristic_r1,e
             pass
         #input('확인')
         yield env.timeout(interval)
+        for name in customers:
+            if env.now - interval <= customers[name].time_info[0]:
+                customers[name].cancel = False
 
 
 def IdealBundleCalculator(now_t, customers, used_target, dummy_platform , riders, heuristic_theta,heuristic_r1,ellipse_w,
-                          p2,bundle_permutation_option, speed = 1, search_type = 'enumerate', bundle_size = [2]):
+                          p2,bundle_permutation_option, speed = 3, search_type = 'enumerate', bundle_size = [2]):
     #INPUT : 고객 정보
     #OUTPUT : Feasible 번들
+    #input('번들 계산 시작')
     Feasible_bundle_set = []
     start = time.time()
     for customer_name in customers:
@@ -100,7 +104,7 @@ def IdealBundleCalculator(now_t, customers, used_target, dummy_platform , riders
         thres = 100
         max_index = 100
         for b_size in bundle_size:
-            #print(b_size)
+            #print(b_size, len(considered_customers))
             #input("확인")
             tem_bundle = ConstructFeasibleBundle_TwoSided(target_order, considered_customers, b_size, p2, speed=speed, bundle_permutation_option = bundle_permutation_option, thres= thres, now_t = now_t)
             tem_infos = []
@@ -225,19 +229,26 @@ def BundleFeaturesCalculator2(customer_data, names_set, label = 0, add_info = No
         # cook_times
         cook_t = []
         for name in names:
-            cook_t.append(customer_data[int(name)].time_info[6])
+            #cook_t.append(customer_data[int(name)].time_info[6])
+            cook_t.append(customer_data[int(name)].cooking_time) #todo : 221101실험을 현실적으로 변경. -> 고객 마다 p2가 달라짐.
         #service_times
         ser_t = []
         for name in names:
             ser_t.append(customer_data[int(name)].time_info[7])
+        food_types = []
+        for name in names:
+            labels = ['C', 'T', 'W']
+            val = labels.indes(customer_data[int(name)].temperature)
+            food_types.append(val)
         #print('확인',distOD,distS,distS,gen_t)
         tem = list(copy.deepcopy(names))
         tem += sorted(distOD)
         tem += sorted(distS)
         tem += sorted(distC)
         tem += sorted(gen_t)
-        #tem += sorted(cook_t)
+        tem += sorted(cook_t)
         tem += sorted(ser_t)
+        tem += sorted(food_types)
         points = []
         vectors = []
         for name in names:

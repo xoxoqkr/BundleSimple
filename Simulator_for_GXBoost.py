@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import random
+
 from Simulator_fun_2207 import *
 #from Simulator_v3 import run_time
 #from Simulator_v3 import rider_speed
@@ -11,7 +13,8 @@ import datetime
 
 global gen_B_size
 global instance_type
-
+#instance_type = 'Instance_cluster'
+#gen_B_size = 3
 
 save_root_dir = 'E:/'
 #gen_B_size = 3
@@ -82,9 +85,37 @@ DummyB3 = []
 customer_p2 = 1 #2
 unit_fee = 110
 fee_type = 'linear'
-stress_lamda = 1 # 분당 주문 발생 수 # (2400/60)/5 #기준은 한 구에 분당 3750/60
+stress_lamda = 5 # 분당 주문 발생 수 # (2400/60)/5 #기준은 한 구에 분당 3750/60
 #1 주문 생성
 orders, stores, customers = OrderGen(store_dir, customer_dir, store_size = 100, customer_size = 1000, order_size = 1000, coor_random = True)
+
+#todo : 실험 환경 현실화
+store_detail = []
+store_detail1 = [[1,0.232477446,'M','W',2],[2,0.164469119,'H','W',1.5],[3,0.121790423,'H','W',2],[4,0.104094379,'M','T',2],[5,0.078764747,'M','T',2],[6,0.065579459,'M','T',2],
+ [7,0.06315059,'M','C',2],[8,0.042678695,'M','T',3],[9,0.027758501,'L','C',2],[10,0.023247745,'M','W',2],[11,0.019777932,'H','T',2],
+ [12,0.015961138,'M','T',2],[13,0.012838307,'H','W',2],[14,0.0111034,'L','C',2],[15,0.00832755,'M','T',2.5],[16,0.007980569,'M','C',3]]
+# detail_pr = [rest_type_list, pr_list, frt_list, temperature_list, p2_list] -> array
+for index in [0,1,2,3,4]:
+    tem = []
+    for info in store_detail1:
+        tem.append(info[index])
+    store_detail.append(tem)
+if sum(store_detail[1]) != 1:
+    rev_pr = 1 - sum(store_detail[:-1])
+    store_detail[-1] = rev_pr
+
+#평균 조리 시간	분산(분)	비율(%)
+#5	0.25	0.154639175
+#10	0.5	0.463917526
+#15	0.75	0.206185567
+#20	1	0.103092784
+#25	1.25	0.051546392
+#30	1.5	0.020618557
+cook1 = [0.1546, 0.4639,0.2061,0.1030,0.0515, 0.02061]
+CookTimeDetail_pr = cook1[:-1] + [float(1 - sum(cook1[:-1]))]
+CookTimeDetail = [[5,10,15,20,25,30], CookTimeDetail_pr] #[5,10,15,20,25,30]
+
+#실험 환경 현실화 끝
 
 for data in stores:
     #['name', 'start_loc_x', 'start_loc_y', 'order_ready_time', 'capacity', 'slack']
@@ -102,11 +133,11 @@ test3 = 'E:/학교업무 동기화용/py_charm/BundleSimple/'+instance_type+'/ct
 #GenerateStoreByCSV(env, test2, Platform_dict, Store_dict)
 #env.process(OrdergeneratorByCSV(env, test3, Orders, Store_dict, Platform_dict, p2_ratio = 1,rider_speed= 3,  service_time_diff = False, shuffle= True))
 
-GenerateStoreByCSVStressTest(env, 200, Platform_dict, Store_dict, store_type=instance_type)
+GenerateStoreByCSVStressTest(env, 200, Platform_dict, Store_dict, store_type=instance_type, detail_pr = store_detail)
 env.process(
     OrdergeneratorByCSVForStressTest(env, Orders, Store_dict, stress_lamda, platform=Platform_dict, p2_ratio=customer_p2,
                                      rider_speed=rider_speed,
-                                     unit_fee=unit_fee, fee_type=fee_type))
+                                     unit_fee=unit_fee, fee_type=fee_type, cooktime_detail= CookTimeDetail))
 
 
 
@@ -181,19 +212,22 @@ for data in Saved_data:
 label_datas_np = np.array(label_datas)
 #np.save('./GXBoost'+str(gen_B_size)+'/'+save_id+'c_'+instance_type_i+'_'+str(gen_B_size), label_datas_np)
 np.save(save_root_dir + 'GXBoost'+str(gen_B_size)+'/'+save_id+'c_'+instance_type_i+'_'+str(gen_B_size), label_datas_np)
-print('고객 수::', len(Orders))
+print('고객 수::', len(Orders), '찾아진 번들 수::' , count)
 print('counter', counter.dist, counter.bundle_consist, counter.bundle_consist2)
 if gen_B_size == 2:
     #DummyB2
+    dummy_thres = min(0.3, (100000/len(DummyB2)))
     Dummy_B2_datas = []
     Dummy_B2_datas_names = []
     count = 0
     for data in DummyB2:
         if data not in Dummy_B2_datas_names:
-            tem = [count, 2]
-            tem += data
-            Dummy_B2_datas.append(tem)
-            Dummy_B2_datas_names.append(data)
+            rv = random.random()
+            if rv < dummy_thres:
+                tem = [count, 2]
+                tem += data
+                Dummy_B2_datas.append(tem)
+                Dummy_B2_datas_names.append(data)
         #print('data',data)
         #print('더미3',Dummy_B2_datas_names)
     Dummy_B2_datas_np = np.array(Dummy_B2_datas, dtype=int)
@@ -202,6 +236,10 @@ if gen_B_size == 2:
     print('입력2', len(label1_names))
     #label1_data = BundleFeaturesCalculator(saved_orders, label1_names, label=1)
     label1_data = BundleFeaturesCalculator2(Orders, label1_names, label=1, add_info=label1_infos, print_option = True)
+    raw_data_np = np.array(label1_data, dtype=np.float64)
+    # np.save('./GXBoost'+str(gen_B_size)+'/'+save_id+'raw_data_np_'+instance_type_i+'_'+str(gen_B_size), raw_data_np)
+    np.save(save_root_dir + 'GXBoost' + str(gen_B_size) + '/' + save_id + 'label1_B2_raw_data_np_' + instance_type_i + '_' + str(
+        gen_B_size), raw_data_np)
     print('입력2_중복제거', len(label1_data))
     print('입력2',len(Dummy_B2_datas_names), Dummy_B2_datas_names[:5])
     #label0_data = BundleFeaturesCalculator(saved_orders, Dummy_B2_datas_names, label = 0)
@@ -210,20 +248,27 @@ if gen_B_size == 2:
     #input('확인2')
 if gen_B_size == 3:
     #DummyB3
+    dummy_thres = min(0.3, (100000/len(DummyB3)))
     Dummy_B3_datas = []
     Dummy_B3_datas_names = []
     count = 0
     for data in DummyB3:
-        tem = [count, 3]
-        tem += data
-        Dummy_B3_datas.append(tem)
-        Dummy_B3_datas_names.append(data)
+        rv = random.random()
+        if rv < dummy_thres :
+            tem = [count, 3]
+            tem += data
+            Dummy_B3_datas.append(tem)
+            Dummy_B3_datas_names.append(data)
     Dummy_B3_datas_np = np.array(Dummy_B3_datas, dtype=int)
     #np.save('./GXBoost'+str(gen_B_size)+'/'+save_id+'Dummy_B3_datas_'+instance_type_i+'_'+str(gen_B_size), Dummy_B3_datas)
     np.save(save_root_dir + 'GXBoost' + str(gen_B_size) + '/' + save_id + 'Dummy_B3_datas_' + instance_type_i + '_' + str(gen_B_size), Dummy_B3_datas)
     print('입력3',len(label1_names))
     #label1_data = BundleFeaturesCalculator(saved_orders, label1_names, label = 1)
     label1_data = BundleFeaturesCalculator2(Orders, label1_names, label=1, add_info=label1_infos, print_option = True)
+    raw_data_np = np.array(label1_data, dtype=np.float64)
+    # np.save('./GXBoost'+str(gen_B_size)+'/'+save_id+'raw_data_np_'+instance_type_i+'_'+str(gen_B_size), raw_data_np)
+    np.save(save_root_dir + 'GXBoost' + str(gen_B_size) + '/' + save_id + 'label1_B3_raw_data_np_' + instance_type_i + '_' + str(
+        gen_B_size), raw_data_np)
     print('입력3_중복제거',len(label1_data))
     #input('확인3')
     print('입력3',len(Dummy_B3_datas_names), Dummy_B3_datas_names[:5])
