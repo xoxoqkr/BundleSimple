@@ -182,6 +182,8 @@ def RouteTime(orders, route, M = 10000, speed = 1, uncertainty = False, error = 
             else: #todo: 아직 조리 시작 되지 X음식.
                 if bywho == 'Rider':
                     slack_t = target.dp_cook_time - time
+                elif bywho == 'Test':
+                    slack_t = target.actual_cook_time - time - 5
                 else:
                     slack_t = target.actual_cook_time - time
                 if slack_t > 0:
@@ -411,6 +413,7 @@ def GenerateStoreByCSV(env, csv_dir, platform,Store_dict, mus = [5,10,15], std_r
 def GenerateStoreByCSVStressTest(env, num, platform,Store_dict, mus = [5,10,15], std_ratio = 0.2, store_type = 'Instance_random', ITE = 1, output_data = None, detail_pr = None):
     # detail_pr = [rest_type_list, pr_list, frt_list, temperature_list, p2_list] -> array
     #mus = [11.5,13.5,15.5]
+    rest_type_check = []
     for count in range(num):
         if output_data == None:
             if store_type == 'Instance_random':
@@ -439,6 +442,7 @@ def GenerateStoreByCSVStressTest(env, num, platform,Store_dict, mus = [5,10,15],
             store.rest_type = rest_type
             store.temperature = detail_pr[3][detail_pr[0].index(rest_type)]
             store.p2 = detail_pr[4][detail_pr[0].index(rest_type)]
+            rest_type_check.append(rest_type)
         Store_dict[name] = store
     """
     f3 = open("가게_coord_정보" + str(ITE) + '_' + store_type + ".txt", 'a')
@@ -449,6 +453,7 @@ def GenerateStoreByCSVStressTest(env, num, platform,Store_dict, mus = [5,10,15],
     f3.write('Exp End' + '\n')
     f3.close()
     """
+    print(list(set(rest_type_check)))
     print(len(Store_dict))
     #input('가게')
 
@@ -636,11 +641,14 @@ def OrdergeneratorByCSVForStressTest(env, orders, stores, lamda, platform = None
             store_loc = [output_data[count][4], output_data[count][5]]
             customer_loc = [output_data[count][1], output_data[count][2]]
         name = count
+        if cooktime_detail != None:
+            cook_time = numpy.random.choice(cooktime_detail[0], p = cooktime_detail[1]) # todo : 221101실험을 현실적으로 변경.
+            p2_ratio2 = store.p2
+        else:
+            cook_time = 3
+            p2_ratio2 = p2_ratio
         OD_dist = distance(store_loc[0],store_loc[1], customer_loc[0],customer_loc[1])
-        p2_ratio2 = store.p2
         p2 = (OD_dist / rider_speed) * p2_ratio2 # todo : 221101실험을 현실적으로 변경.
-        #p2 = (OD_dist / rider_speed) * p2_ratio
-        cook_time = numpy.random.choice(cooktime_detail[0], p = cooktime_detail[1]) # todo : 221101실험을 현실적으로 변경.
         cook_time_type = 0
         cooking_time = [7,1]
         #order = A1_Class.Customer(env, name, input_location, store=store_num, store_loc=store_loc, p2=p2,
@@ -648,11 +656,14 @@ def OrdergeneratorByCSVForStressTest(env, orders, stores, lamda, platform = None
         order = re_A1_class.Customer(env, name, customer_loc, store=store_name, store_loc=store_loc, p2=p2,
                                cooking_time=cook_time, cook_info=[cook_time_type, cooking_time], platform = platform, unit_fee = unit_fee, fee_type = fee_type)
         #order.actual_cook_time = random.choice(stores[store_name].FRT)
-        order.actual_cook_time = cook_time # todo : 221101실험을 현실적으로 변경.
-        order.dp_cook_time = cook_time # todo : 221101실험을 현실적으로 변경.
-        order.temperature = store.temperature
-        order.rest_type = store.rest_type
+        order.actual_cook_time = cook_time
+        order.dp_cook_time = cook_time
         order.dp_cook_time = 5*(1 + order.actual_cook_time//5)
+        if cooktime_detail != None:
+            order.temperature = store.temperature
+            order.rest_type = store.rest_type
+        else:
+            order.temperature = 'T'
         if order.dp_cook_time >= 15 and cook_first == True:
             order.cooking_process = env.process(order.CookingFirst(env, order.actual_cook_time)) #todo : 15분 이상 음식은 미리 조리 시작
         print('T {} 음식 {} 조리 확인/ 시간 {}'.format(int(env.now), order.name,order.actual_cook_time))
@@ -855,6 +866,17 @@ def ResultSave(Riders, Customers, title = 'Test', sub_info = 'None', type_name =
             if count == len(info):
                 f.write('\n')
     f.close()
+
+
+def ExpValueCalculator(rider_names, riders, orders):
+    m_r = []
+    for rider_name in rider_names:
+        rider = riders[rider_name]
+        dist = []
+        rider_end_loc = rider.route[-1][2]
+        for order_name in orders:
+            order = orders[order_name]
+            dist.append(distance(rider_end_loc[0],order.store_loc[0],rider_end_loc[1],order.store_loc[1]))
 
 
 def SaveInstanceAsCSV(Rider_dict, Orders,Store_dict, instance_name = '' ):

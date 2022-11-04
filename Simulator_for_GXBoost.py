@@ -10,11 +10,10 @@ import simpy
 from A1_BasicFunc import  OrdergeneratorByCSV, GenerateStoreByCSV, counter, check_list, counter2, t_counter, GenerateStoreByCSVStressTest, OrdergeneratorByCSVForStressTest
 import datetime
 
-
 global gen_B_size
 global instance_type
 #instance_type = 'Instance_cluster'
-#gen_B_size = 3
+#gen_B_size = 2
 
 save_root_dir = 'E:/'
 #gen_B_size = 3
@@ -126,14 +125,17 @@ for data in stores:
     slack = 3
     store = Store(env, Platform_dict, name, loc=loc, order_ready_time=order_ready_time, capacity=capacity, print_para=False, slack = slack)
     Store_dict[name] = store
-
+print('음식점 수',len(Store_dict))
+#input('확인1')
 #env.process(OrdergeneratorByCSV(env, test1, Orders, Store_dict, Platform_dict, custom_data=orders, p2_ratio=1, rider_speed=3, service_time_diff = True))
-test2 = 'E:/학교업무 동기화용/py_charm/BundleSimple/'+instance_type+'/Instancestore_infos0'
-test3 = 'E:/학교업무 동기화용/py_charm/BundleSimple/'+instance_type+'/ct_data_merge'
+test2 = 'E:/학교업무 동기화용/py_charm/BundleSimple/'+ instance_type +'/Instancestore_infos0'
+test3 = 'E:/학교업무 동기화용/py_charm/BundleSimple/'+ instance_type +'/ct_data_merge'
 #GenerateStoreByCSV(env, test2, Platform_dict, Store_dict)
 #env.process(OrdergeneratorByCSV(env, test3, Orders, Store_dict, Platform_dict, p2_ratio = 1,rider_speed= 3,  service_time_diff = False, shuffle= True))
-
-GenerateStoreByCSVStressTest(env, 200, Platform_dict, Store_dict, store_type=instance_type, detail_pr = store_detail)
+Store_dict = {}
+GenerateStoreByCSVStressTest(env, 50, Platform_dict, Store_dict, store_type=instance_type, detail_pr = store_detail)
+print('음식점 수',len(Store_dict))
+#input('확인2')
 env.process(
     OrdergeneratorByCSVForStressTest(env, Orders, Store_dict, stress_lamda, platform=Platform_dict, p2_ratio=customer_p2,
                                      rider_speed=rider_speed,

@@ -50,7 +50,8 @@ def CountActiveRider(riders, t, min_pr = 0, t_now = 0, option = 'w', point_retur
         return names
 
 
-def BundleConsideredCustomers(target_order, platform, riders, customers, speed = 1, bundle_search_variant = True, d_thres_option = True, max_d_infos = [], revise_type = 'None',stopping = 40, cut_info = [1000,1000]):
+def BundleConsideredCustomers(target_order, platform, riders, customers, speed = 1, bundle_search_variant = True, d_thres_option = True, max_d_infos = [],
+                              revise_type = 'None',stopping = 40, cut_info = [1000,1000]):
     #todo : 0907 정정
     not_served_ct_name_cls = {}
     not_served_ct_names = [] #번들 구성에 고려될 수 있는 고객들

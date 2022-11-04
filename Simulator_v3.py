@@ -74,8 +74,8 @@ cut_info3 = [12,24] # [12,24] [15,25] [7.5,10]#[7.5,10] #B3의 거리를 줄이�
 cut_info2 = [100,100]#[10,10]#[10,10]
 stopping_index = 100 #40
 clustering_para = True
-revise_type_para = 'cut_info2' #'stopping' ; 'cut_info';'cut_info2';
-cut_infoC = [100,100] #[8,16]
+revise_type_para = 'stopping' #'stopping' ; 'cut_info';'cut_info2';
+cut_infoC = [100,100] #[8,16] #ConsideredCustomers 에서 잘리는 값 revise_type_para가 'cut_info';'cut_info2'; 경우에 작동
 search_type2 = 'XGBoost' #'XGBoost'#'enumerate'
 
 
@@ -189,8 +189,8 @@ print('시나리오 확인3')
 print(heuristic_type)
 for sc3 in scenarios:
     #sc3.search_type = heuristic_type
-    sc3.platform_recommend = False
-    sc3.rider_bundle_construct = True
+    sc3.platform_recommend = True
+    sc3.rider_bundle_construct = False
     print(sc3.platform_recommend, sc3.rider_bundle_construct,sc3.obj_type, sc3.search_type)
 scenarios = scenarios[:1]
 

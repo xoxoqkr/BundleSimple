@@ -784,6 +784,7 @@ class Store(object):
         self.loaded_order = []
         self.capacity = capacity
         self.FRT = [0]
+        self.p2 = 1
         env.process(self.StoreRunner(env, platform, capacity = capacity, print_para= print_para))
 
 

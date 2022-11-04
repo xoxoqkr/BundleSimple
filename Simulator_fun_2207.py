@@ -230,7 +230,7 @@ def BundleFeaturesCalculator2(customer_data, names_set, label = 0, add_info = No
         cook_t = []
         for name in names:
             #cook_t.append(customer_data[int(name)].time_info[6])
-            cook_t.append(customer_data[int(name)].cooking_time) #todo : 221101실험을 현실적으로 변경. -> 고객 마다 p2가 달라짐.
+            cook_t.append(customer_data[int(name)].cook_time) #todo : 221101실험을 현실적으로 변경. -> 고객 마다 p2가 달라짐.
         #service_times
         ser_t = []
         for name in names:
@@ -238,7 +238,7 @@ def BundleFeaturesCalculator2(customer_data, names_set, label = 0, add_info = No
         food_types = []
         for name in names:
             labels = ['C', 'T', 'W']
-            val = labels.indes(customer_data[int(name)].temperature)
+            val = labels.index(customer_data[int(name)].temperature)
             food_types.append(val)
         #print('확인',distOD,distS,distS,gen_t)
         tem = list(copy.deepcopy(names))
