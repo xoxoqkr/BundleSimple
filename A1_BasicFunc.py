@@ -10,9 +10,11 @@ import numpy
 import time
 #from numba import jit
 from numpy.random import poisson
+import operator
 
 import re_A1_class
 import matplotlib.pyplot as plt
+
 
 @jit(nopython=True)
 def distance(p1_x, p1_y, p2_x,p2_y, rider_count = None):
@@ -868,16 +870,94 @@ def ResultSave(Riders, Customers, title = 'Test', sub_info = 'None', type_name =
     f.close()
 
 
-def ExpValueCalculator(rider_names, riders, orders):
+def ExpValueCalculator(rider_names, riders, order_names, orders, rider_check_index = 15):
+    """
+    라이더가 선택할 주문의 가치(수수료/운행시간)을 계산.
+    @param rider_names: 주문을 선택할 라이더 이름들
+    @param riders: 라이더 집합
+    @param order_names: 라이더가 선택할 수 있는 주문 이름들
+    @param orders: 고객 집합
+    @param rider_check_index: 라이더가 확인할 주문 수
+    @return:
+    """
     m_r = []
     for rider_name in rider_names:
         rider = riders[rider_name]
         dist = []
         rider_end_loc = rider.route[-1][2]
-        for order_name in orders:
+        for order_name in order_names:
             order = orders[order_name]
-            dist.append(distance(rider_end_loc[0],order.store_loc[0],rider_end_loc[1],order.store_loc[1]))
+            dist.append([order.name, distance(rider_end_loc[0],rider_end_loc[1],order.store_loc[0],order.store_loc[1])])
+        dist.sort(key=operator.itemgetter(1))
+        dist = dist[:rider_check_index]
+        rider_value = []
+        for info in dist:
+            dist1 = distance(order.store_loc[0],order.store_loc[1],order.location[1],order.location[1])
+            move_t = (info[1] + dist1)/rider.speed
+            val = order.fee / move_t
+            rider_value.append([info[0],dist1, val])
+        dist.sort(key=operator.itemgetter(2), reverse=True) #시간당 이윤이 높은 순서대로
+        if len(dist) > 0:
+            m_r.append([rider.name, dist[0],  dist[1], dist[2]])
+        else:
+            m_r.append([rider.name, 0 ,100, 0 ])
+    return m_r
 
+
+def BundleExpValueCalculator(bundle_infos, rider_names, riders, orders, M = 10000, m_r = None):
+    """
+    가능한 번들 정보 집합이 주어지면, 해당 번들이 라이더들에게 선택될 법한지를 계산.
+    @param bundle_infos: 번들 정보 집합. 자세한 사항은 아래 참고
+    [route, unsync_t[0], round(sum(ftds) / len(ftds), 2), unsync_t[1], order_names, round(route_time, 2),min(time_buffer), round(P2P_dist - route_time, 2), line_dist, round(P2P_dist,4), distance(origin[0],origin[1], destination[0],destination[1])/speed]
+    @param rider_names: t interval에 주문을 선택할 라이더 이름
+    @param riders: 전체 라이더 집합
+    @param orders: 주문 집합
+    @param M: BundleConsist2에 사용되는 임의의 큰 수 M
+    @param m_r: ExpValueCalculator의 계산 결과. 반드시 필요하지는 않지만, 있는 경우 연산 시간이 단축 됨.
+    @return:
+    """
+    res_r = []
+    rider_index = 0
+    for rider_name in rider_names:
+        rider = riders[rider_name]
+        for b_info in bundle_infos:
+            start_order_name = b_info[0][0] - M
+            if start_order_name < 0:
+                print(b_info)
+                input('minus value')
+            start_point = orders[start_order_name].store_loc
+            rider_end_loc = rider.route[-1][2]
+            dist = distance(rider_end_loc[0], rider_end_loc[1], start_point[0], start_point[1])
+            if m_r != None and dist > m_r[rider_index][2]:
+                val = 0
+            else:
+                move_t += distance(rider_end_loc[0], rider_end_loc[1], start_point[0], start_point[1]) / rider.speed
+                move_t = b_info[5]
+                fee = 0
+                for name in b_info[4]:
+                    fee += orders[name].fee
+                rider_end_loc = rider.route[-1][2]
+                val = move_t / fee
+        res_r.append(val)
+        rider_index += 1
+    return res_r
+
+def Y_b_r(m_r, res_r):
+    """
+    계산한 값으로 부터 번들 계시 문제의 indicator "y"를 계산
+    @param m_r: ExpValueCalculator 결과 값
+    @param res_r: BundleExpValueCalculator 결과 값
+    @return: "y" *주의 y는 [[b1을 선택할 법한 라이더 이름,b1을 선택할 법한 라이더 이름,...,],...,[]]
+    """
+    res = []
+    num_b = len(res_r[0])
+    for b_index in range(num_b):
+        tem = []
+        for r_index in range(len(m_r)):
+            if m_r[3] < res_r[r_index][b_index]:
+                tem.append(m_r[0])
+        res.append(tem)
+    return res
 
 def SaveInstanceAsCSV(Rider_dict, Orders,Store_dict, instance_name = '' ):
     #시나리오 저장

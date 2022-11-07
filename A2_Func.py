@@ -662,7 +662,10 @@ def ResultPrint(name, customers, speed = 1, riders = None):
             TLT.append(lt)
             FLT.append(flt)
             MFLT.append(mflt)
-            OD_ratio = flt/mflt
+            try:
+                OD_ratio = flt/mflt
+            except:
+                OD_ratio = 1
             service_times.append(customer.time_info[7])
             if OD_ratio > 1.0:
                 OD_ratios.append(OD_ratio - 1.0)

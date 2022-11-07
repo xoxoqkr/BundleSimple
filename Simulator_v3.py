@@ -202,7 +202,7 @@ print(scenarios)
 for sc4 in scenarios:
     print(sc4.platform_recommend, sc4.rider_bundle_construct, sc4.obj_type, sc4.search_type)
 
-input('시나리오 확인')
+#input('시나리오 확인')
 
 #exp_range = [0,2,3,4]*10 #인스턴스 1에러가 있음.
 #global exp_range #인스턴스 1에러가 있음.
@@ -507,7 +507,10 @@ for ite in exp_range:#range(0, 1):
                 tem.append(customer.time_info[3] - customer.time_info[0])
                 tem2.append(customer.time_info[3] - customer.time_info[2])
                 p2p_time = distance(customer.store_loc[0],customer.store_loc[1], customer.location[0],customer.location[1])/rider_speed
-                over_ratio = (customer.time_info[3] - customer.time_info[2])/ p2p_time
+                try:
+                    over_ratio = (customer.time_info[3] - customer.time_info[2])/ p2p_time
+                except:
+                    over_ratio = 1
                 if customer.type == 'bundle' and over_ratio > 1:
                     tem3.append(over_ratio)
             else:
@@ -700,3 +703,5 @@ if setting == 'stresstest':
         f3.write(con)
     f3.write('Exp End' + '\n')
     f3.close()
+    
+print("수행 완료")

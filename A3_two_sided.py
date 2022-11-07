@@ -5,7 +5,7 @@ import time
 import operator
 import itertools
 from numba import jit
-from A1_BasicFunc import distance, ActiveRiderCalculator, t_counter, counter2
+from A1_BasicFunc import distance, ActiveRiderCalculator, t_counter, counter2, BundleExpValueCalculator
 from A2_Func import BundleConsist, BundleConsist2
 import math
 import numpy as np
@@ -879,3 +879,92 @@ def SearchRaidar_ellipseMJ(target, customers, platform, delta = 5):
         if dist1 + dist2 <= dist0 + delta and dist3 + dist4 <= dist0 +delta:
             res_C_T[customer2.name] = customers[customer2.name]
     return res_C_T
+
+
+def pareto_ranking(datas, val_index1, val_index2):
+    """
+    datas에 대해 pareto dominance rank계산
+    @param datas:
+    @param val_index1:
+    @param val_index2:
+    @return:
+    """
+    res = []
+    index1 = 0
+    for data1 in datas:
+        index2 = 0
+        val = 0
+        for data2 in datas:
+            if index1 != index2:
+                if data1[val_index1] > data2[val_index1] and  data1[val_index2] > data2[val_index2]:
+                    val += 1
+            index2 += 1
+        res.append([index1, val])
+        index1 += 1
+    res.sort(key=operator.itemgetter(1))
+    return res
+def SingleCustomerBundleInsert(customer, customers, bundle_infos, rider_names, riders, rider_infos, p2 = 2):
+    #1 customer가 운행 중인 라이더와 선택될 수 있는 위치 인지를 계산
+    res = []
+    close_rider_names = []
+    index = 0
+    for rider_name in rider_names:
+        rider = riders[rider_name]
+        rider_end_loc = rider.route[-1][2]
+        dist = distance(customer.store_loc[0],customer.store_loc[0], rider_end_loc[0],rider_end_loc[1])
+        if dist <= rider_infos[index]:
+            close_rider_names.append(rider.name)
+    # 2 기존 번들에 customer가 삽입 될 수 있는지를 계산
+    insert_cost = []
+    for bundle_info in bundle_infos:
+        # change customer to bundle
+        tem = SubF1_SingleCustomerBundleInsert(customer, customers, bundle_info, rider_names, riders, p2=p2)
+        if len(tem) > 0:
+            tem2 = [index] + tem
+            insert_cost.append(tem2)
+            index += 1
+    #3 계산된 삽입 가능 위치들에 대해 sort
+
+    if len(res) > 0:
+        return res
+    else:
+        return []
+
+def SubF1_SingleCustomerBundleInsert(t_customer, customers, bundle_info, rider_names, riders, p2 = 2):
+    """
+    대상 고객(class)와 BundleConsist2의 bundle_info가 주어졌을 때, 대상 고객이 bundle_info에 삽입 될 수 있는지 여부를 계산
+    @param t_customer:
+    @param customers:
+    @param bundle_info:
+    @param rider_names:
+    @param riders:
+    @param p2:
+    @return:
+    """
+    # tem = [route, unsync_t[0], round(sum(ftds) / len(ftds), 2), unsync_t[1], order_names, round(route_time, 2),min(time_buffer), round(P2P_dist - route_time, 2), line_dist, round(P2P_dist,4), distance(origin[0],origin[1], destination[0],destination[1])/speed]
+    possible_combination = itertools.combinations(bundle_info[4], len(bundle_info[4] - 1))
+    ava_bundle_infos = []
+    org_likely2choose = max(BundleExpValueCalculator([bundle_info], rider_names, riders, customers))
+    org_cost = bundle_info[7] #고객 진선 거리 합 - 경로 시간; 클 수록 절약한 시간이 증가함을 의미
+    info_index = 0
+    for part in possible_combination:
+        ct_names = part + [t_customer.name]
+        cts = []
+        for name in ct_names:
+            cts.append(customers[name])
+        tem_bundle_info = BundleConsist2(cts, customers, p2,feasible_return= True) #가능한 모든 번들만 반환; [번들1 정보, 번들2_정보,..., 번들n_정보]
+        if len(tem_bundle_info) > 0:
+            for b_info in tem_bundle_info:
+                rev_likely2choose = max(BundleExpValueCalculator([b_info], rider_names, riders, customers))
+                rev_cost = tem_bundle_info[7]
+                if rev_cost < org_cost or org_likely2choose < rev_likely2choose : #현재는 2중에 1개만 개선이 되어도 번들에 추가.
+                    ava_bundle_infos += [info_index, [b_info], rev_cost, rev_likely2choose, org_cost - rev_cost, rev_likely2choose - org_likely2choose]
+                    info_index += 1
+    if len(ava_bundle_infos) > 0:
+        # sort 기준
+        #ava_bundle_infos.sort(key=operator.itemgetter(4))
+        ranked_ava_bundle_infos = pareto_ranking(ava_bundle_infos, -1, -2)
+        return ranked_ava_bundle_infos[0]
+    else:
+        return []
+

@@ -125,7 +125,7 @@ def Bundle_selection_problem3(phi_b, d_matrix, s_b, min_pr):
         return []
 
 
-def Bundle_selection_problem4(phi_b, D, s_b, lt_matrix,D_rev, min_pr=0.05, obj_type = 'simple_max_s',pr_para = True):
+def Bundle_selection_problem4(phi_b, D, s_b, lt_matrix,D_rev, min_pr=0.05, obj_type = 'simple_max_s',pr_para = True, y_datas = None, likely_para = False):
     #print('풀이전 확인 ',D, s_b,obj_type)
     bundle_indexs = list(range(len(s_b)))
     try:
@@ -157,6 +157,8 @@ def Bundle_selection_problem4(phi_b, D, s_b, lt_matrix,D_rev, min_pr=0.05, obj_t
         m.addConstr(gp.quicksum(x[i] for i in info) <= 1)
     if pr_para == True:
         m.addConstrs(x[i] * phi_b[i] - z[i] <= min_pr for i in bundle_indexs)
+    if likely_para == True and y_datas != None:
+        m.addConstrs(x[i] <= y_datas[i] for i in bundle_indexs)
     #풀이
     m.optimize()
     m.write("out_test.lp")
