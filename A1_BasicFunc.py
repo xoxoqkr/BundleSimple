@@ -3,13 +3,10 @@
 import math
 import random
 import csv
-from re import search
 from numba import jit
 import numpy.random
 import numpy
 import time
-#from numba import jit
-from numpy.random import poisson
 import operator
 
 import re_A1_class
@@ -672,7 +669,6 @@ def OrdergeneratorByCSVForStressTest(env, orders, stores, lamda, platform = None
         orders[name] = order
         stores[store_name].received_orders.append(orders[name])
         interval = 1.0/lamda
-        #todo : 0317 지연되는 조건 생각할 것.
         if interval > 0:
             yield env.timeout(interval)
         else:
@@ -916,27 +912,38 @@ def BundleExpValueCalculator(bundle_infos, rider_names, riders, orders, M = 1000
     @param m_r: ExpValueCalculator의 계산 결과. 반드시 필요하지는 않지만, 있는 경우 연산 시간이 단축 됨.
     @return:
     """
-    res_r = []
+    res_r = [-1]
     rider_index = 0
     for rider_name in rider_names:
         rider = riders[rider_name]
         for b_info in bundle_infos:
+            print(b_info)
+            input('check1234')
             start_order_name = b_info[0][0] - M
             if start_order_name < 0:
                 print(b_info)
                 input('minus value')
             start_point = orders[start_order_name].store_loc
-            rider_end_loc = rider.route[-1][2]
+            try:
+                rider_end_loc = rider.route[-1][2]
+                print(1, rider_end_loc)
+            except:
+                rider_end_loc = rider.visited_route[-1][2]
+                print(2, rider_end_loc)
+            if len(rider_end_loc) != 2:
+                rider_end_loc = rider.visited_route[-1][2]
+            print(rider_end_loc, start_point)
+            input('노드 정보 확인')
             dist = distance(rider_end_loc[0], rider_end_loc[1], start_point[0], start_point[1])
             if m_r != None and dist > m_r[rider_index][2]:
                 val = 0
             else:
-                move_t += distance(rider_end_loc[0], rider_end_loc[1], start_point[0], start_point[1]) / rider.speed
-                move_t = b_info[5]
+                move_t = distance(rider_end_loc[0], rider_end_loc[1], start_point[0], start_point[1]) / rider.speed
+                move_t += b_info[5]
                 fee = 0
                 for name in b_info[4]:
                     fee += orders[name].fee
-                rider_end_loc = rider.route[-1][2]
+                #rider_end_loc = rider.route[-1][2]
                 val = move_t / fee
         res_r.append(val)
         rider_index += 1

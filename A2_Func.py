@@ -300,7 +300,10 @@ def BundleConsist2(orders, customers, p2, time_thres = 0, speed = 1,M = 10000, b
     #start_time_sec = datetime.now()
     start_time_sec = time.time()
     order_names = [] #가게 이름?
-    fixed_start_point = orders[-1].name + M
+    if fix_start == True:
+        fixed_start_point = orders[-1].name + M
+    else:
+        fixed_start_point = None
     bin_temperature = []
     for order in orders:
         order_names.append(order.name)
@@ -573,7 +576,7 @@ def GenSingleOrder(order_index, customer, platform_exp_error = 1):
     pool = np.random.normal(customer.cook_info[1][0], customer.cook_info[1][1] * platform_exp_error, 1000)
     customer.platform_exp_cook_time = random.choice(pool)
     route = [[customer.name, 0, customer.store_loc, 0], [customer.name, 1, customer.location, 0]]
-    o = A1_Class.Order(order_index, customer.name, route, 'single', fee=customer.fee, parameter_info=None)
+    o = A1_Class.Order(order_index, [customer.name], route, 'single', fee=customer.fee, parameter_info=None)
     return o
 
 
@@ -598,7 +601,7 @@ def GenBundleOrder(order_index, bundie_info, customer_set, now_t, M = 10000, pla
     fee += add_fee
     o = A1_Class.Order(order_index, bundie_info[4], route, 'bundle', fee=fee, parameter_info=bundie_info[7:10])
     o.gen_t = now_t
-    o.olf_info = bundie_info
+    o.old_info = bundie_info
     o.average_ftd = bundie_info[2]
     return o
 
@@ -845,5 +848,5 @@ def RebaseCustomer2(order_names, orders, n_clusters_divider = 3):
             labelled[i] = []
         for info in tem_res:
             labelled[info[1]].append(info[0])
-        print(labelled)
+        #print(labelled)
     return labelled

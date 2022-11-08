@@ -5,12 +5,13 @@ import time
 import operator
 import itertools
 from numba import jit
+import re_A1_class
 from A1_BasicFunc import distance, ActiveRiderCalculator, t_counter, counter2, BundleExpValueCalculator
-from A2_Func import BundleConsist, BundleConsist2
+from A2_Func import BundleConsist, BundleConsist2, GenBundleOrder, GenSingleOrder
 import math
 import numpy as np
 import pandas as pd
-
+import random
 
 
 
@@ -306,7 +307,7 @@ def ConstructFeasibleBundle_TwoSided(target_order, orders, s, p2, thres = 0.05, 
         return []
 
 
-#@jit(nopython=True)
+@jit(nopython=True)
 def TriangleArea(s, d1,d2,d3):
     return math.sqrt(s * (s - d1) * (s - d2) * (s - d3))
 
@@ -333,7 +334,7 @@ def XGBoost_Bundle_Construct_tem(target_order, orders, s):
 
 def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, speed = 1 , bundle_permutation_option = False, uncertainty = False,thres = 1,
                              platform_exp_error = 1,  thres_label = 1, label_check = None, feasible_return = True, fix_start = True, cut_info = [2500,2500], belonged_cts = []):
-    #print('run1')
+    print('XGBoost_Bundle_Construct 시작')
     d = []
     success_OO = [0]
     success_DD = [0]
@@ -468,7 +469,28 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
     #start_time_sec = datetime.now()
     start_time_sec = time.time()
     if len(X_test_np) > 0:
+        tem_test = [[],[]]
+        cutter = 100000
+        if len(X_test_np) > cutter:
+            for tem_index in range(int(X_test_np/cutter)+1):
+                s_index = cutter * tem_index
+                e_index = cutter * (tem_index + 1)
+                tem_data = X_test_np[s_index: min(e_index, len(X_test_np))]
+                tem_pred_onx = XGBmodel.run(None, {"feature_input": tem_data.astype(
+                    np.float32)})  # Input must be a list of dictionaries or a single numpy array for input 'input'.
+                tem_test[0] += tem_pred_onx[0]
+        pred_onx = tem_test
+        """
         pred_onx = XGBmodel.run(None, {"feature_input": X_test_np.astype(np.float32)})  # Input must be a list of dictionaries or a single numpy array for input 'input'.
+        pred_onx = [[], []]
+        pass_ratio = 0.01
+        for _ in range(len(X_test_np)):
+            if random.random() < pass_ratio:
+                pred_onx[0].append(1)
+            else:
+                pred_onx[0].append(0)
+        """
+        pass
     else:
         return [], [],[]
     #end_time_sec = datetime.now()
@@ -502,9 +524,10 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
                     tem_name.append(s_order.name)
                 rev_M1_names.append(tem_name)
             if len(rev_M1_names) > 1:
-                print('Target',target_order.name)
-                print('확장 됨',rev_M1_names)
+                #print('Target',target_order.name)
+                #print('확장 됨',rev_M1_names)
                 #input('rev_M1 확인')
+                pass
             for info in rev_M1:
                 #info = 이전의 M1[count]
                 #if label >= thres_label:
@@ -881,7 +904,7 @@ def SearchRaidar_ellipseMJ(target, customers, platform, delta = 5):
     return res_C_T
 
 
-def pareto_ranking(datas, val_index1, val_index2):
+def pareto_ranking(datas, val_index1, val_index2, option_index = None):
     """
     datas에 대해 pareto dominance rank계산
     @param datas:
@@ -899,7 +922,10 @@ def pareto_ranking(datas, val_index1, val_index2):
                 if data1[val_index1] > data2[val_index1] and  data1[val_index2] > data2[val_index2]:
                     val += 1
             index2 += 1
-        res.append([index1, val])
+        if option_index != None:
+            res.append([index1, val, data1[option_index]])
+        else:
+            res.append([index1, val])
         index1 += 1
     res.sort(key=operator.itemgetter(1))
     return res
@@ -968,3 +994,190 @@ def SubF1_SingleCustomerBundleInsert(t_customer, customers, bundle_info, rider_n
     else:
         return []
 
+def DynamicBundleConstruct(t_customer, customers, rider_names, riders, platform, now_t, p2=2, stopping = 15,
+                           bundle_permutation_option=False,feasible_return=False, min_time_buffer=10, max_dist=15, sort_index=8, fix_start=False):
+    try:
+        rider_speed = riders[0].speed
+    except:
+        rider_speed = 1
+    #1 기존 번들에 삽입 될 수 있을까?
+    res1 =  []
+    for task_index in platform.platform:
+        task = platform.platform[task_index]
+        if len(task.customers) > 1: #번들
+            tem = SubF1_SingleCustomerBundleInsert(t_customer, customers, task.old_info, rider_names, riders, p2=p2)
+            res1 += tem
+            #tem 구조 :  [info_index, [b_info], rev_cost, rev_likely2choose, org_cost - rev_cost, rev_likely2choose - org_likely2choose]
+    #2 새로운 번들로 구성될 수 있을까?
+    considered_customers = BundleConsideredCustomers(t_customer, platform, riders, customers, speed=rider_speed, stopping=stopping) #todo : 확인 할 것
+    #2-1 B3 계산
+    M2 = itertools.permutations(considered_customers, 2)
+    res2_3 = []
+    for subset in M2:
+        subset_orders = []
+        for name in subset:
+            subset_orders.append(customers[name])
+        tem = BundleConsist2(subset_orders, customers, p2, speed=rider_speed, bundle_permutation_option=bundle_permutation_option,feasible_return=feasible_return,
+                             now_t=now_t, min_time_buffer=min_time_buffer, max_dist=max_dist, sort_index=sort_index, fix_start=fix_start)
+        if tem != []:
+            likely_to_choose = max(BundleExpValueCalculator(tem, rider_names, riders, customers))
+            tem.append(likely_to_choose)
+            res2_3.append(tem)
+            print('추가됨33', tem)
+    #2-2 B2 계산
+    M2 = itertools.permutations(considered_customers, 1)
+    res2_2 = []
+    for subset in M2:
+        subset_orders = []
+        for name in subset:
+            subset_orders.append(customers[name])
+        tem = BundleConsist2(subset_orders, customers, p2, speed=rider_speed, bundle_permutation_option=bundle_permutation_option,feasible_return=feasible_return,
+                             now_t=now_t, min_time_buffer=min_time_buffer, max_dist=max_dist, sort_index=sort_index, fix_start=fix_start)
+        if tem != []:
+            likely_to_choose = max(BundleExpValueCalculator(tem, rider_names, riders, customers))
+            #print(tem, likely_to_choose)
+            tem.append(likely_to_choose)
+            res2_2.append(tem)
+            print('추가됨22', tem)
+    #bundle 중 선택
+    res_rank = []
+    index = 0
+    for info in res1:
+        print('1',info)
+        res_rank.append([index,0,info[2],info[3]])
+        index += 1
+    index = 0
+    for info in res2_2:
+        #info = [기존 번들 info, likely_to_choose]
+        print('2',info)
+        input('확인223')
+        res_rank.append([index,1,info[0][5],info[-1]])
+        index += 1
+    index = 0
+    for info in res2_3:
+        print('3', info)
+        res_rank.append([index,2,info[0][5],info[-1]])
+        index += 1
+    if len(res_rank) > 0:
+        print('res_rank',res_rank)
+        res_rank = pareto_ranking(res_rank, 2, 3, option_index=1)
+        dominant_res = res_rank[0]
+        print(dominant_res)
+        input('data 확인')
+        if dominant_res[2] == 0:
+            res_info = res1[dominant_res[0]]
+        elif dominant_res[2] == 1:
+            res_info = res2_2[dominant_res[0]]
+        elif dominant_res[2] == 2:
+            res_info = res2_3[dominant_res[0]]
+        else:
+            res_info = None
+            input('rank error')
+        return res_info
+    else:
+        return []
+
+def OrdergeneratorByCSVForStressTestDynamic(env, orders, stores, lamda, platform = None, p2_ratio = 1, rider_speed = 1, unit_fee = 110, fee_type = 'linear',
+                                     output_data = None, cooktime_detail = None, cook_first = False, dynamic_infos = None, riders = None):
+    """
+    Generate customer order
+    :param env: Simpy Env
+    :param orders: Order
+    :param platform: 플랫폼에 올라온 주문들 {[KY]order index : [Value]class order, ...}
+    :param stores: 플랫폼에 올라온 가게들 {[KY]store name : [Value]class store, ...}
+    :param interval: 주문 생성 간격
+    :param runtime: 시뮬레이션 동작 시간
+    """
+    dist_distribution = np.random.poisson(20,7) #todo: 0915 거리 조절
+    for count in range(1000000):
+        if output_data == None:
+            store_name = random.choice(range(len(stores)))
+            store = stores[store_name]
+            store_loc = store.location
+            #req_dist = random.randint(5,20)*rider_speed
+            req_dist = max(random.choice(dist_distribution), 7)
+            angle = math.radians(random.randrange(0, 360))
+            num = 0
+            while num < 1000:
+                customer_loc = [store_loc[0] + round(req_dist*math.cos(angle),4),store_loc[1] + round(req_dist*math.sin(angle),4) ]
+                if customer_loc[0] <= 50 and customer_loc[1] <= 50 and store_loc != customer_loc:
+                    break
+                num += 1
+            if num == 1000:
+                customer_loc = [random.randint(0,50),random.randint(0,50)]
+        else:
+            if count > len(output_data) - 2:
+                break
+            store_name = output_data[count][3]
+            store_loc = [output_data[count][4], output_data[count][5]]
+            customer_loc = [output_data[count][1], output_data[count][2]]
+        name = count
+        if cooktime_detail != None:
+            cook_time = np.random.choice(cooktime_detail[0], p = cooktime_detail[1]) # todo : 221101실험을 현실적으로 변경.
+            p2_ratio2 = store.p2
+        else:
+            cook_time = 3
+            p2_ratio2 = p2_ratio
+        OD_dist = distance(store_loc[0],store_loc[1], customer_loc[0],customer_loc[1])
+        p2 = (OD_dist / rider_speed) * p2_ratio2 # todo : 221101실험을 현실적으로 변경.
+        cook_time_type = 0
+        cooking_time = [7,1]
+        #order = A1_Class.Customer(env, name, input_location, store=store_num, store_loc=store_loc, p2=p2,
+        #                       cooking_time=cook_time, cook_info=[cook_time_type, cooking_time])
+        order = re_A1_class.Customer(env, name, customer_loc, store=store_name, store_loc=store_loc, p2=p2,
+                               cooking_time=cook_time, cook_info=[cook_time_type, cooking_time], platform = platform, unit_fee = unit_fee, fee_type = fee_type)
+        #order.actual_cook_time = random.choice(stores[store_name].FRT)
+        order.actual_cook_time = cook_time
+        order.dp_cook_time = cook_time
+        order.dp_cook_time = 5*(1 + order.actual_cook_time//5)
+        if cooktime_detail != None:
+            order.temperature = store.temperature
+            order.rest_type = store.rest_type
+        else:
+            order.temperature = 'T'
+        if order.dp_cook_time >= 15 and cook_first == True:
+            order.cooking_process = env.process(order.CookingFirst(env, order.actual_cook_time)) #todo : 15분 이상 음식은 미리 조리 시작
+        print('T {} 음식 {} 조리 확인/ 시간 {}'.format(int(env.now), order.name,order.actual_cook_time))
+        orders[name] = order
+        stores[store_name].received_orders.append(orders[name])
+        interval = 1.0/lamda
+        o = GenSingleOrder(order.name, order)
+        #Order(order_index, [order.name], route, 'single', fee=order.fee)
+        if len(list(platform.platform.keys())) > 0:
+            task_index = max(list(platform.platform.keys())) + 1
+        else:
+            task_index = 1
+        platform.platform[task_index] = o
+        #todo : 0317 지연되는 조건 생각할 것.
+        if dynamic_infos != None and riders != None:
+            platform_interval = 5
+            active_rider_names, d_infos, time_data = CountActiveRider(riders, platform_interval, min_pr=0.05, t_now=env.now,option='w', point_return=True, print_option=False)
+            #파라메터 정의
+            p2 = dynamic_infos[0]
+            bundle_permutation_option = dynamic_infos[1]
+            feasible_return = dynamic_infos[2]
+            min_time_buffer = dynamic_infos[3]
+            max_dist = dynamic_infos[4]
+            sort_index = dynamic_infos[5]
+            fix_start = dynamic_infos[6]
+            new_bundle_info = DynamicBundleConstruct(orders[name], orders, active_rider_names, riders, platform, env.now, p2=p2, stopping=15,
+                                   bundle_permutation_option=bundle_permutation_option, feasible_return=feasible_return, min_time_buffer=min_time_buffer,
+                                   max_dist=max_dist, sort_index=sort_index, fix_start=fix_start)
+            #플랫폼에 order 추가
+            if len(new_bundle_info) > 0:
+                if len(list(platform.platform.keys())) > 0:
+                    task_index = max(list(platform.platform.keys())) + 1
+                else:
+                    task_index = 1
+                print(new_bundle_info)
+                input("new_bundle_info")
+                o = GenBundleOrder(task_index, new_bundle_info[0], orders, env.now, add_fee=0)
+                o.old_info = new_bundle_info
+                platform.platform[task_index] = o
+                task_index += 1
+                pass
+        if interval > 0:
+            yield env.timeout(interval)
+        else:
+            print('현재 T :{} / 마지막 고객 {} 생성'.format(int(env.now), name))
+            pass

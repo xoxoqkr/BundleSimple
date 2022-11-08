@@ -15,6 +15,7 @@ from sympy import cancel
 from re_A1_class import scenario,Platform_pool
 from A1_BasicFunc import ResultSave, GenerateStoreByCSV, RiderGeneratorByCSV, OrdergeneratorByCSV, distance, counter, check_list, t_counter, GenerateStoreByCSVStressTest, OrdergeneratorByCSVForStressTest, RiderGenerator, counter2, SaveScenario
 from A2_Func import ResultPrint
+from A3_two_sided import OrdergeneratorByCSVForStressTestDynamic
 from re_platform import Platform_process5,Rider_Bundle_plt
 from datetime import datetime
 #import onnxmltools
@@ -84,7 +85,11 @@ stress_lamda = 40 # 분당 주문 발생 수 # (2400/60)/5 #기준은 한 구에
 stress_rider_num = 320  #기준은 한 구에 400명
 # Parameter define
 interval = 5
-run_time = 90 # 120
+try:
+    global run_time
+except:
+    run_time = 90 # 120
+
 cool_time = 30  # run_time - cool_time 시점까지만 고객 생성
 uncertainty_para = True  # 음식 주문 불확실성 고려
 rider_exp_error = 1.5  # 라이더가 가지는 불확실성
@@ -189,7 +194,7 @@ print('시나리오 확인3')
 print(heuristic_type)
 for sc3 in scenarios:
     #sc3.search_type = heuristic_type
-    sc3.platform_recommend = True
+    sc3.platform_recommend = False
     sc3.rider_bundle_construct = False
     print(sc3.platform_recommend, sc3.rider_bundle_construct,sc3.obj_type, sc3.search_type)
 scenarios = scenarios[:1]
@@ -201,6 +206,19 @@ print(scenarios)
 #scenarios[1].platform_recommend = False
 for sc4 in scenarios:
     print(sc4.platform_recommend, sc4.rider_bundle_construct, sc4.obj_type, sc4.search_type)
+
+#dynamic 실험 관련 부분 #todo 1108 : 확인 필요
+run_time = 90
+dynamic_env = True
+dynamic_infos = [0,0,0,0,0,0,0]
+dynamic_infos[0] = platform_p2 #p2
+dynamic_infos[1] = True
+dynamic_infos[2] = True
+dynamic_infos[3] = 10 #min_time_buffer
+dynamic_infos[4] = 15 # max_dist
+dynamic_infos[5] = 8 # sort_index
+dynamic_infos[6] = False # fix_start
+
 
 #input('시나리오 확인')
 
@@ -321,8 +339,17 @@ for ite in exp_range:#range(0, 1):
         env = simpy.Environment()
         if setting == 'stresstest':
             GenerateStoreByCSVStressTest(env, 200, Platform2, Store_dict, store_type=instance_type, ITE = ite, output_data= StoreCoord)
-            env.process(OrdergeneratorByCSVForStressTest(env, Orders, Store_dict, stress_lamda, platform=Platform2, p2_ratio=customer_p2, rider_speed=rider_speed,
-                                             unit_fee=unit_fee, fee_type=fee_type, output_data= CustomerCoord))
+
+            if dynamic_env == True:
+                env.process(OrdergeneratorByCSVForStressTestDynamic(env, Orders, Store_dict, stress_lamda, platform=Platform2,
+                                                             p2_ratio=customer_p2, rider_speed=rider_speed,
+                                                             unit_fee=unit_fee, fee_type=fee_type,
+                                                             output_data=CustomerCoord, dynamic_infos = dynamic_infos, riders = Rider_dict))
+            else:
+                env.process(OrdergeneratorByCSVForStressTest(env, Orders, Store_dict, stress_lamda, platform=Platform2,
+                                                             p2_ratio=customer_p2, rider_speed=rider_speed,
+                                                             unit_fee=unit_fee, fee_type=fee_type,
+                                                             output_data=CustomerCoord))
             env.process(RiderGenerator(env, Rider_dict, Platform2, Store_dict, Orders, capacity=rider_capacity, speed=rider_speed,working_duration=run_time, interval=0.01,
                            gen_num=stress_rider_num,  wait_para=wait_para, platform_recommend = sc.platform_recommend, input_order_select_type = order_select_type,
                                        bundle_construct= sc.rider_bundle_construct))
