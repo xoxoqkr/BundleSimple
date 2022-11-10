@@ -44,7 +44,8 @@ def CountActiveRider(riders, t, min_pr = 0, t_now = 0, option = 'w', point_retur
             else:
                 print('False')
         else:
-            print('False2')
+            #print('False2')
+            pass
     if point_return == True:
         return names, dists, times
     else:
@@ -52,7 +53,7 @@ def CountActiveRider(riders, t, min_pr = 0, t_now = 0, option = 'w', point_retur
 
 
 def BundleConsideredCustomers(target_order, platform, riders, customers, speed = 1, bundle_search_variant = True, d_thres_option = True, max_d_infos = [],
-                              revise_type = 'None',stopping = 40, cut_info = [1000,1000]):
+                              revise_type = 'None',stopping = 40, cut_info = [1000,1000], except_target_order = False):
     #todo : 0907 정정
     not_served_ct_name_cls = {}
     not_served_ct_names = [] #번들 구성에 고려될 수 있는 고객들
@@ -183,7 +184,8 @@ def BundleConsideredCustomers(target_order, platform, riders, customers, speed =
             input('ERROR {} :: 고려 고객 {} 제외1 {} 제외 2 {}'.format(ct_name, not_served_ct_names, rider_on_hand, rider_finished))
         else:
             res[ct_name] = customers[ct_name]
-    res[target_order.name] = target_order
+    if except_target_order == False:
+        res[target_order.name] = target_order
     try:
         f = open('candi_num_cal.txt','a')
         info = '{};{};{};{};\n'.format(int(riders[0].env.now),revise_type,candi_num,len(res))
@@ -343,17 +345,16 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
             d.append(customer_name)
     # 1 : M1의 데이터에 대해서 attribute 계산 후 dataframe으로 만들기
     #print(d)
+    print('대상 ::',len(d))
     #input('XGBoost_Bundle_Construct')
     start_time_sec = time.time()
     if len(d) <= s-1:
         return [], np.array([]) ,[[],[]]
-
     M1 = []
     input_data = []
     M2 = itertools.permutations(d, s - 1)
     M2_count = 0
     customer_names = []
-
     for m in M2:
         q = list(m) + [target_order.name]
         customer_names.append(q)
@@ -456,6 +457,8 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
     X_test = org_df.iloc[:,s:] #탐색 번들에 따라, 다른 index 시작 지점을 가짐.
     X_test_np = np.array(X_test)
     counter2('sess1',len(X_test_np))
+    print('B',s,':입력 고객 묶음 수', len(X_test_np))
+    #input('확인6789')
     end_time_sec = time.time()
     duration = end_time_sec - start_time_sec
     if s == 2:
@@ -470,15 +473,21 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
     start_time_sec = time.time()
     if len(X_test_np) > 0:
         tem_test = [[],[]]
-        cutter = 100000
-        if len(X_test_np) > cutter:
-            for tem_index in range(int(X_test_np/cutter)+1):
-                s_index = cutter * tem_index
-                e_index = cutter * (tem_index + 1)
-                tem_data = X_test_np[s_index: min(e_index, len(X_test_np))]
-                tem_pred_onx = XGBmodel.run(None, {"feature_input": tem_data.astype(
-                    np.float32)})  # Input must be a list of dictionaries or a single numpy array for input 'input'.
-                tem_test[0] += tem_pred_onx[0]
+        cutter = 10000
+        for tem_index in range(int(len(X_test_np)/cutter)+1):
+            s_index = cutter * tem_index
+            e_index = cutter * (tem_index + 1)
+            tem_data = X_test_np[s_index: min(e_index, len(X_test_np))]
+            print('작업 대상::',s_index,'~', min(e_index, len(X_test_np)))
+            tem_pred_onx = XGBmodel.run(None, {"feature_input": tem_data.astype(
+                np.float32)})  # Input must be a list of dictionaries or a single numpy array for input 'input'.
+            print(tem_pred_onx[0])
+            print(list(tem_pred_onx[0]))
+            print('고객 묶음 수',len(tem_pred_onx[0]))
+            #print(tem_pred_onx[1])
+            print('cutter', sum(tem_pred_onx[0]))
+            #input('확인4678')
+            tem_test[0] += list(tem_pred_onx[0])
         pred_onx = tem_test
         """
         pred_onx = XGBmodel.run(None, {"feature_input": X_test_np.astype(np.float32)})  # Input must be a list of dictionaries or a single numpy array for input 'input'.
@@ -511,11 +520,13 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
     count = 0
     count1 = 0
     rc_count = 0
+    print('pred_onx 수 세기 ',sum(pred_onx[0]))
     for label in pred_onx[0]:
         labels.append(int(label))
-        if 0 < label <= thres_label: #todo : 0916 label
+        if 0 < label <= 100: #todo : 0916 label # thres_label
             rev_M1 = [] # [M1[count]]
             rev_M1_names =[]
+            print('BC계산 시도!!')
             for name in belonged_cts:
                 rev_M1.append(M1[count][:s-1] + [orders[name]])
             for s_orders in rev_M1:
@@ -528,20 +539,22 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
                 #print('확장 됨',rev_M1_names)
                 #input('rev_M1 확인')
                 pass
+            print('rev_M1',rev_M1)
             for info in rev_M1:
                 #info = 이전의 M1[count]
                 #if label >= thres_label:
                     #print('라벨',label)
                 rc_count += 1
+                print('가즈아!!')
                 if thres < 100 :
                     print('1::',M1[count])
                     tem = BundleConsist(info, orders, p2, speed = speed,
                                          bundle_permutation_option = bundle_permutation_option, uncertainty = uncertainty, platform_exp_error =  platform_exp_error,
                                          feasible_return = True, now_t = now_t)
                 else:
-                    #print('2::',M1[count])
-                    #print('orders',orders)
-                    #print('ct# :: store_loc :: ct_loc')
+                    print('2::',M1[count])
+                    print('orders',orders)
+                    print('ct# :: store_loc :: ct_loc')
                     tem = BundleConsist2(info, orders, p2, speed = speed,
                                          bundle_permutation_option = bundle_permutation_option, uncertainty = uncertainty, platform_exp_error =  platform_exp_error,
                                          feasible_return = feasible_return, now_t = now_t, max_dist= 15, fix_start = fix_start) #max_dist= 15
@@ -562,14 +575,14 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
                 count1 += 1
             count += 1
     f = open('부하정도.txt','a')
-    f.write('XGB T;{};고객이름;{};B크기;{};신규;{};후보 수;{};대상 조합;{};RC;{};후보 고객 수;{}; \n'.format(now_t, target_order.name,s, new,len(d),M2_count, rc_count, len(d)))
+    f.write('XGB T;{};고객이름;{};B크기;{};신규;{};후보 수;{};대상 조합;{};RC;{};후보 고객 수;{};1인 경우:{} \n'.format(now_t, target_order.name,s, new,len(d),M2_count, rc_count, len(d), len(labels_larger_1)))
     f.close()
-    """
+
     if len(labels_larger_1) > 0 :
         print('계산된 label 있음',len(labels_larger_1), sum(labels_larger_1)/len(labels_larger_1))
     else:
         print('계산된 label 없음')
-    """
+        #input('문제 발새앵')
     counter2('sess2', count1)
     label_check = np.append(label_check, pred_onx[0])
     end_time_sec = time.time()
@@ -956,7 +969,7 @@ def SingleCustomerBundleInsert(customer, customers, bundle_infos, rider_names, r
     else:
         return []
 
-def SubF1_SingleCustomerBundleInsert(t_customer, customers, bundle_info, rider_names, riders, p2 = 2):
+def SubF1_SingleCustomerBundleInsert(t_customer, customers, input_bundle_info, rider_names, riders, p2 = 2):
     """
     대상 고객(class)와 BundleConsist2의 bundle_info가 주어졌을 때, 대상 고객이 bundle_info에 삽입 될 수 있는지 여부를 계산
     @param t_customer:
@@ -968,13 +981,16 @@ def SubF1_SingleCustomerBundleInsert(t_customer, customers, bundle_info, rider_n
     @return:
     """
     # tem = [route, unsync_t[0], round(sum(ftds) / len(ftds), 2), unsync_t[1], order_names, round(route_time, 2),min(time_buffer), round(P2P_dist - route_time, 2), line_dist, round(P2P_dist,4), distance(origin[0],origin[1], destination[0],destination[1])/speed]
-    possible_combination = itertools.combinations(bundle_info[4], len(bundle_info[4] - 1))
+    #print(input_bundle_info)
+    bundle_info = input_bundle_info[0]
+    #input('error전에 확인')
+    possible_combination = itertools.combinations(bundle_info[4], len(bundle_info[4]) - 1)
     ava_bundle_infos = []
     org_likely2choose = max(BundleExpValueCalculator([bundle_info], rider_names, riders, customers))
     org_cost = bundle_info[7] #고객 진선 거리 합 - 경로 시간; 클 수록 절약한 시간이 증가함을 의미
     info_index = 0
     for part in possible_combination:
-        ct_names = part + [t_customer.name]
+        ct_names = list(part) + [t_customer.name]
         cts = []
         for name in ct_names:
             cts.append(customers[name])
@@ -1006,15 +1022,18 @@ def DynamicBundleConstruct(t_customer, customers, rider_names, riders, platform,
         task = platform.platform[task_index]
         if len(task.customers) > 1: #번들
             tem = SubF1_SingleCustomerBundleInsert(t_customer, customers, task.old_info, rider_names, riders, p2=p2)
-            res1 += tem
-            #tem 구조 :  [info_index, [b_info], rev_cost, rev_likely2choose, org_cost - rev_cost, rev_likely2choose - org_likely2choose]
+            if len(tem) > 0:
+                tem.append(task.index)
+                res1 += tem
+            #tem 구조 :  [info_index, [b_info], rev_cost, rev_likely2choose, org_cost - rev_cost, rev_likely2choose - org_likely2choose, task.index]
     #2 새로운 번들로 구성될 수 있을까?
-    considered_customers = BundleConsideredCustomers(t_customer, platform, riders, customers, speed=rider_speed, stopping=stopping) #todo : 확인 할 것
+    considered_customers = BundleConsideredCustomers(t_customer, platform, riders, customers, speed=rider_speed, stopping=stopping, except_target_order= True) #todo : 확인 할 것
     #2-1 B3 계산
+    count = 0
     M2 = itertools.permutations(considered_customers, 2)
     res2_3 = []
     for subset in M2:
-        subset_orders = []
+        subset_orders = [t_customer]
         for name in subset:
             subset_orders.append(customers[name])
         tem = BundleConsist2(subset_orders, customers, p2, speed=rider_speed, bundle_permutation_option=bundle_permutation_option,feasible_return=feasible_return,
@@ -1024,11 +1043,12 @@ def DynamicBundleConstruct(t_customer, customers, rider_names, riders, platform,
             tem.append(likely_to_choose)
             res2_3.append(tem)
             print('추가됨33', tem)
+        count += 1
     #2-2 B2 계산
     M2 = itertools.permutations(considered_customers, 1)
     res2_2 = []
     for subset in M2:
-        subset_orders = []
+        subset_orders = [t_customer]
         for name in subset:
             subset_orders.append(customers[name])
         tem = BundleConsist2(subset_orders, customers, p2, speed=rider_speed, bundle_permutation_option=bundle_permutation_option,feasible_return=feasible_return,
@@ -1038,34 +1058,48 @@ def DynamicBundleConstruct(t_customer, customers, rider_names, riders, platform,
             #print(tem, likely_to_choose)
             tem.append(likely_to_choose)
             res2_2.append(tem)
-            print('추가됨22', tem)
+            #print('추가됨22', tem)
+        count += 1
+    if len(considered_customers) > 4:
+        #print(t_customer.name)
+        #print('대상 고객 들', considered_customers)
+        #print('수행 횟 수:', count)
+        #input('Dynamic 번들')
+        pass
     #bundle 중 선택
+    if len(res1) + len(res2_2) + len(res2_3) > 0:
+        #print('기존 번들 수정',res1)
+        #print('신규 B2',res2_2)
+        #print('신규 B3',res2_3)
+        #input('번들 가능성 존재')
+        pass
     res_rank = []
     index = 0
     for info in res1:
-        print('1',info)
-        res_rank.append([index,0,info[2],info[3]])
+        #print('1',info)
+        res_rank.append([index,0,info[2],info[3],info[6]])
         index += 1
     index = 0
     for info in res2_2:
         #info = [기존 번들 info, likely_to_choose]
-        print('2',info)
-        input('확인223')
-        res_rank.append([index,1,info[0][5],info[-1]])
+        #print('2',info)
+        #input('확인223')
+        res_rank.append([index,1,info[0][5],info[-1],-1])
         index += 1
     index = 0
     for info in res2_3:
-        print('3', info)
-        res_rank.append([index,2,info[0][5],info[-1]])
+        #print('3', info)
+        res_rank.append([index,2,info[0][5],info[-1],-1])
         index += 1
     if len(res_rank) > 0:
-        print('res_rank',res_rank)
+        #print('res_rank',res_rank)
         res_rank = pareto_ranking(res_rank, 2, 3, option_index=1)
         dominant_res = res_rank[0]
-        print(dominant_res)
-        input('data 확인')
+        #print(dominant_res)
+        #input('data 확인')
         if dominant_res[2] == 0:
             res_info = res1[dominant_res[0]]
+            del platform.platform[res_info[4]] #수정될 task를 제거
         elif dominant_res[2] == 1:
             res_info = res2_2[dominant_res[0]]
         elif dominant_res[2] == 2:
@@ -1088,6 +1122,7 @@ def OrdergeneratorByCSVForStressTestDynamic(env, orders, stores, lamda, platform
     :param interval: 주문 생성 간격
     :param runtime: 시뮬레이션 동작 시간
     """
+    yield env.timeout(5)
     dist_distribution = np.random.poisson(20,7) #todo: 0915 거리 조절
     for count in range(1000000):
         if output_data == None:
@@ -1130,6 +1165,7 @@ def OrdergeneratorByCSVForStressTestDynamic(env, orders, stores, lamda, platform
         order.actual_cook_time = cook_time
         order.dp_cook_time = cook_time
         order.dp_cook_time = 5*(1 + order.actual_cook_time//5)
+        order.cancel = False #주문이 생성되자 마자 수행될 수 있도록
         if cooktime_detail != None:
             order.temperature = store.temperature
             order.rest_type = store.rest_type
@@ -1141,12 +1177,12 @@ def OrdergeneratorByCSVForStressTestDynamic(env, orders, stores, lamda, platform
         orders[name] = order
         stores[store_name].received_orders.append(orders[name])
         interval = 1.0/lamda
-        o = GenSingleOrder(order.name, order)
         #Order(order_index, [order.name], route, 'single', fee=order.fee)
         if len(list(platform.platform.keys())) > 0:
             task_index = max(list(platform.platform.keys())) + 1
         else:
             task_index = 1
+        o = GenSingleOrder(task_index, order)
         platform.platform[task_index] = o
         #todo : 0317 지연되는 조건 생각할 것.
         if dynamic_infos != None and riders != None:
@@ -1165,17 +1201,30 @@ def OrdergeneratorByCSVForStressTestDynamic(env, orders, stores, lamda, platform
                                    max_dist=max_dist, sort_index=sort_index, fix_start=fix_start)
             #플랫폼에 order 추가
             if len(new_bundle_info) > 0:
+                # 겹치는 번들 삭제
+                print(new_bundle_info)
+                #input("new_bundle_info")
+                del_task_indexs = []
+                for task in platform.platform:
+                    check_task = platform.platform[task]
+                    if len(check_task.customers) > 1:
+                        for ct_name in check_task.customers:
+                            if ct_name in new_bundle_info[0][4]:
+                                del_task_indexs.append(check_task.index)
+                                break
+                for del_index in del_task_indexs:
+                    print('기존 B 삭제', platform.platform[del_index].customers)
+                    del platform.platform[del_index]
+                #새로운 번들 추가
                 if len(list(platform.platform.keys())) > 0:
                     task_index = max(list(platform.platform.keys())) + 1
                 else:
                     task_index = 1
-                print(new_bundle_info)
-                input("new_bundle_info")
                 o = GenBundleOrder(task_index, new_bundle_info[0], orders, env.now, add_fee=0)
                 o.old_info = new_bundle_info
                 platform.platform[task_index] = o
                 task_index += 1
-                pass
+                #input('번들 추가됨')
         if interval > 0:
             yield env.timeout(interval)
         else:

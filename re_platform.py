@@ -107,6 +107,7 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                     check_list('unique', unique_bundles)
                     #플랫폼에 새로운 주문을 추가하는 작업이 필요.
                     print('주문 수 {} :: 추가 주문수 {}'.format(len(platform.platform),len(unique_bundles)))
+                    #input('번들 확인')
                     x1 = []
                     y1 = []
                     x2 = []
@@ -232,6 +233,10 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                 del platform.platform[task_name]
         loop_e1 = time.time()
         duration_info = [loop_e1 - loop_s,loop_e - loop_s,loop_e1 - loop_s1,loop_s1 - loop_e]
+        try:
+            print(label_infos)
+        except:
+            label_infos = [0,0,0,0,0,0,0]
         BundleInfoHandle1(riders, orders, env.now, considered_customer_type, search_range_index, pr_para, sc_add_infos,
                           old_b3, fail_b3, duration_info,
                           mip_duration, label_infos, lens_b, num_const, act_considered_ct_num, unique_bundle_num,
@@ -457,7 +462,7 @@ def Platform_process6(env, platform, orders, riders, p2,thres_p,interval, end_t 
                           old_b3, fail_b3, duration_info,
                           mip_duration, label_infos, lens_b, num_const, act_considered_ct_num, unique_bundle_num,
                           len(active_rider_names), interval= interval)
-        for customer_name in orders:
+        for customer_name in orders: #고객들이 발생 후 5분 이후에 수행되도록 함.
             customer = orders[customer_name]
             if env.now - interval < customer.time_info[0] <= env.now:
                 customer.cancel = False
@@ -651,10 +656,14 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
     #단계2 시작
     consider_ct_num = len(rev_considered_customers_names)
     for customer_name in rev_considered_customers_names:
+        """
         try:
             belonged_cts = re_points[customer_name]
         except:
             belonged_cts = []
+        """
+        print(re_points)
+        belonged_cts = re_points[customer_name]
         start = time.time()
         start_test8 = time.time()
         target_order = orders[customer_name]
@@ -737,6 +746,8 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
         for b_infos in [size2bundle, size3bundle]:
             if len(b_infos) == 0:
                 continue
+            print('가능한 번들 수::', len(b_infos))
+            input('확인456')
             for info in b_infos:
                 #print(b_infos)
                 #print(info)

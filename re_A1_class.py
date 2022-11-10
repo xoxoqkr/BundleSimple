@@ -421,7 +421,7 @@ class Rider(object):
         tem_count = 0
         for bound_info in bound_order_names:
             if len(bound_info[2]) > 1:
-                nearest_b =  bound_info[:2] + [tem_count]
+                nearest_b = bound_info[:2] + [tem_count]
                 break
             tem_count += 1
         #page = 4
@@ -433,11 +433,16 @@ class Rider(object):
         nearest_bundle = 0 #Step 2 - 3 : 정보 저장 부분
         out_count = 0
         for outer_task in bound_order_names[page*l:]:
-            task = platform.platform[outer_task[0]]
-            if len(task.customers) > 1:
-                nearest_bundle = page*l + out_count
-                print('nearest_bundle:',nearest_bundle)
-                break
+            try:
+                task = platform.platform[outer_task[0]]
+                if len(task.customers) > 1:
+                    nearest_bundle = page * l + out_count
+                    print('nearest_bundle:', nearest_bundle)
+                    break
+            except:
+                print(outer_task[0])
+                print(len(platform.platform))
+                input('해당 주문이 없음')
             out_count += 1
         #Step 3 : 라이더가 각 task의 점수를 계산
         for task_info in considered_tasks:
@@ -673,6 +678,7 @@ class Rider(object):
             self.bundle_count.append(len(names))
             self.onhand_bundle = names
             self.selected_info.append([round(env.now, 2), names, 1])
+            print(names,route)
             #input('번들 선택')
         else:
             self.selected_info.append([round(env.now, 2), names, 0])
@@ -773,7 +779,7 @@ class Store(object):
     def __init__(self, env, platform, name, loc = (25,25), order_ready_time = 7, capacity = 6, slack = 2, print_para = True):
         self.name = name  # 각 고객에게 unique한 이름을 부여할 수 있어야 함. dict의 key와 같이
         self.rest_type = 0
-        self.temperature = 'Tepid'
+        self.temperature = 'T'
         self.location = loc
         self.order_ready_time = order_ready_time
         self.resource = simpy.Resource(env, capacity = capacity)
@@ -890,7 +896,7 @@ class Customer(object):
         self.name = name  # 각 고객에게 unique한 이름을 부여할 수 있어야 함. dict의 key와 같이
         self.time_info = [round(env.now, 2), None, None, None, None, end_time, ready_time, service_time, None]
         # [0 :발생시간, 1: 차량에 할당 시간, 2:차량에 실린 시간, 3:목적지 도착 시간,
-        # 4:고객이 받은 시간, 5: 보장 배송 시간, 6:가게 출발 시간),7: 고객에게 서비스 하는 시간, 8: 가게 도착 시간]
+        # 4:고객이 받은 시간, 5: 보장 배송 시간, 6:가게에서 소요되는 시간),7: 고객에게 서비스 하는 시간, 8: 가게 도착 시간]
         self.location = input_location
         self.store_loc = store_loc
         self.store = store
@@ -916,7 +922,7 @@ class Customer(object):
         self.food_wait = None
         self.service_time = service_time
         self.priority_weight = 1
-        self.cancel = True
+        self.cancel = False #todo 1109 기존 번들링에서는 발생 이후 다음 interval 부터 고려. But dynamic에서는 발생 후 바로 고려
         self.rider_bundle = [None, None]
         self.who_picked = []
         self.in_bundle_t = 0

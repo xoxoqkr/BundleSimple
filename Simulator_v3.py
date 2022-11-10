@@ -114,7 +114,7 @@ divide_option = True  # True : 구성된 번들에 속한 고객들을 다시 �
 p2_set = True
 rider_p2 = 2 #1.5
 platform_p2 = 2 # rider_p2*0.8  #1.3 p2_set이 False인 경우에는 p2만큼의 시간이 p2로 고정됨. #p2_set이 True인 경우에는 p2*dis(가게,고객)/speed 만큼이 p2시간으로 설정됨.
-customer_p2 = 1 #2
+customer_p2 = 4 #2
 obj_types = ['simple_max_s'] #['simple_max_s', 'max_s+probability', 'simple_over_lt','over_lt+probability'] #todo : 0317_수정본. min_pr을 무의미한 제약식으로 설정
 # order_p2 = [[1.5,2,3],[0.3,0.3,0.4]] #음식 별로 민감도가 차이남.
 wait_para = False  # True: 음식조리로 인한 대기시간 발생 #False : 음식 대기로 인한 대기시간 발생X
@@ -194,7 +194,7 @@ print('시나리오 확인3')
 print(heuristic_type)
 for sc3 in scenarios:
     #sc3.search_type = heuristic_type
-    sc3.platform_recommend = False
+    sc3.platform_recommend = True
     sc3.rider_bundle_construct = False
     print(sc3.platform_recommend, sc3.rider_bundle_construct,sc3.obj_type, sc3.search_type)
 scenarios = scenarios[:1]
@@ -209,11 +209,11 @@ for sc4 in scenarios:
 
 #dynamic 실험 관련 부분 #todo 1108 : 확인 필요
 run_time = 90
-dynamic_env = True
+dynamic_env = False
 dynamic_infos = [0,0,0,0,0,0,0]
 dynamic_infos[0] = platform_p2 #p2
 dynamic_infos[1] = True
-dynamic_infos[2] = True
+dynamic_infos[2] = True # feasible_return
 dynamic_infos[3] = 10 #min_time_buffer
 dynamic_infos[4] = 15 # max_dist
 dynamic_infos[5] = 8 # sort_index
@@ -349,7 +349,7 @@ for ite in exp_range:#range(0, 1):
                 env.process(OrdergeneratorByCSVForStressTest(env, Orders, Store_dict, stress_lamda, platform=Platform2,
                                                              p2_ratio=customer_p2, rider_speed=rider_speed,
                                                              unit_fee=unit_fee, fee_type=fee_type,
-                                                             output_data=CustomerCoord))
+                                                             output_data=CustomerCoord, cooktime_detail= None))
             env.process(RiderGenerator(env, Rider_dict, Platform2, Store_dict, Orders, capacity=rider_capacity, speed=rider_speed,working_duration=run_time, interval=0.01,
                            gen_num=stress_rider_num,  wait_para=wait_para, platform_recommend = sc.platform_recommend, input_order_select_type = order_select_type,
                                        bundle_construct= sc.rider_bundle_construct))
@@ -362,12 +362,13 @@ for ite in exp_range:#range(0, 1):
                                             platform_recommend = sc.platform_recommend, input_order_select_type = order_select_type, bundle_construct= sc.rider_bundle_construct,
                                             rider_num = rider_num, lamda_list=lamda_list, p2 = rider_p2, rider_select_print_fig = rider_select_print_fig,ite = rv_count, mix_ratio = sc.mix_ratio))
         #env.process(OrdergeneratorByCSV(env, sc.customer_dir, Orders, Store_dict, Platform2, p2_ratio = customer_p2,rider_speed= rider_speed, unit_fee = unit_fee, fee_type = fee_type, service_time_diff = service_time_diff))
-        env.process(Platform_process5(env, Platform2, Orders, Rider_dict, platform_p2,thres_p,interval, bundle_para= sc.platform_recommend, obj_type = sc.obj_type,
-                                      search_type = sc.search_type, print_fig = print_fig, bundle_print_fig = bundle_print_fig, bundle_infos = bundle_infos,
-                                      ellipse_w = ellipse_w, heuristic_theta = heuristic_theta,heuristic_r1 = heuristic_r1,XGBmodel3 = XGBmodel3, XGBmodel2 = XGBmodel2, thres_label = thres_label,
-                                      considered_customer_type = considered_customer_type, search_range_index= search_range_index, pr_para = pr_para, ML_Saved_Data_B2=ML_Saved_Data_B2,
-                                      ML_Saved_Data_B3=ML_Saved_Data_B3, fix_start = bundle_start_fix, ite = ite, cut_info3= cut_info3, cut_info2= cut_info2, stopping_index = stopping_index,
-                                      clustering = clustering_para, revise_type = revise_type_para, cut_infoC = cut_infoC, search_type2 = search_type2))
+        if dynamic_env == False:
+            env.process(Platform_process5(env, Platform2, Orders, Rider_dict, platform_p2,thres_p,interval, bundle_para= sc.platform_recommend, obj_type = sc.obj_type,
+                                          search_type = sc.search_type, print_fig = print_fig, bundle_print_fig = bundle_print_fig, bundle_infos = bundle_infos,
+                                          ellipse_w = ellipse_w, heuristic_theta = heuristic_theta,heuristic_r1 = heuristic_r1,XGBmodel3 = XGBmodel3, XGBmodel2 = XGBmodel2, thres_label = thres_label,
+                                          considered_customer_type = considered_customer_type, search_range_index= search_range_index, pr_para = pr_para, ML_Saved_Data_B2=ML_Saved_Data_B2,
+                                          ML_Saved_Data_B3=ML_Saved_Data_B3, fix_start = bundle_start_fix, ite = ite, cut_info3= cut_info3, cut_info2= cut_info2, stopping_index = stopping_index,
+                                          clustering = clustering_para, revise_type = revise_type_para, cut_infoC = cut_infoC, search_type2 = search_type2))
         env.run(run_time)
 
         res = ResultPrint(sc.name + str(ite), Orders, speed=rider_speed, riders = Rider_dict)

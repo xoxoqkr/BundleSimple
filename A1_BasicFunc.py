@@ -236,8 +236,8 @@ def FLT_Calculate(customer_in_order, customers, route, p2, except_names , M = 10
     for order_name in names:
         if order_name not in except_names:
             #rev_p2 = p2
-            #rev_p2 = customers[order_name].p2*p2 + customers[order_name].time_info[6] + customers[order_name].time_info[7] #todo : 시간에 민감한 부분.
-            rev_p2 = customers[order_name].p2 + customers[order_name].time_info[6] + customers[order_name].time_info[7] # todo : 221101실험을 현실적으로 변경. -> 고객 마다 p2가 달라짐.
+            rev_p2 = customers[order_name].p2*p2 + customers[order_name].time_info[6] + customers[order_name].time_info[7] #todo : 시간에 민감한 부분.
+            #rev_p2 = customers[order_name].p2 + customers[order_name].time_info[6] + customers[order_name].time_info[7] # todo : 221101실험을 현실적으로 변경. -> 고객 마다 p2가 달라짐.
             #input('p2 확인 1 :: {}'.format(rev_p2))
             if customers[order_name].time_info[2] != None:
                 #print('FLT 고려 대상 {} 시간 정보 {}'.format(order_name,customers[order_name].time_info))
@@ -656,7 +656,7 @@ def OrdergeneratorByCSVForStressTest(env, orders, stores, lamda, platform = None
                                cooking_time=cook_time, cook_info=[cook_time_type, cooking_time], platform = platform, unit_fee = unit_fee, fee_type = fee_type)
         #order.actual_cook_time = random.choice(stores[store_name].FRT)
         order.actual_cook_time = cook_time
-        order.dp_cook_time = cook_time
+        #order.dp_cook_time = cook_time
         order.dp_cook_time = 5*(1 + order.actual_cook_time//5)
         if cooktime_detail != None:
             order.temperature = store.temperature
@@ -917,23 +917,24 @@ def BundleExpValueCalculator(bundle_infos, rider_names, riders, orders, M = 1000
     for rider_name in rider_names:
         rider = riders[rider_name]
         for b_info in bundle_infos:
-            print(b_info)
-            input('check1234')
+            #print(b_info)
+            #input('check1234')
             start_order_name = b_info[0][0] - M
             if start_order_name < 0:
-                print(b_info)
-                input('minus value')
+                #print(b_info)
+                #input('minus value')
+                pass
             start_point = orders[start_order_name].store_loc
             try:
                 rider_end_loc = rider.route[-1][2]
-                print(1, rider_end_loc)
+                #print(1, rider_end_loc)
             except:
                 rider_end_loc = rider.visited_route[-1][2]
-                print(2, rider_end_loc)
+                #print(2, rider_end_loc)
             if len(rider_end_loc) != 2:
                 rider_end_loc = rider.visited_route[-1][2]
-            print(rider_end_loc, start_point)
-            input('노드 정보 확인')
+            #print(rider_end_loc, start_point)
+            #input('노드 정보 확인')
             dist = distance(rider_end_loc[0], rider_end_loc[1], start_point[0], start_point[1])
             if m_r != None and dist > m_r[rider_index][2]:
                 val = 0
