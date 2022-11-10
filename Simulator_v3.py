@@ -73,7 +73,7 @@ if save_data == True:
 
 cut_info3 = [12,24] # [12,24] [15,25] [7.5,10]#[7.5,10] #B3의 거리를 줄이는 함수
 cut_info2 = [100,100]#[10,10]#[10,10]
-stopping_index = 100 #40
+stopping_index = 15 #40
 clustering_para = True
 revise_type_para = 'stopping' #'stopping' ; 'cut_info';'cut_info2';
 cut_infoC = [100,100] #[8,16] #ConsideredCustomers 에서 잘리는 값 revise_type_para가 'cut_info';'cut_info2'; 경우에 작동
@@ -208,8 +208,8 @@ for sc4 in scenarios:
     print(sc4.platform_recommend, sc4.rider_bundle_construct, sc4.obj_type, sc4.search_type)
 
 #dynamic 실험 관련 부분 #todo 1108 : 확인 필요
-run_time = 90
-dynamic_env = False
+run_time = 20
+dynamic_env = True
 dynamic_infos = [0,0,0,0,0,0,0]
 dynamic_infos[0] = platform_p2 #p2
 dynamic_infos[1] = True
@@ -218,7 +218,7 @@ dynamic_infos[3] = 10 #min_time_buffer
 dynamic_infos[4] = 15 # max_dist
 dynamic_infos[5] = 8 # sort_index
 dynamic_infos[6] = False # fix_start
-
+pr_off = True
 
 #input('시나리오 확인')
 
@@ -344,7 +344,7 @@ for ite in exp_range:#range(0, 1):
                 env.process(OrdergeneratorByCSVForStressTestDynamic(env, Orders, Store_dict, stress_lamda, platform=Platform2,
                                                              p2_ratio=customer_p2, rider_speed=rider_speed,
                                                              unit_fee=unit_fee, fee_type=fee_type,
-                                                             output_data=CustomerCoord, dynamic_infos = dynamic_infos, riders = Rider_dict))
+                                                             output_data=CustomerCoord, dynamic_infos = dynamic_infos, riders = Rider_dict, pr_off= pr_off, end_t= run_time))
             else:
                 env.process(OrdergeneratorByCSVForStressTest(env, Orders, Store_dict, stress_lamda, platform=Platform2,
                                                              p2_ratio=customer_p2, rider_speed=rider_speed,

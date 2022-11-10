@@ -632,6 +632,8 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
         print('rebase 문제 풀이 시작; 대상 고객 :', len(rev_considered_customers_names))
         org_ct_num = copy.deepcopy(len(rev_considered_customers_names))
         processed, rev_considered_customers_names = RebaseCustomer1(rev_considered_customers_names, orders, r_inc=0.5, max_r=3, end_ite=10, num_thres=300)
+        print(rev_considered_customers_names)
+        #input('rebase확인')
         if processed == True:
             print('처리 필요 고객 수',len(rev_considered_customers_names))
             re_points = {}
@@ -647,23 +649,24 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
                     except:
                         re_points[tem[dict_name][0]] = []
                         re_points[tem[dict_name][0]] += tem[dict_name]
-
         if len(re_points) < org_ct_num:
             pass
         #print(re_points)
         #input('결과 확인')
         rev_considered_customers_names = list(re_points.keys())
+
+
     #단계2 시작
     consider_ct_num = len(rev_considered_customers_names)
     for customer_name in rev_considered_customers_names:
-        """
+
         try:
             belonged_cts = re_points[customer_name]
         except:
             belonged_cts = []
-        """
-        print(re_points)
-        belonged_cts = re_points[customer_name]
+
+        #print(re_points)
+        #belonged_cts = re_points[customer_name]
         start = time.time()
         start_test8 = time.time()
         target_order = orders[customer_name]
@@ -747,7 +750,7 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
             if len(b_infos) == 0:
                 continue
             print('가능한 번들 수::', len(b_infos))
-            input('확인456')
+            #input('확인456')
             for info in b_infos:
                 #print(b_infos)
                 #print(info)

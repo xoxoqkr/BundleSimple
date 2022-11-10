@@ -396,7 +396,7 @@ def BundleConsist2(orders, customers, p2, time_thres = 0, speed = 1,M = 10000, b
     if len(feasible_subset) > 0:
         feasible_subset.sort(key = operator.itemgetter(sort_index))
         if feasible_return == True:
-            print('반환 번들 수',len(feasible_subset), feasible_subset[:5])
+            #print('반환 번들 수',len(feasible_subset), feasible_subset[:5])
             return feasible_subset
         else:
             return [feasible_subset[0]]
