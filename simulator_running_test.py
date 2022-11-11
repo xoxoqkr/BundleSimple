@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 ##'Instance_random','Instance_cluster'
 import time
-
-from Simulator_v3 import dynamic_env
-
-run_time = 30
+#고객 주문이 발생하자 마자 바로 서비스 받을 수 있는 상태가 되는 경우 <- 이번 실험 상태
+#고객들의 주문이 발생 후 cancel == True인 상태에서 다음 interval이 되면 canceal = False가 되는 상황
+run_time = 120
 dir = "E:/python_백업/py_charm/BundleSimple/"
 infos = [[True,False],[False,True],[True,True], [False,False]] #Static, Dynamic, Hybrid, P2P
-for _ in range(1):
+for _ in range(20):
     for info in infos:
         s_t = time.time()
         try:

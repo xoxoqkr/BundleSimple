@@ -383,7 +383,6 @@ class Rider(object):
         time_check = []
         for index in platform.platform:
             task = platform.platform[index]
-
             cancel = False #todo : 0929 실험 환경 통제를 위한 조작
             for name in task.customers:
                 if customers[name].cancel == True:
@@ -923,7 +922,7 @@ class Customer(object):
         self.food_wait = None
         self.service_time = service_time
         self.priority_weight = 1
-        self.cancel = True #todo 1109 기존 번들링에서는 발생 이후 다음 interval 부터 고려. But dynamic에서는 발생 후 바로 고려
+        self.cancel = False #todo 1109 기존 번들링에서는 발생 이후 다음 interval 부터 고려. But dynamic에서는 발생 후 바로 고려
         self.rider_bundle = [None, None]
         self.who_picked = []
         self.in_bundle_t = 0

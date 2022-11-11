@@ -147,7 +147,7 @@ for sc1 in scenarios:
 for j in [True,False]:
     for k in obj_types: #[obj_types[1], obj_types[3]]:
         sc = scenario('{}:P:{}/R:{}'.format(str(sc_index), i, j))
-        global platform_recommend_input
+        #global platform_recommend_input
         sc.platform_recommend = platform_recommend_input
         sc.obj_type = k
         sc.rider_bundle_construct = j
@@ -194,7 +194,7 @@ print('시나리오 확인3')
 print(heuristic_type)
 
 print(platform_recommend_input)
-input('check')
+#input('check')
 for sc3 in scenarios:
     #sc3.search_type = heuristic_type
     sc3.platform_recommend = platform_recommend_input
