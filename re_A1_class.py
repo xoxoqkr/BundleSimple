@@ -748,9 +748,10 @@ class Rider(object):
             if tag == 'tr1':
                 pass
             else:
-                print(self.resource.users)
-                print(self.visited_route)
-                print(' T {} 출발 위치 에러 ; 마지막 노드 {};nodeA ; {}; tag {}; 실제 시간 {}; 라이더 ;{};checkt ;{}'.format(t_now, self.last_departure_loc,nodeA, tag, self.env.now, self.name, self.check_t))
+                #print(self.resource.users)
+                #print(self.visited_route)
+                #print(' T {} 출발 위치 에러 ; 마지막 노드 {};nodeA ; {}; tag {}; 실제 시간 {}; 라이더 ;{};checkt ;{}'.format(t_now, self.last_departure_loc,nodeA, tag, self.env.now, self.name, self.check_t))
+                print('T {} 출발 위치 에러 ;라이더 ;{};'.format(t_now, self.name))
             nodeB = self.last_departure_loc
         #print('Loc 정보 ::',nodeA, nodeB)
         if nodeA == nodeB:

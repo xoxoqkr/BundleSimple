@@ -212,7 +212,7 @@ run_time = 20
 dynamic_env = True
 dynamic_infos = [0,0,0,0,0,0,0]
 dynamic_infos[0] = platform_p2 #p2
-dynamic_infos[1] = True
+dynamic_infos[1] = True #bundle_permutation_option
 dynamic_infos[2] = True # feasible_return
 dynamic_infos[3] = 10 #min_time_buffer
 dynamic_infos[4] = 15 # max_dist
@@ -344,7 +344,8 @@ for ite in exp_range:#range(0, 1):
                 env.process(OrdergeneratorByCSVForStressTestDynamic(env, Orders, Store_dict, stress_lamda, platform=Platform2,
                                                              p2_ratio=customer_p2, rider_speed=rider_speed,
                                                              unit_fee=unit_fee, fee_type=fee_type,
-                                                             output_data=CustomerCoord, dynamic_infos = dynamic_infos, riders = Rider_dict, pr_off= pr_off, end_t= run_time))
+                                                             output_data=CustomerCoord, dynamic_infos = dynamic_infos, riders = Rider_dict, pr_off= pr_off, end_t= run_time,
+                                                                    dynamic_para = dynamic_env))
             else:
                 env.process(OrdergeneratorByCSVForStressTest(env, Orders, Store_dict, stress_lamda, platform=Platform2,
                                                              p2_ratio=customer_p2, rider_speed=rider_speed,
