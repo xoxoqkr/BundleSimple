@@ -923,7 +923,7 @@ class Customer(object):
         self.food_wait = None
         self.service_time = service_time
         self.priority_weight = 1
-        self.cancel = False #todo 1109 기존 번들링에서는 발생 이후 다음 interval 부터 고려. But dynamic에서는 발생 후 바로 고려
+        self.cancel = True #todo 1109 기존 번들링에서는 발생 이후 다음 interval 부터 고려. But dynamic에서는 발생 후 바로 고려
         self.rider_bundle = [None, None]
         self.who_picked = []
         self.in_bundle_t = 0
@@ -1004,6 +1004,8 @@ class scenario(object):
         self.mix_ratio = None
         self.countf = [0,0,0,0,0]
         self.countt = [0, 0, 0, 0, 0]
+        self.dynamic = False
+
 
 def WaitTimeCal1(exp_store_arrive_t, assign_t, exp_cook_time, cook_time, move_t = 0):
     exp_food_ready_t = assign_t + exp_cook_time

@@ -181,7 +181,7 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                 t_counter('test10', end_test10 - start_test10)
         loop_e = time.time()
         yield env.timeout(interval)
-        time.sleep(1)
+        #time.sleep(1)
         if len(sc_add_infos) > 4: #bubdleprocess 3 인 경우
             #old_b3 = sc_add_infos[5]
             print('고려된 고객 들',len(sc_add_infos[5]))

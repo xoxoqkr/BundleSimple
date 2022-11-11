@@ -26,13 +26,16 @@ import onnxruntime as rt
 from skl2onnx.common.shape_calculator import calculate_linear_classifier_output_shapes  # noqa
 from Simulator_fun_2207 import BundleFeaturesCalculator2
 import platform
-print(platform.architecture())
+#print(platform.architecture())
 #input('버전 확인')
 
 
 
 
-
+global run_time
+#run_time = 30
+global platform_recommend_input
+global dynamic_env
 """
 #global variable
 global instance_type
@@ -85,10 +88,6 @@ stress_lamda = 40 # 분당 주문 발생 수 # (2400/60)/5 #기준은 한 구에
 stress_rider_num = 320  #기준은 한 구에 400명
 # Parameter define
 interval = 5
-try:
-    global run_time
-except:
-    run_time = 90 # 120
 
 cool_time = 30  # run_time - cool_time 시점까지만 고객 생성
 uncertainty_para = True  # 음식 주문 불확실성 고려
@@ -148,7 +147,8 @@ for sc1 in scenarios:
 for j in [True,False]:
     for k in obj_types: #[obj_types[1], obj_types[3]]:
         sc = scenario('{}:P:{}/R:{}'.format(str(sc_index), i, j))
-        sc.platform_recommend = True
+        global platform_recommend_input
+        sc.platform_recommend = platform_recommend_input
         sc.obj_type = k
         sc.rider_bundle_construct = j
         scenarios.append(sc)
@@ -192,9 +192,12 @@ for count in range(len(scenarios)):
 """
 print('시나리오 확인3')
 print(heuristic_type)
+
+print(platform_recommend_input)
+input('check')
 for sc3 in scenarios:
     #sc3.search_type = heuristic_type
-    sc3.platform_recommend = True
+    sc3.platform_recommend = platform_recommend_input
     sc3.rider_bundle_construct = False
     print(sc3.platform_recommend, sc3.rider_bundle_construct,sc3.obj_type, sc3.search_type)
 scenarios = scenarios[:1]
@@ -208,8 +211,8 @@ for sc4 in scenarios:
     print(sc4.platform_recommend, sc4.rider_bundle_construct, sc4.obj_type, sc4.search_type)
 
 #dynamic 실험 관련 부분 #todo 1108 : 확인 필요
-run_time = 20
-dynamic_env = True
+run_time = 30
+#dynamic_env = False
 dynamic_infos = [0,0,0,0,0,0,0]
 dynamic_infos[0] = platform_p2 #p2
 dynamic_infos[1] = True #bundle_permutation_option
@@ -688,7 +691,7 @@ for sc in scenarios:
     #input(res_info)
     if print_count == 0:
         f3.write('considered_customer_type;{};search_range_index;{};pr_para;{}; \n'.format(considered_customer_type, search_range_index,pr_para))
-        head = '인스턴스종류;SC;번들탐색방식;연산시간(sec);플랫폼;라이더;라이더수;obj;전체 고객;서비스된 고객;서비스율;평균LT;평균FLT;직선거리 대비 증가분;원래 O-D길이;라이더 수익 분산;LT분산;' \
+        head = 'dynamic;sc.platform_recommend;인스턴스종류;SC;번들탐색방식;연산시간(sec);플랫폼;라이더;라이더수;obj;전체 고객;서비스된 고객;서비스율;평균LT;평균FLT;직선거리 대비 증가분;원래 O-D길이;라이더 수익 분산;LT분산;' \
                'OD증가수;OD증가 분산;OD평균;수행된 번들 수;수행된번들크기평균;b1;b2;b3;b4;b5;b수;p1;p2;p3;p4;p수;r1;r2;r3;r4;r5;r수;평균서비스시간;(테스트)음식 대기 시간;(테스트)버려진 음식 수;(테)음식대기;' \
                '(테)라이더대기;(테)15분이하 음식대기분;(테)15분이상 음식대기분;(테)15분이하 음식대기 수;(테)15분이상 음식대기 수;(테)라이더 대기 수;라이더평균운행시간;제안된 번들수;라이더수수료;size;length;ods;ellipse_w; ' \
                'heuristic_theta; heuristic_r1;rider_ratio;#dist;#bc1;#bc2;#dist(xgb);#t1;#t2;#t3'
@@ -698,8 +701,8 @@ for sc in scenarios:
         f3.write(head + '\n')
     ave_duration = sum(sc.durations)/len(sc.durations)
     try:
-        tem_data = '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};'.format(
-                instance_type , str(sc.name[0]),sc.search_type, ave_duration,sc.platform_recommend,sc.rider_bundle_construct,rider_num,sc.obj_type, res_info[0],res_info[1],
+        tem_data = '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};'.format(
+                dynamic_env, sc.platform_recommend,instance_type , str(sc.name[0]),sc.search_type, ave_duration,sc.platform_recommend,sc.rider_bundle_construct,rider_num,sc.obj_type, res_info[0],res_info[1],
                 res_info[2], res_info[3], res_info[4], res_info[5], res_info[6], res_info[7], res_info[8],res_info[9],res_info[10],res_info[11],res_info[12],res_info[13],
             res_info[14], res_info[15], res_info[16],res_info[17], res_info[18], res_info[19],res_info[20],res_info[21],res_info[22],res_info[23], res_info[24],res_info[25],
             res_info[26],res_info[27],res_info[28],res_info[29],res_info[30],res_info[31],res_info[32], res_info[33],res_info[34], res_info[35],res_info[36], res_info[37],res_info[38],res_info[39], res_info[40], res_info[41],

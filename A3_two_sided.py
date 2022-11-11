@@ -1206,7 +1206,7 @@ def OrdergeneratorByCSVForStressTestDynamic(env, orders, stores, lamda, platform
     :param interval: 주문 생성 간격
     :param runtime: 시뮬레이션 동작 시간
     """
-    yield env.timeout(5)
+    #yield env.timeout(5)
     save_txt = False
     t_info = {'CountActiveRider':[0,0],'DynamicBundleConstruct':[0,0],'SubF1_SingleCustomerBundleInsert':[0,0],'B2':[0,0],'B3':[0,0]}
     dist_distribution = np.random.poisson(20,7) #todo: 0915 거리 조절
