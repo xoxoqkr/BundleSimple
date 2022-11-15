@@ -473,14 +473,14 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
     start_time_sec = time.time()
     if len(X_test_np) > 0:
         tem_test = [[],[]]
-        cutter = 10000
+        cutter = 1000
         for tem_index in range(int(len(X_test_np)/cutter)+1):
             s_index = cutter * tem_index
             e_index = cutter * (tem_index + 1)
             tem_data = X_test_np[s_index: min(e_index, len(X_test_np))]
             print('작업 대상::',s_index,'~', min(e_index, len(X_test_np)))
-            tem_pred_onx = XGBmodel.run(None, {"feature_input": tem_data.astype(
-                np.float32)})  # Input must be a list of dictionaries or a single numpy array for input 'input'.
+            tem_pred_onx = XGBmodel.run(None, {"feature_input": tem_data.astype(np.float32)})  # Input must be a list of dictionaries or a single numpy array for input 'input'.
+            #tem_pred_onx = XGBmodel.run(None, {"feature_input": tem_data.astype(np.float32)}) <- ORG
             print(tem_pred_onx[0])
             print(list(tem_pred_onx[0]))
             print('고객 묶음 수',len(tem_pred_onx[0]))
@@ -1197,7 +1197,7 @@ def DynamicBundleConstruct(t_customer, customers, rider_names, riders, platform,
 
 def OrdergeneratorByCSVForStressTestDynamic(env, orders, stores, lamda, platform = None, p2_ratio = 1, rider_speed = 1, unit_fee = 110, fee_type = 'linear',
                                      output_data = None, cooktime_detail = None, cook_first = False, dynamic_infos = None, riders = None, pr_off = True, end_t = 90,
-                                            dynamic_para = False, customer_pend = False):
+                                            dynamic_para = False, customer_pend = False, search_range_index = 15):
     """
     Generate customer order
     :param env: Simpy Env
@@ -1326,6 +1326,35 @@ def OrdergeneratorByCSVForStressTestDynamic(env, orders, stores, lamda, platform
                 #input('new_bundle_info')
                 o = GenBundleOrder(task_index, new_bundle_info, orders, env.now, add_fee=0)
                 o.old_info = new_bundle_info
+                #todo 1115: exp rider 계산 추가 Start -> 부하가 매우 크게 발생할 것임.
+                active_rider_names, d_infos, times = CountActiveRider(riders, interval, min_pr=0.05, t_now=env.now,option='w', point_return=True, print_option=False)
+                # d_infos : 라이더가 주문을 선택할 지점 = 라이더가 주문을 완료하는 지점
+                tem_count = 0
+                search_index = search_range_index  # 이전에는 30
+                BundleCloseRider = {}
+                for p1 in d_infos:
+                    tem = []
+                    # BundleCloseRider[active_rider_names[tem_count]] = []
+                    for order_name in orders:
+                        order = orders[order_name]
+                        if order.time_info[1] == None and order.cancel == False:
+                            tem.append(
+                                [order.name, distance(p1[0], p1[1], order.store_loc[0], order.store_loc[1])])
+                            if tem_count == 0:
+                                BundleCloseRider[order.name] = []
+                    tem.sort(key=operator.itemgetter(1))
+                    try:
+                        for dist_info in tem[:min(search_index, len(tem) - 1)]:
+                            BundleCloseRider[dist_info[0]].append(active_rider_names[tem_count])
+                    except:
+                        pass
+                    tem_count += 1
+                tem_riders = []
+                for ct_name in new_bundle_info[4]:
+                    tem_riders += BundleCloseRider[ct_name]
+                tem_riders = list(set(tem_riders))
+                o.exp_riders = tem_riders
+                # todo 1115: exp rider 계산 추가 End
                 platform.platform[task_index] = o
                 task_index += 1
                 #input('번들 추가됨')

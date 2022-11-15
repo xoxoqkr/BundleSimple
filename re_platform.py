@@ -131,9 +131,9 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                         bundle_infos['length'].append(info[5])
                         bundle_infos['od'].append(ods)
                         #bundle_infos.append([len(info[4]), info[5], ods])
-                        tem_riders = []
+                        tem_riders = [] #todo 1115: 라이더 번들 상세
                         for ct_name in info[4]:
-                            tem_riders.append(BundleCloseRider[ct_name])
+                            tem_riders += BundleCloseRider[ct_name]
                         tem_riders = list(set(tem_riders))
                         o = GenBundleOrder(task_index, info, orders, env.now, add_fee= 0) #todo 0929 : 인위 장치
                         o.old_info = info
@@ -632,7 +632,7 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
                     BundleCloseRider[order.name] = []
         tem.sort(key=operator.itemgetter(1))
         try:
-            max_d = tem[min(search_index,len(tem) - 1)] #max_d : 라이더로 부터 search_index 까지 멀리 떨어진 지점의 이동시간
+            max_d = tem[min(search_index,len(tem) - 1)][1] #max_d : 라이더로 부터 search_index 까지 멀리 떨어진 지점의 이동시간
             for dist_info in tem[:min(search_index,len(tem) - 1)]:
                 BundleCloseRider[dist_info[0]].append(active_rider_names[tem_count])
         except:

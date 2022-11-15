@@ -37,6 +37,13 @@ global run_time
 global customer_pend
 global platform_recommend_input
 global dynamic_env
+
+"""
+run_time = 90
+customer_pend = False
+platform_recommend_input = True
+dynamic_env = False
+"""
 """
 #global variable
 global instance_type
@@ -235,12 +242,12 @@ pr_off = True
 if heuristic_type == 'XGBoost':
     see_dir = 'C:/Users/xoxoq/OneDrive/Ipython/handson-gb-main/handson-gb-main/Chapter05/'
     if instance_type == 'Instance_random':
-        sees2 = rt.InferenceSession(see_dir + r2_onx + '.onnx')  # "pipeline_xgboost2_r_2_ver3.onnx"
-        sess3 = rt.InferenceSession(see_dir + r3_onx + '.onnx')  #pipeline_xgboost2_r_3
+        sees2 = rt.InferenceSession(see_dir + r2_onx + '.onnx',providers=['CPUExecutionProvider'])  # "pipeline_xgboost2_r_2_ver3.onnx"
+        sess3 = rt.InferenceSession(see_dir + r3_onx + '.onnx',providers=['CPUExecutionProvider'])  #pipeline_xgboost2_r_3
         #sess3 = None
     else:
-        sees2 = rt.InferenceSession(see_dir + c2_onx + '.onnx')  # "pipeline_xgboost2_c_2_ver1.onnx"
-        sess3 = rt.InferenceSession(see_dir + c3_onx + '.onnx') #"pipeline_xgboost2_c_3_ver1.onnx"
+        sees2 = rt.InferenceSession(see_dir + c2_onx + '.onnx',providers=['CPUExecutionProvider'])  # "pipeline_xgboost2_c_2_ver1.onnx"
+        sess3 = rt.InferenceSession(see_dir + c3_onx + '.onnx',providers=['CPUExecutionProvider']) #"pipeline_xgboost2_c_3_ver1.onnx"
         #sess3 = None
     #pred_onx = sess.run(None, {"input": X_test1[:5].astype(numpy.float32)}) #Input must be a list of dictionaries or a single numpy array for input 'input'.
     #print("predict", pred_onx[0])
@@ -349,7 +356,7 @@ for ite in exp_range:#range(0, 1):
                                                              p2_ratio=customer_p2, rider_speed=rider_speed,
                                                              unit_fee=unit_fee, fee_type=fee_type,
                                                              output_data=CustomerCoord, dynamic_infos = dynamic_infos, riders = Rider_dict, pr_off= pr_off, end_t= run_time,
-                                                                    dynamic_para = dynamic_env, customer_pend = customer_pend))
+                                                                    dynamic_para = dynamic_env, customer_pend = customer_pend, search_range_index = stopping_index))
             else:
                 env.process(OrdergeneratorByCSVForStressTest(env, Orders, Store_dict, stress_lamda, platform=Platform2,
                                                              p2_ratio=customer_p2, rider_speed=rider_speed,
@@ -499,6 +506,7 @@ for ite in exp_range:#range(0, 1):
                     wait_time_per_customer))
         except:
             print('에러 발생으로 프린트 제거')
+            #input('WHY?')
         res_info = sc.res[-1]
         try:
             info = str(sc.name) + ';' + str(ite) + ';' + str(res_info[0]) + ';' + str(res_info[1]) + ';' + str(
@@ -565,7 +573,7 @@ for ite in exp_range:#range(0, 1):
                     snapshot_dict[snapshot_info[7]] += 1
                     near_bundle.append(snapshot_info[8])
             for b_info in Rider_dict[rider].bundles_infos:
-                sc.bundle_select_infos[b_info] += 1
+                sc.bundle_select_infos[b_info[1]] += 1
         num_bundles.append(num_bundle)
         if save_budnle_as_file == True:
             #번들 그림 확인.

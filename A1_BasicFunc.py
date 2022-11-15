@@ -135,6 +135,11 @@ def RouteTime(orders, route, M = 10000, speed = 1, uncertainty = False, error = 
     :param speed: rider speed
     :return: time : float
     """
+    if uncertainty == False:
+        exp_error = [1]
+    else:
+        exp_error = numpy.random.normal(1, 100)
+        input('By What?')
     time = 0
     locs = {}
     names = []
@@ -160,7 +165,7 @@ def RouteTime(orders, route, M = 10000, speed = 1, uncertainty = False, error = 
         af = route[index]
         #print(1, bf,af,time)
         af_loc = locs[af][0]
-        time += distance(bf_loc[0],bf_loc[1],af_loc[0],af_loc[1])/speed + locs[af][2]
+        time += (distance(bf_loc[0],bf_loc[1],af_loc[0],af_loc[1])/speed) * random.choice(exp_error) + locs[af][2]
         if af > M:
             for order in orders:
                 if order.name == af - M:

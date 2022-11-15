@@ -12,7 +12,7 @@ import numpy
 import matplotlib.pyplot as plt
 
 class Order(object):
-    def __init__(self, order_name, customer_names, route, order_type, fee = 0, parameter_info = [0,0,0], exp_riders = None):
+    def __init__(self, order_name, customer_names, route, order_type, fee = 0, parameter_info = [0,0,0]):
         self.index = order_name
         self.customers = customer_names
         self.route = route
@@ -23,7 +23,7 @@ class Order(object):
         self.parameter_info = parameter_info
         self.old_info = None
         self.gen_t = 0
-        self.exp_riders = exp_riders
+        self.exp_riders = []
 
 
 class Rider(object):
@@ -294,6 +294,8 @@ class Rider(object):
                     self.bundles_infos[-1].append(1)
                 else:
                     self.bundles_infos[-1].append(0)
+                #print(self.bundles_infos[-1])
+                #input('self.bundles_infos[-1]')
             elif order_info[8] == 'rider':
                 for customer_name in platform.platform[order_info[0]].customers:
                     customers[customer_name].rider_bundle_t = env.now
