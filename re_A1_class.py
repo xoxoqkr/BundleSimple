@@ -12,7 +12,7 @@ import numpy
 import matplotlib.pyplot as plt
 
 class Order(object):
-    def __init__(self, order_name, customer_names, route, order_type, fee = 0, parameter_info = [0,0,0]):
+    def __init__(self, order_name, customer_names, route, order_type, fee = 0, parameter_info = [0,0,0], exp_riders = None):
         self.index = order_name
         self.customers = customer_names
         self.route = route
@@ -23,6 +23,7 @@ class Order(object):
         self.parameter_info = parameter_info
         self.old_info = None
         self.gen_t = 0
+        self.exp_riders = exp_riders
 
 
 class Rider(object):
@@ -289,6 +290,10 @@ class Rider(object):
             if order_info[8] == 'platform' and len(order_info[5]) > 1:
                 self.b_select += 1
                 self.num_bundle_customer += len(order_info[5])
+                if self.name in platform.platform[order_info[0]].exp_riders:
+                    self.bundles_infos[-1].append(1)
+                else:
+                    self.bundles_infos[-1].append(0)
             elif order_info[8] == 'rider':
                 for customer_name in platform.platform[order_info[0]].customers:
                     customers[customer_name].rider_bundle_t = env.now
@@ -673,7 +678,8 @@ class Rider(object):
         self.pick_loc_history.append([env.now, self.CurrentLoc(env.now, tag = 'tr2')])
         names = order_info[5]
         if len(names) > 1:
-            self.bundles_infos.append(route)
+            saved_info = [route]
+            self.bundles_infos.append(saved_info)
             self.bundle_count.append(len(names))
             self.onhand_bundle = names
             self.selected_info.append([round(env.now, 2), names, 1])
@@ -750,7 +756,8 @@ class Rider(object):
                 #print(self.resource.users)
                 #print(self.visited_route)
                 #print(' T {} 출발 위치 에러 ; 마지막 노드 {};nodeA ; {}; tag {}; 실제 시간 {}; 라이더 ;{};checkt ;{}'.format(t_now, self.last_departure_loc,nodeA, tag, self.env.now, self.name, self.check_t))
-                print('T {} 출발 위치 에러 ;라이더 ;{};'.format(t_now, self.name))
+                #print('T {} 출발 위치 에러 ;라이더 ;{};'.format(t_now, self.name))
+                pass
             nodeB = self.last_departure_loc
         #print('Loc 정보 ::',nodeA, nodeB)
         if nodeA == nodeB:
@@ -776,7 +783,7 @@ class Store(object):
     Store can received the order.
     Store has capacity. The order exceed the capacity must be wait.
     """
-    def __init__(self, env, platform, name, loc = (25,25), order_ready_time = 7, capacity = 6, slack = 2, print_para = True):
+    def __init__(self, env, platform, name, loc = (25,25), order_ready_time = 7, capacity = 6, slack = 2, print_para = True, customer_pend = False):
         self.name = name  # 각 고객에게 unique한 이름을 부여할 수 있어야 함. dict의 key와 같이
         self.rest_type = 0
         self.temperature = 'T'
@@ -791,6 +798,7 @@ class Store(object):
         self.capacity = capacity
         self.FRT = [0]
         self.p2 = 1
+        self.customer_pend = customer_pend
         env.process(self.StoreRunner(env, platform, capacity = capacity, print_para= print_para))
 
 
@@ -823,7 +831,9 @@ class Store(object):
                 platform_exist_order = []
                 for index in platform.platform:
                     try:
-                        platform_exist_order += platform.platform[index].customers
+                        customer_names = platform.platform[index].customers
+                        if len(customer_names) == 1:
+                            platform_exist_order += platform.platform[index].customers
                     except:
                         print(' 에러 확인 용', platform.platform, index,platform.platform[index].customers)
                 #print('플랫폼에 있는 주문 {}'.format(platform_exist_order))
@@ -837,7 +847,7 @@ class Store(object):
                             order_index = 1
                         o = Order(order_index, [order.name],route,'single', fee = order.fee)
                         #print('주문 정보',o.index, o.customers, o.route, o.type)
-                        if o.customers[0] not in platform_exist_order:
+                        if self.customer_pend == False and o.customers[0] not in platform_exist_order:
                             #platform[order_index] = o
                             platform.platform[order_index] = o
                             print('T : {} 가게 {} 고객 {} 주문 인덱스 {}에 추가'.format(env.now, self.name, o.customers, o.index))
@@ -922,7 +932,7 @@ class Customer(object):
         self.food_wait = None
         self.service_time = service_time
         self.priority_weight = 1
-        self.cancel = False #todo 1109 기존 번들링에서는 발생 이후 다음 interval 부터 고려. But dynamic에서는 발생 후 바로 고려
+        self.cancel = True #todo 1109 기존 번들링에서는 발생 이후 다음 interval 부터 고려. But dynamic에서는 발생 후 바로 고려
         self.rider_bundle = [None, None]
         self.who_picked = []
         self.in_bundle_t = 0
@@ -1004,6 +1014,7 @@ class scenario(object):
         self.countf = [0,0,0,0,0]
         self.countt = [0, 0, 0, 0, 0]
         self.dynamic = False
+        self.bundle_select_infos = [0,0]
 
 
 def WaitTimeCal1(exp_store_arrive_t, assign_t, exp_cook_time, cook_time, move_t = 0):

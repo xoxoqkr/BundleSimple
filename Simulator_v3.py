@@ -16,7 +16,7 @@ from re_A1_class import scenario,Platform_pool
 from A1_BasicFunc import ResultSave, GenerateStoreByCSV, RiderGeneratorByCSV, OrdergeneratorByCSV, distance, counter, check_list, t_counter, GenerateStoreByCSVStressTest, OrdergeneratorByCSVForStressTest, RiderGenerator, counter2, SaveScenario
 from A2_Func import ResultPrint
 from A3_two_sided import OrdergeneratorByCSVForStressTestDynamic
-from re_platform import Platform_process5,Rider_Bundle_plt
+from re_platform import Platform_process5,Rider_Bundle_plt, DefreezeCustomers
 from datetime import datetime
 #import onnxmltools
 from onnxmltools.convert.xgboost.operator_converters.XGBoost import convert_xgboost  # noqa
@@ -34,6 +34,7 @@ import platform
 
 global run_time
 #run_time = 30
+global customer_pend
 global platform_recommend_input
 global dynamic_env
 """
@@ -211,7 +212,7 @@ for sc4 in scenarios:
     print(sc4.platform_recommend, sc4.rider_bundle_construct, sc4.obj_type, sc4.search_type)
 
 #dynamic 실험 관련 부분 #todo 1108 : 확인 필요
-run_time = 30
+#run_time = 30
 #dynamic_env = False
 dynamic_infos = [0,0,0,0,0,0,0]
 dynamic_infos[0] = platform_p2 #p2
@@ -341,19 +342,19 @@ for ite in exp_range:#range(0, 1):
         # run
         env = simpy.Environment()
         if setting == 'stresstest':
-            GenerateStoreByCSVStressTest(env, 200, Platform2, Store_dict, store_type=instance_type, ITE = ite, output_data= StoreCoord)
+            GenerateStoreByCSVStressTest(env, 200, Platform2, Store_dict, store_type=instance_type, ITE = ite, output_data= StoreCoord, customer_pend= customer_pend)
 
             if dynamic_env == True:
                 env.process(OrdergeneratorByCSVForStressTestDynamic(env, Orders, Store_dict, stress_lamda, platform=Platform2,
                                                              p2_ratio=customer_p2, rider_speed=rider_speed,
                                                              unit_fee=unit_fee, fee_type=fee_type,
                                                              output_data=CustomerCoord, dynamic_infos = dynamic_infos, riders = Rider_dict, pr_off= pr_off, end_t= run_time,
-                                                                    dynamic_para = dynamic_env))
+                                                                    dynamic_para = dynamic_env, customer_pend = customer_pend))
             else:
                 env.process(OrdergeneratorByCSVForStressTest(env, Orders, Store_dict, stress_lamda, platform=Platform2,
                                                              p2_ratio=customer_p2, rider_speed=rider_speed,
                                                              unit_fee=unit_fee, fee_type=fee_type,
-                                                             output_data=CustomerCoord, cooktime_detail= None))
+                                                             output_data=CustomerCoord, cooktime_detail= None, customer_pend = customer_pend))
             env.process(RiderGenerator(env, Rider_dict, Platform2, Store_dict, Orders, capacity=rider_capacity, speed=rider_speed,working_duration=run_time, interval=0.01,
                            gen_num=stress_rider_num,  wait_para=wait_para, platform_recommend = sc.platform_recommend, input_order_select_type = order_select_type,
                                        bundle_construct= sc.rider_bundle_construct))
@@ -366,13 +367,15 @@ for ite in exp_range:#range(0, 1):
                                             platform_recommend = sc.platform_recommend, input_order_select_type = order_select_type, bundle_construct= sc.rider_bundle_construct,
                                             rider_num = rider_num, lamda_list=lamda_list, p2 = rider_p2, rider_select_print_fig = rider_select_print_fig,ite = rv_count, mix_ratio = sc.mix_ratio))
         #env.process(OrdergeneratorByCSV(env, sc.customer_dir, Orders, Store_dict, Platform2, p2_ratio = customer_p2,rider_speed= rider_speed, unit_fee = unit_fee, fee_type = fee_type, service_time_diff = service_time_diff))
-        if dynamic_env == False:
+        if dynamic_env == False or sc.platform_recommend == True:
             env.process(Platform_process5(env, Platform2, Orders, Rider_dict, platform_p2,thres_p,interval, bundle_para= sc.platform_recommend, obj_type = sc.obj_type,
                                           search_type = sc.search_type, print_fig = print_fig, bundle_print_fig = bundle_print_fig, bundle_infos = bundle_infos,
                                           ellipse_w = ellipse_w, heuristic_theta = heuristic_theta,heuristic_r1 = heuristic_r1,XGBmodel3 = XGBmodel3, XGBmodel2 = XGBmodel2, thres_label = thres_label,
                                           considered_customer_type = considered_customer_type, search_range_index= search_range_index, pr_para = pr_para, ML_Saved_Data_B2=ML_Saved_Data_B2,
                                           ML_Saved_Data_B3=ML_Saved_Data_B3, fix_start = bundle_start_fix, ite = ite, cut_info3= cut_info3, cut_info2= cut_info2, stopping_index = stopping_index,
-                                          clustering = clustering_para, revise_type = revise_type_para, cut_infoC = cut_infoC, search_type2 = search_type2))
+                                          clustering = clustering_para, revise_type = revise_type_para, cut_infoC = cut_infoC, search_type2 = search_type2, customer_pend = customer_pend))
+        else:
+            env.process(DefreezeCustomers(env, Orders, Platform2, end_t = run_time, interval = interval, customer_pend = customer_pend))
         env.run(run_time)
 
         res = ResultPrint(sc.name + str(ite), Orders, speed=rider_speed, riders = Rider_dict)
@@ -561,6 +564,8 @@ for ite in exp_range:#range(0, 1):
                     #input('확인{}'.format(snapshot_info))
                     snapshot_dict[snapshot_info[7]] += 1
                     near_bundle.append(snapshot_info[8])
+            for b_info in Rider_dict[rider].bundles_infos:
+                sc.bundle_select_infos[b_info] += 1
         num_bundles.append(num_bundle)
         if save_budnle_as_file == True:
             #번들 그림 확인.
@@ -573,7 +578,7 @@ for ite in exp_range:#range(0, 1):
             print('페이지 밖 번들이 없음 {}'.format(near_bundle))
         print('번들 정보',snapshot_dict)
         #input('확인')
-        SaveScenario(sc, len(Rider_dict), instance_type, ite, considered_customer_type = considered_customer_type, search_range_index = search_range_index, pr_para = pr_para, add_info= [canceled_ct])
+        SaveScenario(sc, len(Rider_dict), instance_type, ite, considered_customer_type = considered_customer_type, search_range_index = search_range_index, pr_para = pr_para, add_info= [canceled_ct], dynamic=dynamic_env)
         #탐색한 번들 저장
         b_size = 2
         for ML_Saved_Data in [ML_Saved_Data_B2, ML_Saved_Data_B3]:
@@ -689,25 +694,26 @@ for sc in scenarios:
     offered_bundle_num = len(sc.bundle_snapshots['size'])
     #print(len(res_info))
     #input(res_info)
+    local_t = str(time.ctime(time.time()))
     if print_count == 0:
         f3.write('considered_customer_type;{};search_range_index;{};pr_para;{}; \n'.format(considered_customer_type, search_range_index,pr_para))
-        head = 'dynamic;sc.platform_recommend;인스턴스종류;SC;번들탐색방식;연산시간(sec);플랫폼;라이더;라이더수;obj;전체 고객;서비스된 고객;서비스율;평균LT;평균FLT;직선거리 대비 증가분;원래 O-D길이;라이더 수익 분산;LT분산;' \
+        head = 'local_t;customer_pend;dynamic;sc.platform_recommend;인스턴스종류;SC;번들탐색방식;연산시간(sec);플랫폼;라이더;라이더수;obj;전체 고객;서비스된 고객;서비스율;평균LT;평균FLT;직선거리 대비 증가분;원래 O-D길이;라이더 수익 분산;LT분산;' \
                'OD증가수;OD증가 분산;OD평균;수행된 번들 수;수행된번들크기평균;b1;b2;b3;b4;b5;b수;p1;p2;p3;p4;p수;r1;r2;r3;r4;r5;r수;평균서비스시간;(테스트)음식 대기 시간;(테스트)버려진 음식 수;(테)음식대기;' \
                '(테)라이더대기;(테)15분이하 음식대기분;(테)15분이상 음식대기분;(테)15분이하 음식대기 수;(테)15분이상 음식대기 수;(테)라이더 대기 수;라이더평균운행시간;제안된 번들수;라이더수수료;size;length;ods;ellipse_w; ' \
-               'heuristic_theta; heuristic_r1;rider_ratio;#dist;#bc1;#bc2;#dist(xgb);#t1;#t2;#t3'
+               'heuristic_theta; heuristic_r1;rider_ratio;#dist;#bc1;#bc2;#dist(xgb);#t1;#t2;#t3;예상O라이더 선택;예상X라이더 선택'
         #print('인스턴스종류;SC;번들탐색방식;연산시간(sec);플랫폼;라이더;obj;전체 고객;서비스된 고객;서비스율;평균LT;평균FLT;직선거리 대비 증가분;원래 O-D길이;라이더 수익 분산;LT분산;'
         #     'OD증가수;OD증가 분산;OD평균;수행된 번들 수;수행된번들크기평균;제안된 번들수;size;length;ods')
         print(head)
         f3.write(head + '\n')
     ave_duration = sum(sc.durations)/len(sc.durations)
     try:
-        tem_data = '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};'.format(
-                dynamic_env, sc.platform_recommend,instance_type , str(sc.name[0]),sc.search_type, ave_duration,sc.platform_recommend,sc.rider_bundle_construct,rider_num,sc.obj_type, res_info[0],res_info[1],
+        tem_data = '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};'.format(
+                local_t,customer_pend,dynamic_env, sc.platform_recommend,instance_type , str(sc.name[0]),sc.search_type, ave_duration,sc.platform_recommend,sc.rider_bundle_construct,rider_num,sc.obj_type, res_info[0],res_info[1],
                 res_info[2], res_info[3], res_info[4], res_info[5], res_info[6], res_info[7], res_info[8],res_info[9],res_info[10],res_info[11],res_info[12],res_info[13],
             res_info[14], res_info[15], res_info[16],res_info[17], res_info[18], res_info[19],res_info[20],res_info[21],res_info[22],res_info[23], res_info[24],res_info[25],
             res_info[26],res_info[27],res_info[28],res_info[29],res_info[30],res_info[31],res_info[32], res_info[33],res_info[34], res_info[35],res_info[36], res_info[37],res_info[38],res_info[39], res_info[40], res_info[41],
             offered_bundle_num,res_info[42], res_info[43], res_info[44],res_info[45],ellipse_w, heuristic_theta, heuristic_r1, sc.mix_ratio, sc.countf[0], sc.countf[1], sc.countf[2], sc.countf[3],
-        sc.countt[0], sc.countt[1],sc.countt[2])
+        sc.countt[0], sc.countt[1],sc.countt[2], sc.bundle_select_infos[0], sc.bundle_select_infos[1])
         """
         print(
             '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{}'.format(

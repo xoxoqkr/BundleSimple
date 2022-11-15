@@ -1196,7 +1196,8 @@ def DynamicBundleConstruct(t_customer, customers, rider_names, riders, platform,
         return -1, []
 
 def OrdergeneratorByCSVForStressTestDynamic(env, orders, stores, lamda, platform = None, p2_ratio = 1, rider_speed = 1, unit_fee = 110, fee_type = 'linear',
-                                     output_data = None, cooktime_detail = None, cook_first = False, dynamic_infos = None, riders = None, pr_off = True, end_t = 90, dynamic_para = False):
+                                     output_data = None, cooktime_detail = None, cook_first = False, dynamic_infos = None, riders = None, pr_off = True, end_t = 90,
+                                            dynamic_para = False, customer_pend = False):
     """
     Generate customer order
     :param env: Simpy Env
@@ -1251,7 +1252,7 @@ def OrdergeneratorByCSVForStressTestDynamic(env, orders, stores, lamda, platform
         order.actual_cook_time = cook_time
         order.dp_cook_time = cook_time
         order.dp_cook_time = 5*(1 + order.actual_cook_time//5)
-        order.cancel = False #주문이 생성되자 마자 수행될 수 있도록
+        order.cancel = True #주문이 생성되자 마자 수행될 수 있도록
         if cooktime_detail != None:
             order.temperature = store.temperature
             order.rest_type = store.rest_type
@@ -1259,17 +1260,18 @@ def OrdergeneratorByCSVForStressTestDynamic(env, orders, stores, lamda, platform
             order.temperature = 'T'
         if order.dp_cook_time >= 15 and cook_first == True:
             order.cooking_process = env.process(order.CookingFirst(env, order.actual_cook_time)) #todo : 15분 이상 음식은 미리 조리 시작
+        order.cancel = customer_pend
+        if customer_pend == False:
+            if len(list(platform.platform.keys())) > 0:
+                task_index = max(list(platform.platform.keys())) + 1
+            else:
+                task_index = 1
+            o = GenSingleOrder(task_index, order)  # todo 1115 : 주문을 추가
+            platform.platform[task_index] = o
         print('T {} 음식 {} 조리 확인/ 시간 {}'.format(int(env.now), order.name,order.actual_cook_time))
         orders[name] = order
         stores[store_name].received_orders.append(orders[name])
         interval = 1.0/lamda
-        #Order(order_index, [order.name], route, 'single', fee=order.fee)
-        if len(list(platform.platform.keys())) > 0:
-            task_index = max(list(platform.platform.keys())) + 1
-        else:
-            task_index = 1
-        o = GenSingleOrder(task_index, order)
-        platform.platform[task_index] = o
         #todo : 0317 지연되는 조건 생각할 것.
         if dynamic_para == True and dynamic_infos != None and riders != None:
             platform_interval = 5

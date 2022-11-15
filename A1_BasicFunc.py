@@ -409,7 +409,7 @@ def GenerateStoreByCSV(env, csv_dir, platform,Store_dict, mus = [5,10,15], std_r
         Store_dict[name] = store
 
 
-def GenerateStoreByCSVStressTest(env, num, platform,Store_dict, mus = [5,10,15], std_ratio = 0.2, store_type = 'Instance_random', ITE = 1, output_data = None, detail_pr = None):
+def GenerateStoreByCSVStressTest(env, num, platform,Store_dict, mus = [5,10,15], std_ratio = 0.2, store_type = 'Instance_random', ITE = 1, output_data = None, detail_pr = None, customer_pend = True):
     # detail_pr = [rest_type_list, pr_list, frt_list, temperature_list, p2_list] -> array
     #mus = [11.5,13.5,15.5]
     rest_type_check = []
@@ -426,9 +426,9 @@ def GenerateStoreByCSVStressTest(env, num, platform,Store_dict, mus = [5,10,15],
         #['name', 'start_loc_x', 'start_loc_y', 'order_ready_time', 'capacity', 'slack']
         name = count
         order_ready_time = 5
-        capacity = 2
+        capacity = 100
         slack = 2
-        store = re_A1_class.Store(env, platform, name, loc=loc, order_ready_time=order_ready_time, capacity=capacity, print_para=False, slack = slack)
+        store = re_A1_class.Store(env, platform, name, loc=loc, order_ready_time=order_ready_time, capacity=capacity, print_para=False, slack = slack, customer_pend= customer_pend)
         if name <= 4: #
             store.FRT = numpy.random.normal(mus[0], mus[0]*std_ratio, 1000)
         elif name <= 10:
@@ -606,7 +606,7 @@ def OrdergeneratorByCSV(env, csv_dir, orders, stores, platform = None, p2_ratio 
 
 
 def OrdergeneratorByCSVForStressTest(env, orders, stores, lamda, platform = None, p2_ratio = 1, rider_speed = 1, unit_fee = 110, fee_type = 'linear',
-                                     output_data = None, cooktime_detail = None, cook_first = False):
+                                     output_data = None, cooktime_detail = None, cook_first = False, customer_pend = False):
     """
     Generate customer order
     :param env: Simpy Env
@@ -644,7 +644,7 @@ def OrdergeneratorByCSVForStressTest(env, orders, stores, lamda, platform = None
             cook_time = numpy.random.choice(cooktime_detail[0], p = cooktime_detail[1]) # todo : 221101실험을 현실적으로 변경.
             p2_ratio2 = store.p2
         else:
-            cook_time = 3
+            cook_time = 7
             p2_ratio2 = p2_ratio
         OD_dist = distance(store_loc[0],store_loc[1], customer_loc[0],customer_loc[1])
         p2 = (OD_dist / rider_speed) * p2_ratio2 # todo : 221101실험을 현실적으로 변경.
@@ -665,6 +665,18 @@ def OrdergeneratorByCSVForStressTest(env, orders, stores, lamda, platform = None
             order.temperature = 'T'
         if order.dp_cook_time >= 15 and cook_first == True:
             order.cooking_process = env.process(order.CookingFirst(env, order.actual_cook_time)) #todo : 15분 이상 음식은 미리 조리 시작
+        order.cancel = customer_pend
+        if customer_pend == False:
+            if len(list(platform.platform.keys())) > 0:
+                task_index = max(list(platform.platform.keys())) + 1
+            else:
+                task_index = 1
+            platform_exp_error = 1
+            pool = numpy.random.normal(order.cook_info[1][0], order.cook_info[1][1] * platform_exp_error, 1000)
+            order.platform_exp_cook_time = random.choice(pool)
+            route = [[order.name, 0, order.store_loc, 0], [order.name, 1, order.location, 0]]
+            o = re_A1_class.Order(task_index, [order.name], route, 'single', fee=order.fee, parameter_info=None)
+            platform.platform[task_index] = o
         print('T {} 음식 {} 조리 확인/ 시간 {}'.format(int(env.now), order.name,order.actual_cook_time))
         orders[name] = order
         stores[store_name].received_orders.append(orders[name])
@@ -1039,7 +1051,7 @@ def PrintSearchCandidate(target_customer, res_C_T, now_t = 0, titleinfo = 'None'
 
 
 def SaveScenario(scenario, rider_num, instance_type, ite, ellipse_w = 'None', heuristic_theta= 'None', heuristic_r1 = 'None',count = 'None',considered_customer_type = 'all',
-                  search_range_index = 15, pr_para = False, add_info = [None,None] ):
+                  search_range_index = 15, pr_para = False, add_info = [None,None] , dynamic = False):
     print('"요약 정리/ 라이더 수 {}'.format(rider_num))
     print_count = 0
     f3 = open("결과저장_sc_저장.txt", 'a')
@@ -1086,7 +1098,7 @@ def SaveScenario(scenario, rider_num, instance_type, ite, ellipse_w = 'None', he
     #print(len(res_info))
     #input(res_info)
     if print_count == 0:
-        head = '인스턴스종류;SC;번들탐색방식;연산시간(sec);플랫폼;라이더;라이더수;obj;전체 고객;서비스된 고객;서비스율;평균LT;평균FLT;직선거리 대비 증가분;원래 O-D길이;라이더 수익 분산;LT분산;' \
+        head = 'dynamic;인스턴스종류;SC;번들탐색방식;연산시간(sec);플랫폼;라이더;라이더수;obj;전체 고객;서비스된 고객;서비스율;평균LT;평균FLT;직선거리 대비 증가분;원래 O-D길이;라이더 수익 분산;LT분산;' \
                'OD증가수;OD증가 분산;OD평균;수행된 번들 수;수행된번들크기평균;b1;b2;b3;b4;b5;b수;p1;p2;p3;p4;p수;r1;r2;r3;r4;r5;r수;평균서비스시간;(테스트)음식 대기 시간;(테스트)버려진 음식 수;(테)음식대기;' \
                '(테)라이더대기;(테)15분이하 음식대기분;(테)15분이상 음식대기분;(테)15분이하 음식대기 수;(테)15분이상 음식대기 수;(테)라이더 대기 수;라이더평균운행시간;제안된 번들수;라이더수수료;size;length;ods;ellipse_w; ' \
                'heuristic_theta; heuristic_r1;rider_ratio;#dist;#bc1;#bc2;#dist(xgb);#t1;#t2;#t3;#취소된 고객'
@@ -1096,8 +1108,8 @@ def SaveScenario(scenario, rider_num, instance_type, ite, ellipse_w = 'None', he
         f3.write(head + '\n')
     ave_duration = sc.durations[-1]
     try:
-        tem_data = '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};'.format(
-                instance_type , str(sc.name[0]),sc.search_type, ave_duration,sc.platform_recommend,sc.rider_bundle_construct,rider_num,sc.obj_type, res_info[0],res_info[1],
+        tem_data = '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};'.format(
+                dynamic, instance_type , str(sc.name[0]),sc.search_type, ave_duration,sc.platform_recommend,sc.rider_bundle_construct,rider_num,sc.obj_type, res_info[0],res_info[1],
                 res_info[2], res_info[3], res_info[4], res_info[5], res_info[6], res_info[7], res_info[8],res_info[9],res_info[10],res_info[11],res_info[12],res_info[13],
             res_info[14], res_info[15], res_info[16],res_info[17], res_info[18], res_info[19],res_info[20],res_info[21],res_info[22],res_info[23], res_info[24],res_info[25],
             res_info[26],res_info[27],res_info[28],res_info[29],res_info[30],res_info[31],res_info[32], res_info[33],res_info[34], res_info[35],res_info[36], res_info[37],res_info[38],res_info[39], res_info[40], res_info[41],

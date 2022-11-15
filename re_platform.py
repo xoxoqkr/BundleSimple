@@ -3,7 +3,7 @@ from numba import jit
 import time
 import math
 from A1_BasicFunc import PrintSearchCandidate, check_list, t_counter, counter2, counter
-from A2_Func import CountUnpickedOrders, CalculateRho, RequiredBreakBundleNum, BreakBundle, GenBundleOrder,  LamdaMuCalculate, NewCustomer, RebaseCustomer1, RebaseCustomer2
+from A2_Func import CountUnpickedOrders, CalculateRho, RequiredBreakBundleNum, BreakBundle, GenBundleOrder,  LamdaMuCalculate, NewCustomer, RebaseCustomer1, RebaseCustomer2, GenSingleOrder
 from A3_two_sided import BundleConsideredCustomers, CountActiveRider,  ConstructFeasibleBundle_TwoSided, SearchRaidar_heuristic, SearchRaidar_ellipse, SearchRaidar_ellipseMJ, XGBoost_Bundle_Construct
 import operator
 from Bundle_selection_problem import Bundle_selection_problem4
@@ -28,7 +28,7 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                       XGBmodel3 = None, XGBmodel2 = None, thres_label = 1, considered_customer_type = 'all',search_range_index = 15,
                       pr_para = False, ML_Saved_Data_B2 = [],ML_Saved_Data_B3 = [], fix_start = True, ite = 0,revise_type_para = None,
                       cut_info3 = [100,100], cut_info2= [100,100], stopping_index = 100, clustering = True, search_type2 = 'enumerate',
-                      revise_type = 'stopping', cut_infoC = [100,100]):
+                      revise_type = 'stopping', cut_infoC = [100,100], customer_pend = False):
     f = open("loop시간정보.txt", 'a')
     f.write('연산 시작; obj;{};searchTypt;{};threslabel;{};#Riders;{};ITE;{};'.format(obj_type,search_type,thres_label,len(riders), ite))
     f.write('\n')
@@ -60,7 +60,7 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                 #feasible_bundle_set, phi_b, d_matrix, s_b, D, lt_matrix = Bundle_Ready_Processs(env.now, platform, orders, riders, p2, interval,
                 #                                                                                speed = riders[0].speed, bundle_permutation_option= True, search_type = search_type, print_fig = print_fig,
                 #                                                                                ellipse_w = ellipse_w, heuristic_theta = heuristic_theta,heuristic_r1 = heuristic_r1)
-                feasible_bundle_set, phi_b, d_matrix, s_b, D, lt_matrix, act_considered_ct_num, label_infos, D_rev, sc_add_infos = Bundle_Ready_Processs2(
+                feasible_bundle_set, phi_b, d_matrix, s_b, D, lt_matrix, act_considered_ct_num, label_infos, D_rev, sc_add_infos, BundleCloseRider = Bundle_Ready_Processs2(
                     env.now, platform, orders, riders, p2, interval,
                     speed=riders[0].speed, bundle_permutation_option=True, search_type=search_type, print_fig=print_fig,
                     ellipse_w=ellipse_w, heuristic_theta=heuristic_theta, heuristic_r1=heuristic_r1,
@@ -94,7 +94,10 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                     unique_bundles.append(feasible_bundle_set[index])
                 print('문제 풀이 결과 {} '.format(unique_bundles[:10]))
                 # 번들을 업로드
-                task_index = max(list(platform.platform.keys())) + 1
+                if len(list(platform.platform.keys())) > 0:
+                    task_index = max(list(platform.platform.keys())) + 1
+                else:
+                    task_index = 1
                 unique_bundle_num = len(unique_bundles)
                 for info in feasible_bundle_set:
                     if len(info[4]) == 2:
@@ -128,8 +131,13 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                         bundle_infos['length'].append(info[5])
                         bundle_infos['od'].append(ods)
                         #bundle_infos.append([len(info[4]), info[5], ods])
+                        tem_riders = []
+                        for ct_name in info[4]:
+                            tem_riders.append(BundleCloseRider[ct_name])
+                        tem_riders = list(set(tem_riders))
                         o = GenBundleOrder(task_index, info, orders, env.now, add_fee= 0) #todo 0929 : 인위 장치
                         o.old_info = info
+                        o.exp_riders = tem_riders
                         platform.platform[task_index] = o
                         task_index += 1
                         seq_x = []
@@ -241,10 +249,34 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                           old_b3, fail_b3, duration_info,
                           mip_duration, label_infos, lens_b, num_const, act_considered_ct_num, unique_bundle_num,
                           len(active_rider_names), interval= interval)
-        for customer_name in orders:
-            customer = orders[customer_name]
-            if env.now - interval < customer.time_info[0] <= env.now:
-                customer.cancel = False
+        if customer_pend == True: #todo 1115 : 주문을 추가
+            for customer_name in orders: #고객들이 발생 후 5분 이후에 수행되도록 함.
+                customer = orders[customer_name]
+                if env.now - interval < customer.time_info[0] <= env.now:
+                    customer.cancel = False
+                    if len(list(platform.platform.keys())) > 0:
+                        task_index = max(list(platform.platform.keys())) + 1
+                    else:
+                        task_index = 1
+                    o = GenSingleOrder(task_index, customer)
+                    platform.platform[task_index] = o
+        print('Simulation Time : {}'.format(env.now))
+
+def DefreezeCustomers(env, orders, platform, end_t = 120, interval = 5, customer_pend = False):
+    yield env.timeout(5) #warm-up time
+    while env.now <= end_t:
+        yield env.timeout(interval)
+        if customer_pend == True:
+            for customer_name in orders:
+                customer = orders[customer_name]
+                if env.now - interval < customer.time_info[0] <= env.now:
+                    customer.cancel = False
+                    if len(list(platform.platform.keys())) > 0:
+                        task_index = max(list(platform.platform.keys())) + 1
+                    else:
+                        task_index = 1
+                    o = GenSingleOrder(task_index, customer)  # todo 1115 : 주문을 추가
+                    platform.platform[task_index] = o
         print('Simulation Time : {}'.format(env.now))
 
 def Platform_process6(env, platform, orders, riders, p2,thres_p,interval, end_t = 1000,
@@ -254,7 +286,7 @@ def Platform_process6(env, platform, orders, riders, p2,thres_p,interval, end_t 
                       XGBmodel3 = None, XGBmodel2 = None, thres_label = 1, considered_customer_type = 'all',search_range_index = 15,
                       pr_para = False, ML_Saved_Data_B2 = [],ML_Saved_Data_B3 = [], fix_start = True, ite = 0,revise_type_para = None,
                       cut_info3 = [100,100], cut_info2= [100,100], stopping_index = 100, clustering = True, search_type2 = 'enumerate',
-                      revise_type = 'stopping', cut_infoC = [100,100]):
+                      revise_type = 'stopping', cut_infoC = [100,100], customer_pend = False):
     f = open("loop시간정보.txt", 'a')
     f.write('연산 시작; obj;{};searchTypt;{};threslabel;{};#Riders;{};ITE;{};'.format(obj_type,search_type,thres_label,len(riders), ite))
     f.write('\n')
@@ -462,11 +494,19 @@ def Platform_process6(env, platform, orders, riders, p2,thres_p,interval, end_t 
                           old_b3, fail_b3, duration_info,
                           mip_duration, label_infos, lens_b, num_const, act_considered_ct_num, unique_bundle_num,
                           len(active_rider_names), interval= interval)
-        for customer_name in orders: #고객들이 발생 후 5분 이후에 수행되도록 함.
-            customer = orders[customer_name]
-            if env.now - interval < customer.time_info[0] <= env.now:
-                customer.cancel = False
+        if customer_pend == True: #todo 1115 : 주문을 추가
+            for customer_name in orders: #고객들이 발생 후 5분 이후에 수행되도록 함.
+                customer = orders[customer_name]
+                if env.now - interval < customer.time_info[0] <= env.now:
+                    customer.cancel = False
+                    if len(list(platform.platform.keys())) > 0:
+                        task_index = max(list(platform.platform.keys())) + 1
+                    else:
+                        task_index = 1
+                    o = GenSingleOrder(task_index, customer)
+                    platform.platform[task_index] = o
         print('Simulation Time : {}'.format(env.now))
+
 def Calculate_Phi(rider, customers, bundle_infos, l=4):
     #라이더와 번들들에 대해서, t시점에서 phi_b...r을 계산 할 것.
     dp_br = []
@@ -576,19 +616,25 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
     max_d_list = []
     tem_count = 0
     search_index = search_range_index #이전에는 30
+    BundleCloseRider = {}
     if search_type == 'XGBoost' and now_t >= 90: #밀도가 너무 커지면, search_range_index를 줄이는 과정이 필요
-        search_index = int(search_index*0.7)
+        search_index = search_index # int(search_index*0.7)
         #considered_customers_names = NewCustomer(orders, now_t, interval=interval)
         pass
     for p1 in d_infos:
         tem = []
+        #BundleCloseRider[active_rider_names[tem_count]] = []
         for order_name in orders:
             order = orders[order_name]
             if order.time_info[1] == None and order.cancel == False:
-                tem.append(distance(p1[0],p1[1], order.store_loc[0],order.store_loc[1])/speed)
-        tem.sort()
+                tem.append([order.name, distance(p1[0],p1[1], order.store_loc[0],order.store_loc[1])/speed])
+                if tem_count == 0:
+                    BundleCloseRider[order.name] = []
+        tem.sort(key=operator.itemgetter(1))
         try:
             max_d = tem[min(search_index,len(tem) - 1)] #max_d : 라이더로 부터 search_index 까지 멀리 떨어진 지점의 이동시간
+            for dist_info in tem[:min(search_index,len(tem) - 1)]:
+                BundleCloseRider[dist_info[0]].append(active_rider_names[tem_count])
         except:
             max_d = 10
         max_d_list += [[active_rider_names[tem_count], p1, max_d, times[tem_count]]]
@@ -610,7 +656,7 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
             BundleCheck.append([index, len(task.customers)])
             print('Index;{};Cts;{};picked;{};'.format(index, task.customers, task.picked))
     if len(BundleCheck) > 0:
-        input('T {};;번들 존재{}'.format(now_t, BundleCheck))
+        print('T {};;번들 존재{}'.format(now_t, BundleCheck))
     check_considered_customers = []
     check_label = numpy.array([])
     end_test7 = time.time()
@@ -957,7 +1003,7 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
     end_test6 = time.time()
     t_counter('test6', end_test6 - start_test6)
     add_info_return = [consider_ct_num , consider_ct_search_num, sucess_info_b3_DD, sucess_info_b3_OO]
-    return Feasible_bundle_set, phi_b, d_matrix, s_matrix, D, lt_vector, len(check_considered_customers), res_label_count, D_rev, add_info_return
+    return Feasible_bundle_set, phi_b, d_matrix, s_matrix, D, lt_vector, len(check_considered_customers), res_label_count, D_rev, add_info_return, BundleCloseRider
 
 
 def Break_the_bundle(platform, orders, org_bundle_num, rev_bundle_num):
@@ -975,8 +1021,8 @@ def Rider_Bundle_plt(rider):
         #nodes = []
         #for info in bundle_info:
         #    nodes.append(info[2])
-        print('Title:{}save_name/Route:{}'.format(save_name,bundle_info))
-        Bundle_plot(bundle_info, save_name)
+        print('Title:{}save_name/Route:{}'.format(save_name,bundle_info[0]))
+        Bundle_plot(bundle_info[0], save_name)
         count += 1
         #input('확인2')
 def Bundle_plot(bundle_points, save_name='nan'):
