@@ -431,7 +431,7 @@ def GenerateStoreByCSVStressTest(env, num, platform,Store_dict, mus = [5,10,15],
         #['name', 'start_loc_x', 'start_loc_y', 'order_ready_time', 'capacity', 'slack']
         name = count
         order_ready_time = 5
-        capacity = 100
+        capacity = 10
         slack = 2
         store = re_A1_class.Store(env, platform, name, loc=loc, order_ready_time=order_ready_time, capacity=capacity, print_para=False, slack = slack, customer_pend= customer_pend)
         if name <= 4: #

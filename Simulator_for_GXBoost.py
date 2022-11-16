@@ -89,20 +89,23 @@ stress_lamda = 5 # 분당 주문 발생 수 # (2400/60)/5 #기준은 한 구에 
 orders, stores, customers = OrderGen(store_dir, customer_dir, store_size = 100, customer_size = 1000, order_size = 1000, coor_random = True)
 
 #todo : 실험 환경 현실화
-store_detail = []
-store_detail1 = [[1,0.232477446,'M','W',2],[2,0.164469119,'H','W',1.5],[3,0.121790423,'H','W',2],[4,0.104094379,'M','T',2],[5,0.078764747,'M','T',2],[6,0.065579459,'M','T',2],
- [7,0.06315059,'M','C',2],[8,0.042678695,'M','T',3],[9,0.027758501,'L','C',2],[10,0.023247745,'M','W',2],[11,0.019777932,'H','T',2],
- [12,0.015961138,'M','T',2],[13,0.012838307,'H','W',2],[14,0.0111034,'L','C',2],[15,0.00832755,'M','T',2.5],[16,0.007980569,'M','C',3]]
-# detail_pr = [rest_type_list, pr_list, frt_list, temperature_list, p2_list] -> array
-for index in [0,1,2,3,4]:
-    tem = []
-    for info in store_detail1:
-        tem.append(info[index])
-    store_detail.append(tem)
-if sum(store_detail[1]) != 1:
-    rev_pr = 1 - sum(store_detail[:-1])
-    store_detail[-1] = rev_pr
-
+StoreDetailPara = False
+if StoreDetailPara == True:
+    store_detail = []
+    store_detail1 = [[1,0.232477446,'M','W',2],[2,0.164469119,'H','W',1.5],[3,0.121790423,'H','W',2],[4,0.104094379,'M','T',2],[5,0.078764747,'M','T',2],[6,0.065579459,'M','T',2],
+     [7,0.06315059,'M','C',2],[8,0.042678695,'M','T',3],[9,0.027758501,'L','C',2],[10,0.023247745,'M','W',2],[11,0.019777932,'H','T',2],
+     [12,0.015961138,'M','T',2],[13,0.012838307,'H','W',2],[14,0.0111034,'L','C',2],[15,0.00832755,'M','T',2.5],[16,0.007980569,'M','C',3]]
+    # detail_pr = [rest_type_list, pr_list, frt_list, temperature_list, p2_list] -> array
+    for index in [0,1,2,3,4]:
+        tem = []
+        for info in store_detail1:
+            tem.append(info[index])
+        store_detail.append(tem)
+    if sum(store_detail[1]) != 1:
+        rev_pr = 1 - sum(store_detail[:-1])
+        store_detail[-1] = rev_pr
+else:
+    store_detail = None
 #평균 조리 시간	분산(분)	비율(%)
 #5	0.25	0.154639175
 #10	0.5	0.463917526
@@ -110,10 +113,15 @@ if sum(store_detail[1]) != 1:
 #20	1	0.103092784
 #25	1.25	0.051546392
 #30	1.5	0.020618557
-cook1 = [0.1546, 0.4639,0.2061,0.1030,0.0515, 0.02061]
-CookTimeDetail_pr = cook1[:-1] + [float(1 - sum(cook1[:-1]))]
-CookTimeDetail = [[5,10,15,20,25,30], CookTimeDetail_pr] #[5,10,15,20,25,30]
-
+cookdetail = False
+if cookdetail == True:
+    cook1 = [0.1546, 0.4639,0.2061,0.1030,0.0515, 0.02061]
+    CookTimeDetail_pr = cook1[:-1] + [float(1 - sum(cook1[:-1]))]
+    CookTimeDetail = [[5,10,15,20,25,30], CookTimeDetail_pr] #[5,10,15,20,25,30]
+else:
+    cook1 = None
+    CookTimeDetail_pr = None
+    CookTimeDetail = None
 #실험 환경 현실화 끝
 
 for data in stores:

@@ -1028,7 +1028,7 @@ def SubF1_SingleCustomerBundleInsert(t_customer, customers, input_bundle_info, r
 
 def DynamicBundleConstruct(t_customer, customers, rider_names, riders, platform, now_t, p2=2, stopping = 15,
                            bundle_permutation_option=False,feasible_return=False, min_time_buffer=10, max_dist=15, sort_index=8, fix_start=False,
-                           pr_off = True, check_info = None, dec_ratio = 0.5):
+                           pr_off = True, check_info = None, dec_ratio = 0.5, insert_para = True, new_para = True):
     """
     Dynamic 연산 수행 function
     @param t_customer: 새로 발생한 고객  class
@@ -1056,80 +1056,82 @@ def DynamicBundleConstruct(t_customer, customers, rider_names, riders, platform,
         rider_speed = 1
     #1 기존 번들에 삽입 될 수 있을까?
     res1 =  []
-    for task_index in platform.platform:
-        task = platform.platform[task_index]
-        if len(task.customers) > 1: #번들
-            #print('task.old_info',task.old_info)
-            s_time1 = time.time()
-            tem = SubF1_SingleCustomerBundleInsert(t_customer, customers, task.old_info, rider_names, riders, p2=p2, pr_off = pr_off)
-            e_time1 = time.time()
-            try:
-                check_info['SubF1_SingleCustomerBundleInsert'][0] += 1
-                check_info['SubF1_SingleCustomerBundleInsert'][1] += (e_time1 - s_time1)
-            except:
-                pass
-            if len(tem) > 0:
-                #print('tem', tem)
-                #input('tem확인1')
-                tem.append(task.index)
-                res1.append(tem)
-            #tem 구조 :  [info_index, b_info, rev_cost, rev_likely2choose, org_cost - rev_cost, rev_likely2choose - org_likely2choose, task.index] #b_info는 BundleConsist2의 반환 값
-    #2 새로운 번들로 구성될 수 있을까?
-    considered_customers = BundleConsideredCustomers(t_customer, platform, riders, customers, speed=rider_speed, stopping=stopping, revise_type = 'stopping', except_target_order= True) #todo : 확인 할 것
-    #2-1 B3 계산
-    s_time2 = time.time()
-    count = 0
-    M2 = itertools.permutations(considered_customers, 2)
-    res2_3 = []
-    for subset in M2:
-        subset_orders = [t_customer]
-        for name in subset:
-            subset_orders.append(customers[name])
-        tem = BundleConsist2(subset_orders, customers, p2, speed=rider_speed, bundle_permutation_option=bundle_permutation_option,feasible_return=feasible_return,
-                             now_t=now_t, min_time_buffer=min_time_buffer, max_dist=max_dist*dec_ratio, sort_index=sort_index, fix_start=fix_start)
-        if tem != []:
-            if pr_off == False:
-                likely_to_choose = max(BundleExpValueCalculator(tem, rider_names, riders, customers))
-            else:
-                likely_to_choose = 1
-            tem.append(likely_to_choose)
-            res2_3.append(tem)
-            #print('추가됨33', tem)
-        count += 1
-    B3_count = copy.deepcopy(count)
-    e_time2 = time.time()
-    try:
-        check_info['B3'][0] += count
-        check_info['B3'][1] += (e_time2 - s_time2)
-    except:
-        pass
-    #2-2 B2 계산
-    res2_2 = []
-    s_time3 = time.time()
-    M2 = itertools.permutations(considered_customers, 1)
-    if len(list(M2)) != len(considered_customers) or B3_count < len(list(M2)):
-        print('길이 확인!',B3_count, len(list(M2)), len(considered_customers))
-    """
-    """
-    for subset in M2:
-        subset_orders = [t_customer]
-        for name in subset:
-            subset_orders.append(customers[name])
-        #tem = BundleConsist2(subset_orders, customers, p2, speed=rider_speed, bundle_permutation_option=bundle_permutation_option,feasible_return=feasible_return,
-        #                     now_t=now_t, min_time_buffer=min_time_buffer, max_dist=max_dist, sort_index=sort_index, fix_start=fix_start)
-        tem = []
-        if tem != []:
-            if pr_off == False:
-                likely_to_choose = max(BundleExpValueCalculator(tem, rider_names, riders, customers))
-            else:
-                likely_to_choose = 1
-            #print(tem, likely_to_choose)
-            tem.append(likely_to_choose)
-            res2_2.append(tem)
-            #print('추가됨22', tem)
-        count += 1
+    if insert_para == True:
+        for task_index in platform.platform:
+            task = platform.platform[task_index]
+            if len(task.customers) > 1: #번들
+                #print('task.old_info',task.old_info)
+                s_time1 = time.time()
+                tem = SubF1_SingleCustomerBundleInsert(t_customer, customers, task.old_info, rider_names, riders, p2=p2, pr_off = pr_off)
+                e_time1 = time.time()
+                try:
+                    check_info['SubF1_SingleCustomerBundleInsert'][0] += 1
+                    check_info['SubF1_SingleCustomerBundleInsert'][1] += (e_time1 - s_time1)
+                except:
+                    pass
+                if len(tem) > 0:
+                    #print('tem', tem)
+                    #input('tem확인1')
+                    tem.append(task.index)
+                    res1.append(tem)
+                #tem 구조 :  [info_index, b_info, rev_cost, rev_likely2choose, org_cost - rev_cost, rev_likely2choose - org_likely2choose, task.index] #b_info는 BundleConsist2의 반환 값
+    if new_para == True:
+        #2 새로운 번들로 구성될 수 있을까?
+        considered_customers = BundleConsideredCustomers(t_customer, platform, riders, customers, speed=rider_speed, stopping=stopping, revise_type = 'stopping', except_target_order= True) #todo : 확인 할 것
+        #2-1 B3 계산
+        s_time2 = time.time()
+        count = 0
+        M2 = itertools.permutations(considered_customers, 2)
+        res2_3 = []
+        for subset in M2:
+            subset_orders = [t_customer]
+            for name in subset:
+                subset_orders.append(customers[name])
+            tem = BundleConsist2(subset_orders, customers, p2, speed=rider_speed, bundle_permutation_option=bundle_permutation_option,feasible_return=feasible_return,
+                                 now_t=now_t, min_time_buffer=min_time_buffer, max_dist=max_dist*dec_ratio, sort_index=sort_index, fix_start=fix_start)
+            if tem != []:
+                if pr_off == False:
+                    likely_to_choose = max(BundleExpValueCalculator(tem, rider_names, riders, customers))
+                else:
+                    likely_to_choose = 1
+                tem.append(likely_to_choose)
+                res2_3.append(tem)
+                #print('추가됨33', tem)
+            count += 1
+        B3_count = copy.deepcopy(count)
+        e_time2 = time.time()
+        try:
+            check_info['B3'][0] += count
+            check_info['B3'][1] += (e_time2 - s_time2)
+        except:
+            pass
+        #2-2 B2 계산
+        res2_2 = []
+        s_time3 = time.time()
+        M2 = itertools.permutations(considered_customers, 1)
+        if len(list(M2)) != len(considered_customers) or B3_count < len(list(M2)):
+            print('길이 확인!',B3_count, len(list(M2)), len(considered_customers))
+        """
+        """
+        for subset in M2:
+            subset_orders = [t_customer]
+            for name in subset:
+                subset_orders.append(customers[name])
+            #tem = BundleConsist2(subset_orders, customers, p2, speed=rider_speed, bundle_permutation_option=bundle_permutation_option,feasible_return=feasible_return,
+            #                     now_t=now_t, min_time_buffer=min_time_buffer, max_dist=max_dist, sort_index=sort_index, fix_start=fix_start)
+            tem = []
+            if tem != []:
+                if pr_off == False:
+                    likely_to_choose = max(BundleExpValueCalculator(tem, rider_names, riders, customers))
+                else:
+                    likely_to_choose = 1
+                #print(tem, likely_to_choose)
+                tem.append(likely_to_choose)
+                res2_2.append(tem)
+                #print('추가됨22', tem)
+            count += 1
 
-    e_time3 = time.time()
+        e_time3 = time.time()
     try:
         check_info['B2'][0] += count
         check_info['B2'][1] += (e_time3 - s_time3)
@@ -1223,7 +1225,7 @@ def OrdergeneratorByCSVForStressTestDynamic(env, orders, stores, lamda, platform
             num = 0
             while num < 1000:
                 customer_loc = [store_loc[0] + round(req_dist*math.cos(angle),4),store_loc[1] + round(req_dist*math.sin(angle),4) ]
-                if customer_loc[0] <= 50 and customer_loc[1] <= 50 and store_loc != customer_loc:
+                if 0 <= customer_loc[0] <= 50 and 0 <= customer_loc[1] <= 50 and store_loc != customer_loc:
                     break
                 num += 1
             if num == 1000:
@@ -1248,12 +1250,11 @@ def OrdergeneratorByCSVForStressTestDynamic(env, orders, stores, lamda, platform
         #order = A1_Class.Customer(env, name, input_location, store=store_num, store_loc=store_loc, p2=p2,
         #                       cooking_time=cook_time, cook_info=[cook_time_type, cooking_time])
         order = re_A1_class.Customer(env, name, customer_loc, store=store_name, store_loc=store_loc, p2=this_p2,
-                               cooking_time=cook_time, cook_info=[cook_time_type, cooking_time], platform = platform, unit_fee = unit_fee, fee_type = fee_type)
+                               cooking_time=cook_time, cook_info=[cook_time_type, cooking_time], platform = platform, unit_fee = unit_fee, fee_type = fee_type, cancel_input= customer_pend)
         #order.actual_cook_time = random.choice(stores[store_name].FRT)
         order.actual_cook_time = cook_time
         order.dp_cook_time = cook_time
         order.dp_cook_time = 5*(1 + order.actual_cook_time//5)
-        order.cancel = True #주문이 생성되자 마자 수행될 수 있도록
         if cooktime_detail != None:
             order.temperature = store.temperature
             order.rest_type = store.rest_type
@@ -1261,12 +1262,14 @@ def OrdergeneratorByCSVForStressTestDynamic(env, orders, stores, lamda, platform
             order.temperature = 'T'
         if order.dp_cook_time >= 15 and cook_first == True:
             order.cooking_process = env.process(order.CookingFirst(env, order.actual_cook_time)) #todo : 15분 이상 음식은 미리 조리 시작
-        order.cancel = customer_pend
         if customer_pend == False:
             if len(list(platform.platform.keys())) > 0:
                 task_index = max(list(platform.platform.keys())) + 1
             else:
                 task_index = 1
+            platform_exp_error = 1
+            pool = np.random.normal(order.cook_info[1][0], order.cook_info[1][1] * platform_exp_error, 1000)
+            order.platform_exp_cook_time = random.choice(pool)
             o = GenSingleOrder(task_index, order)  # todo 1115 : 주문을 추가
             platform.platform[task_index] = o
         print('T {} 음식 {} 조리 확인/ 시간 {}'.format(int(env.now), order.name,order.actual_cook_time))
@@ -1381,11 +1384,18 @@ def OrdergeneratorByCSVForStressTestDynamic(env, orders, stores, lamda, platform
             print('현재 T :{} / 마지막 고객 {} 생성'.format(int(env.now), name))
             pass
         if env.now > end_t - 5*(1.0/lamda) and save_txt == False:
+            tem_od_dist = []
+            for order_name in orders:
+                order = orders[order_name]
+                tem_dist = distance(order.store_loc[0], order.store_loc[1], order.location[0], order.location[1])
+                tem_od_dist.append(tem_dist)
+            od_dist = sum(tem_od_dist)/len(tem_od_dist)
             f = open('E:/python_백업/py_charm/BundleSimple/log_dynamic.txt','a')
             vals = []
             for key in t_info:
                 vals += t_info[key]
             f.write('CountActiveRider;t;DynamicBundleConstruct;t;SubF1_SingleCustomerBundleInsert;t;B2;t;B3;t; \n')
             f.write('{};{};{};{};{};{};{};{};{};{}; \n'.format(vals[0],vals[1],vals[2],vals[3],vals[4],vals[5],vals[6],vals[7],vals[8],vals[9]))
+            f.write('T;{};고객 수;{};평균 거리;{}; \n'.format(time.localtime(time.time()),len(orders), od_dist))
             f.close()
             save_txt = True

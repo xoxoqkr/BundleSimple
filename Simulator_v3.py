@@ -84,11 +84,11 @@ if save_data == True:
 manual_cook_time = 7 #음식 조리 시간
 cut_info3 = [12,24] # [12,24] [15,25] [7.5,10]#[7.5,10] #B3의 거리를 줄이는 함수
 cut_info2 = [100,100]#[10,10]#[10,10]
-stopping_index = 15 #40
+stopping_index = 20 #40
 clustering_para = True
 revise_type_para = 'stopping' #'stopping' ; 'cut_info';'cut_info2';
 cut_infoC = [100,100] #[8,16] #ConsideredCustomers 에서 잘리는 값 revise_type_para가 'cut_info';'cut_info2'; 경우에 작동
-search_type2 = 'XGBoost' #'XGBoost'#'enumerate'
+search_type2 = 'XGBoost' #'XGBoost'#'enumerate' -> 실제로 XGBoost냐 Enumerate냐를 결정
 
 
 setting = 'stresstest'
@@ -350,18 +350,31 @@ for ite in exp_range:#range(0, 1):
         env = simpy.Environment()
         if setting == 'stresstest':
             GenerateStoreByCSVStressTest(env, 200, Platform2, Store_dict, store_type=instance_type, ITE = ite, output_data= StoreCoord, customer_pend= customer_pend)
-
+            env.process(
+                OrdergeneratorByCSVForStressTestDynamic(env, Orders, Store_dict, stress_lamda, platform=Platform2,
+                                                        customer_p2=customer_p2, platform_p2=platform_p2,
+                                                        rider_speed=rider_speed,
+                                                        unit_fee=unit_fee, fee_type=fee_type,
+                                                        output_data=CustomerCoord, dynamic_infos=dynamic_infos,
+                                                        riders=Rider_dict, pr_off=pr_off, end_t=run_time,
+                                                        dynamic_para=dynamic_env, cooktime_detail=None,
+                                                        customer_pend=customer_pend,
+                                                        manual_cook_time=manual_cook_time,
+                                                        search_range_index=stopping_index))
+            """
             if dynamic_env == True:
                 env.process(OrdergeneratorByCSVForStressTestDynamic(env, Orders, Store_dict, stress_lamda, platform=Platform2,
                                                              customer_p2=customer_p2, platform_p2= platform_p2,rider_speed=rider_speed,
                                                              unit_fee=unit_fee, fee_type=fee_type,
                                                              output_data=CustomerCoord, dynamic_infos = dynamic_infos, riders = Rider_dict, pr_off= pr_off, end_t= run_time,
-                                                                    dynamic_para = dynamic_env, customer_pend = customer_pend, search_range_index = stopping_index, manual_cook_time = manual_cook_time))
+                                                                    dynamic_para = dynamic_env, cooktime_detail= None, customer_pend = customer_pend, 
+                                                                    manual_cook_time = manual_cook_time, search_range_index = stopping_index))
             else:
                 env.process(OrdergeneratorByCSVForStressTest(env, Orders, Store_dict, stress_lamda, platform=Platform2,
                                                              p2_ratio=customer_p2, rider_speed=rider_speed,
                                                              unit_fee=unit_fee, fee_type=fee_type,
                                                              output_data=CustomerCoord, cooktime_detail= None, customer_pend = customer_pend, manual_cook_time = manual_cook_time))
+            """
             env.process(RiderGenerator(env, Rider_dict, Platform2, Store_dict, Orders, capacity=rider_capacity, speed=rider_speed,working_duration=run_time, interval=0.01,
                            gen_num=stress_rider_num,  wait_para=wait_para, platform_recommend = sc.platform_recommend, input_order_select_type = order_select_type,
                                        bundle_construct= sc.rider_bundle_construct))
@@ -382,7 +395,7 @@ for ite in exp_range:#range(0, 1):
                                           ML_Saved_Data_B3=ML_Saved_Data_B3, fix_start = bundle_start_fix, ite = ite, cut_info3= cut_info3, cut_info2= cut_info2, stopping_index = stopping_index,
                                           clustering = clustering_para, revise_type = revise_type_para, cut_infoC = cut_infoC, search_type2 = search_type2, customer_pend = customer_pend))
         else:
-            env.process(DefreezeCustomers(env, Orders, Platform2, end_t = run_time, interval = interval, customer_pend = customer_pend))
+            env.process(DefreezeCustomers(env, Orders, Rider_dict, Platform2, end_t = run_time, interval = interval, customer_pend = customer_pend))
         env.run(run_time)
 
         res = ResultPrint(sc.name + str(ite), Orders, speed=rider_speed, riders = Rider_dict)

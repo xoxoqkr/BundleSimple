@@ -263,7 +263,7 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                     platform.platform[task_index] = o
         print('Simulation Time : {}'.format(env.now))
 
-def DefreezeCustomers(env, orders, platform, end_t = 120, interval = 5, customer_pend = False):
+def DefreezeCustomers(env, orders, riders, platform, end_t = 120, interval = 5, customer_pend = False):
     f = open('dynamic_loop.txt', 'a')
     f.write('Start 현재시간;{}; \n'.format(time.localtime(time.time())))
     f.write('T;Total;B2;B3; \n')
@@ -298,6 +298,7 @@ def DefreezeCustomers(env, orders, platform, end_t = 120, interval = 5, customer
         f.write('{};{};{};{}; \n'.format(int(env.now), active_bundle_infos[0],active_bundle_infos[1],active_bundle_infos[2]))
         f.close()
         print('Simulation Time : {}'.format(env.now))
+        BundleInfoHandle2(riders, orders, env.now, interval=interval)
 
 def Platform_process6(env, platform, orders, riders, p2,thres_p,interval, end_t = 1000,
                       divide_option = False,unserved_bundle_order_break = True, bundle_para = False,
@@ -1140,4 +1141,51 @@ def BundleInfoHandle1(riders, orders, now_t, considered_customer_type, search_ra
         info += 'None'
     f.write(info)
     f.write('\n')
+    f.close()
+
+def BundleInfoHandle2(riders, orders, now_t, considered_customer_type= None, search_range_index = None, pr_para = None, interval = 5):
+    # 번들 정보 확인
+    # [self.name, now_t, page,l, len(bundle_values) - 1, max_bundle_value, max_single_value, type, nearest_bundle, nearest_bundle_page]
+    see_bundle_infos = []
+    see_bundle_infos_vals = []
+    in_bundle_infos = []
+    select_normal_cts = []
+    for rider_name in riders:
+        rider = riders[rider_name]
+        try:
+            current_select_info = rider.snapshots[-1]
+            if now_t - interval <= current_select_info[1]:
+                if current_select_info[4] > 0:
+                    see_bundle_infos.append([rider.name, current_select_info[4]])
+                    see_bundle_infos_vals.append(current_select_info[4])
+                    if current_select_info[5] > current_select_info[6]:
+                        in_bundle_infos.append([rider.name, current_select_info[4]])
+                else:
+                    select_normal_cts.append([rider.name, current_select_info[1]])
+        except:
+            continue
+        if now_t - interval <= rider.pick_loc_history[-1][0]:
+            print('라이더 {} ; 위치 {} 에서 주문 선택; 시간 {};'.format(rider.name, rider.pick_loc_history[-1][1],
+                                                           rider.pick_loc_history[-1][0]))
+    f = open("loop시간정보.txt", 'a')
+    if now_t < 6 + interval:
+        f.write('Dynamic_Search considered_customer_type;{};search_range_index;{};pr_para;{}; \n'.format(considered_customer_type,
+                                                                                          search_range_index, pr_para))
+        head_str = '라이더 중 탐색 시 번들을 본 라이더 수;라이더가 확인한 번들 평균 수;번들을 선택한 수;단건 주문 선택 수;\n'
+        f.write(head_str)
+    info = ''
+    unselected_num = 0
+    undone_num = 0
+    for order_name in orders:
+        if orders[order_name].time_info[1] == None:
+            unselected_num += 1
+        if orders[order_name].time_info[4] == None:
+            undone_num += 1
+    if len(see_bundle_infos) > 0:
+        info += '{};{};{};'.format(len(see_bundle_infos), sum(see_bundle_infos_vals) / len(see_bundle_infos_vals),
+                                   len(in_bundle_infos))
+    else:
+        info += 'None;None;None;'
+    info += '{};'.format(len(select_normal_cts))
+    f.write(info + '\n')
     f.close()

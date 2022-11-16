@@ -837,7 +837,8 @@ class Store(object):
                         if len(customer_names) == 1:
                             platform_exist_order += platform.platform[index].customers
                     except:
-                        print(' 에러 확인 용', platform.platform, index,platform.platform[index].customers)
+                        #print(' 에러 확인 용', platform.platform, index,platform.platform[index].customers)
+                        pass
                 #print('플랫폼에 있는 주문 {}'.format(platform_exist_order))
                 if received_orders_num > 0:
                     for count in range(min(slack,received_orders_num)):
@@ -865,7 +866,7 @@ class Store(object):
                 #print("가게", self.name, '/',"여유 X", len(self.resource.users),'/주문대기중',len(self.received_orders))
                 pass
             #만약 현재 조리 큐가 꽉차는 경우에는 주문을 더이상 처리하지 X
-            yield env.timeout(0.1)
+            yield env.timeout(1)
         #print("T",int(env.now),"접수 된 주문", self.received_orders)
 
 
@@ -904,7 +905,7 @@ class Store(object):
 
 class Customer(object):
     def __init__(self, env, name, input_location, store = 0, store_loc = (25, 25),end_time = 60, ready_time=0, service_time=2,
-                 fee = 2500, p2 = 15, cooking_time = (2,5), cook_info = (None, None), platform = None, unit_fee = 110, fee_type = 'linear'):
+                 fee = 2500, p2 = 15, cooking_time = (2,5), cook_info = (None, None), platform = None, unit_fee = 110, fee_type = 'linear', cancel_input = False):
         self.name = name  # 각 고객에게 unique한 이름을 부여할 수 있어야 함. dict의 key와 같이
         self.time_info = [round(env.now, 2), None, None, None, None, end_time, ready_time, service_time, None]
         # [0 :발생시간, 1: 차량에 할당 시간, 2:차량에 실린 시간, 3:목적지 도착 시간,
@@ -934,7 +935,7 @@ class Customer(object):
         self.food_wait = None
         self.service_time = service_time
         self.priority_weight = 1
-        self.cancel = True #todo 1109 기존 번들링에서는 발생 이후 다음 interval 부터 고려. But dynamic에서는 발생 후 바로 고려
+        self.cancel = cancel_input #todo 1109 기존 번들링에서는 발생 이후 다음 interval 부터 고려. But dynamic에서는 발생 후 바로 고려
         self.rider_bundle = [None, None]
         self.who_picked = []
         self.in_bundle_t = 0
