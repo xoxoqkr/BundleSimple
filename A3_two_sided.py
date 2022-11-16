@@ -473,21 +473,22 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
     start_time_sec = time.time()
     if len(X_test_np) > 0:
         tem_test = [[],[]]
-        cutter = 1000
+        cutter = 100
         for tem_index in range(int(len(X_test_np)/cutter)+1):
             s_index = cutter * tem_index
             e_index = cutter * (tem_index + 1)
             tem_data = X_test_np[s_index: min(e_index, len(X_test_np))]
             print('작업 대상::',s_index,'~', min(e_index, len(X_test_np)))
-            tem_pred_onx = XGBmodel.run(None, {"feature_input": tem_data.astype(np.float32)})  # Input must be a list of dictionaries or a single numpy array for input 'input'.
-            #tem_pred_onx = XGBmodel.run(None, {"feature_input": tem_data.astype(np.float32)}) <- ORG
-            print(tem_pred_onx[0])
-            print(list(tem_pred_onx[0]))
-            print('고객 묶음 수',len(tem_pred_onx[0]))
-            #print(tem_pred_onx[1])
-            print('cutter', sum(tem_pred_onx[0]))
-            #input('확인4678')
-            tem_test[0] += list(tem_pred_onx[0])
+            if len(tem_data) > 0:
+                tem_pred_onx = XGBmodel.run(None, {"feature_input": tem_data.astype(np.float32)})  # Input must be a list of dictionaries or a single numpy array for input 'input'.
+                #tem_pred_onx = XGBmodel.run(None, {"feature_input": tem_data.astype(np.float32)}) <- ORG
+                print(tem_pred_onx[0])
+                print(list(tem_pred_onx[0]))
+                print('고객 묶음 수',len(tem_pred_onx[0]))
+                #print(tem_pred_onx[1])
+                print('cutter', sum(tem_pred_onx[0]))
+                #input('확인4678')
+                tem_test[0] += list(tem_pred_onx[0])
         pred_onx = tem_test
         """
         pred_onx = XGBmodel.run(None, {"feature_input": X_test_np.astype(np.float32)})  # Input must be a list of dictionaries or a single numpy array for input 'input'.
@@ -1289,75 +1290,91 @@ def OrdergeneratorByCSVForStressTestDynamic(env, orders, stores, lamda, platform
             sort_index = dynamic_infos[5]
             fix_start = dynamic_infos[6]
             s_time = time.time()
-            b_type, new_bundle_info1 = DynamicBundleConstruct(orders[name], orders, active_rider_names, riders, platform, env.now, p2=p2, stopping=15,
-                                   bundle_permutation_option=bundle_permutation_option, feasible_return=feasible_return, min_time_buffer=min_time_buffer,
-                                   max_dist=max_dist, sort_index=sort_index, fix_start=fix_start, pr_off= pr_off, check_info= t_info)
-            e_time = time.time()
-            t_info['DynamicBundleConstruct'][0] += 1
-            t_info['DynamicBundleConstruct'][1] += (e_time - s_time)
-            if b_type == 0:
-                new_bundle_info = new_bundle_info1[1]
-            elif b_type == 1 or b_type == 2:
-                new_bundle_info = new_bundle_info1[0]
-            else:
-                new_bundle_info = []
-            #플랫폼에 order 추가
-            if len(new_bundle_info) > 0:
-                # 겹치는 번들 삭제
-                #print(new_bundle_info)
-                #input("new_bundle_info")
-                del_task_indexs = []
-                for task in platform.platform:
-                    check_task = platform.platform[task]
-                    if len(check_task.customers) > 1:
-                        for ct_name in check_task.customers:
-                            if ct_name in new_bundle_info[4]:
-                                del_task_indexs.append(check_task.index)
-                                break
-                for del_index in del_task_indexs:
-                    print('기존 B 삭제', platform.platform[del_index].customers)
-                    del platform.platform[del_index]
-                #새로운 번들 추가
-                if len(list(platform.platform.keys())) > 0:
-                    task_index = max(list(platform.platform.keys())) + 1
+            #이 고객이 active rider와 가까이 있는지를 확인해 볼 것
+            tem_count = 0
+            search_index = search_range_index  # 이전에는 30
+            BundleCloseRider = {}
+            max_ds = []
+            for p1 in d_infos:
+                tem = []
+                # BundleCloseRider[active_rider_names[tem_count]] = []
+                for order_name in orders:
+                    order = orders[order_name]
+                    if order.time_info[1] == None and order.cancel == False:
+                        tem.append(
+                            [order.name, distance(p1[0], p1[1], order.store_loc[0], order.store_loc[1])])
+                        if tem_count == 0:
+                            BundleCloseRider[order.name] = []
+                tem.sort(key=operator.itemgetter(1))
+                try:
+                    max_d = tem[min(search_index, len(tem) - 1)][1]  # max_d : 라이더로 부터 search_index 까지 멀리 떨어진 지점의 이동시간
+                    for dist_info in tem[:min(search_index, len(tem) - 1)]:
+                        BundleCloseRider[dist_info[0]].append(active_rider_names[tem_count])
+                except:
+                    max_d = 10
+                    pass
+                max_ds.append([active_rider_names[tem_count],max_d])
+                tem_count += 1
+            dynamic_run = False
+            for index_1 in range(d_infos):
+                if distance(d_infos[index_1][0], d_infos[index_1][1], order.store_loc[0], order.store_loc[1]) <= max_ds[index_1]:
+                    dynamic_run = True
+                    break
+            if dynamic_run == True:
+                b_type, new_bundle_info1 = DynamicBundleConstruct(orders[name], orders, active_rider_names, riders, platform, env.now, p2=p2, stopping=15,
+                                       bundle_permutation_option=bundle_permutation_option, feasible_return=feasible_return, min_time_buffer=min_time_buffer,
+                                       max_dist=max_dist, sort_index=sort_index, fix_start=fix_start, pr_off= pr_off, check_info= t_info)
+                e_time = time.time()
+                t_info['DynamicBundleConstruct'][0] += 1
+                t_info['DynamicBundleConstruct'][1] += (e_time - s_time)
+                if b_type == 0:
+                    new_bundle_info = new_bundle_info1[1]
+                elif b_type == 1 or b_type == 2:
+                    new_bundle_info = new_bundle_info1[0]
                 else:
-                    task_index = 1
-                print(b_type, new_bundle_info)
-                #input('new_bundle_info')
-                o = GenBundleOrder(task_index, new_bundle_info, orders, env.now, add_fee=0)
-                o.old_info = new_bundle_info
-                #todo 1115: exp rider 계산 추가 Start -> 부하가 매우 크게 발생할 것임.
-                active_rider_names, d_infos, times = CountActiveRider(riders, interval, min_pr=0.05, t_now=env.now,option='w', point_return=True, print_option=False)
-                # d_infos : 라이더가 주문을 선택할 지점 = 라이더가 주문을 완료하는 지점
-                tem_count = 0
-                search_index = search_range_index  # 이전에는 30
-                BundleCloseRider = {}
-                for p1 in d_infos:
-                    tem = []
-                    # BundleCloseRider[active_rider_names[tem_count]] = []
-                    for order_name in orders:
-                        order = orders[order_name]
-                        if order.time_info[1] == None and order.cancel == False:
-                            tem.append(
-                                [order.name, distance(p1[0], p1[1], order.store_loc[0], order.store_loc[1])])
-                            if tem_count == 0:
-                                BundleCloseRider[order.name] = []
-                    tem.sort(key=operator.itemgetter(1))
-                    try:
-                        for dist_info in tem[:min(search_index, len(tem) - 1)]:
-                            BundleCloseRider[dist_info[0]].append(active_rider_names[tem_count])
-                    except:
-                        pass
-                    tem_count += 1
-                tem_riders = []
-                for ct_name in new_bundle_info[4]:
-                    tem_riders += BundleCloseRider[ct_name]
-                tem_riders = list(set(tem_riders))
-                o.exp_riders = tem_riders
-                # todo 1115: exp rider 계산 추가 End
-                platform.platform[task_index] = o
-                task_index += 1
-                #input('번들 추가됨')
+                    new_bundle_info = []
+                #플랫폼에 order 추가
+                if len(new_bundle_info) > 0:
+                    # 겹치는 번들 삭제
+                    #print(new_bundle_info)
+                    #input("new_bundle_info")
+                    del_task_indexs = []
+                    for task in platform.platform:
+                        check_task = platform.platform[task]
+                        if len(check_task.customers) > 1:
+                            for ct_name in check_task.customers:
+                                if ct_name in new_bundle_info[4]:
+                                    del_task_indexs.append(check_task.index)
+                                    break
+                    for del_index in del_task_indexs:
+                        print('기존 B 삭제', platform.platform[del_index].customers)
+                        del platform.platform[del_index]
+                    #새로운 번들 추가
+                    if len(list(platform.platform.keys())) > 0:
+                        task_index = max(list(platform.platform.keys())) + 1
+                    else:
+                        task_index = 1
+                    print(b_type, new_bundle_info)
+                    #input('new_bundle_info')
+                    o = GenBundleOrder(task_index, new_bundle_info, orders, env.now, add_fee=0)
+                    o.old_info = new_bundle_info
+                    #todo 1115: exp rider 계산 추가 Start -> 부하가 매우 크게 발생할 것임.
+                    #active_rider_names, d_infos, times = CountActiveRider(riders, interval, min_pr=0.05, t_now=env.now,option='w', point_return=True, print_option=False)
+                    # d_infos : 라이더가 주문을 선택할 지점 = 라이더가 주문을 완료하는 지점
+                    tem_riders = []
+                    for ct_name in new_bundle_info[4]:
+                        try:
+                            tem_riders += BundleCloseRider[ct_name]
+                        except:
+                            print(ct_name)
+                            print(list(BundleCloseRider.keys()))
+                            #input('왜 없나?')
+                    tem_riders = list(set(tem_riders))
+                    o.exp_riders = tem_riders
+                    # todo 1115: exp rider 계산 추가 End
+                    platform.platform[task_index] = o
+                    task_index += 1
+                    #input('번들 추가됨')
         if interval > 0:
             yield env.timeout(interval)
         else:

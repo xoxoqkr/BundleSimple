@@ -277,6 +277,14 @@ def DefreezeCustomers(env, orders, platform, end_t = 120, interval = 5, customer
                         task_index = 1
                     o = GenSingleOrder(task_index, customer)  # todo 1115 : 주문을 추가
                     platform.platform[task_index] = o
+        #발생 후 15분 이상 대기 중인 번들은 삭제
+        del_task_indexs = []
+        for task_index in platform.platform:
+            task = platform.platform[task_index]
+            if len(task.customers) > 1 and env.now - task.gen_t > 15:
+                del_task_indexs.append(task.index)
+        for task_index in del_task_indexs:
+            del platform.platform[task_index]
         print('Simulation Time : {}'.format(env.now))
 
 def Platform_process6(env, platform, orders, riders, p2,thres_p,interval, end_t = 1000,

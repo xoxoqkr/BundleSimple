@@ -10,7 +10,7 @@ import numpy as np
 import simpy
 import random
 
-from sympy import cancel
+#from sympy import cancel
 
 from re_A1_class import scenario,Platform_pool
 from A1_BasicFunc import ResultSave, GenerateStoreByCSV, RiderGeneratorByCSV, OrdergeneratorByCSV, distance, counter, check_list, t_counter, GenerateStoreByCSVStressTest, OrdergeneratorByCSVForStressTest, RiderGenerator, counter2, SaveScenario
@@ -478,9 +478,13 @@ for ite in exp_range:#range(0, 1):
             #input('라이더 선택 확인2')
             plt.close()
             rider_moving_time.append(check_t)
+        print('시나리오 결과 정리 시작')
         ave_moving_t = np.mean(rider_moving_time)
+        print(sc.res)
+        print(sc.res[-1])
         sc.res[-1].append(ave_moving_t)
         sc.res[-1].append(np.mean(rider_fee))
+        print('아마도 에러..?')
         for info in check_data:
             print(info)
         wait_time_per_customer = bundle_store_wait_time + single_store_wait_time

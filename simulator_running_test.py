@@ -7,16 +7,17 @@ run_time = 120
 customer_pend_options = [False,True]
 dir = "E:/python_백업/py_charm/BundleSimple/"
 basic_infos = [[False,False],[False,True],[True,False],[True,True]] #P2P,Dynamic,Static,Hybrid,
-basic_infos = [[True,False]] #
+#basic_infos = [[False,True]] #
 infos = []
 
-for info in basic_infos:
-    for customer_pend in customer_pend_options:
+for customer_pend in customer_pend_options:
+    for info in basic_infos:
         infos.append(info + [customer_pend])
+
 print(infos)
 input('info 확인')
-for info in infos:
-    for _ in range(10):
+for ite in range(1):
+    for info in infos:
         s_t = time.time()
         exec(open(dir + 'Simulator_v3.py', encoding='UTF8').read(),
              globals().update(run_time=run_time, platform_recommend_input=info[0], dynamic_env=info[1],
