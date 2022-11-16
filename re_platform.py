@@ -30,7 +30,8 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                       cut_info3 = [100,100], cut_info2= [100,100], stopping_index = 100, clustering = True, search_type2 = 'enumerate',
                       revise_type = 'stopping', cut_infoC = [100,100], customer_pend = False):
     f = open("loop시간정보.txt", 'a')
-    f.write('연산 시작; obj;{};searchTypt;{};threslabel;{};#Riders;{};ITE;{};'.format(obj_type,search_type,thres_label,len(riders), ite))
+    locat_t = time.localtime(time.time())
+    f.write('시간;{};연산 시작; obj;{};searchTypt;{};threslabel;{};#Riders;{};ITE;{};'.format(locat_t,obj_type,search_type,thres_label,len(riders), ite))
     f.write('\n')
     f.close()
     yield env.timeout(5) #warm-up time
@@ -263,6 +264,10 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
         print('Simulation Time : {}'.format(env.now))
 
 def DefreezeCustomers(env, orders, platform, end_t = 120, interval = 5, customer_pend = False):
+    f = open('dynamic_loop.txt', 'a')
+    f.write('Start 현재시간;{}; \n'.format(time.localtime(time.time())))
+    f.write('T;Total;B2;B3; \n')
+    f.close()
     yield env.timeout(5) #warm-up time
     while env.now <= end_t:
         yield env.timeout(interval)
@@ -278,13 +283,20 @@ def DefreezeCustomers(env, orders, platform, end_t = 120, interval = 5, customer
                     o = GenSingleOrder(task_index, customer)  # todo 1115 : 주문을 추가
                     platform.platform[task_index] = o
         #발생 후 15분 이상 대기 중인 번들은 삭제
+        active_bundle_infos = [0,0,0]
         del_task_indexs = []
         for task_index in platform.platform:
             task = platform.platform[task_index]
-            if len(task.customers) > 1 and env.now - task.gen_t > 15:
-                del_task_indexs.append(task.index)
+            if len(task.customers) > 1:
+                active_bundle_infos[0] += 1
+                active_bundle_infos[len(task.customers)-1] += 1
+                if env.now - task.gen_t > interval:
+                    del_task_indexs.append(task.index)
         for task_index in del_task_indexs:
             del platform.platform[task_index]
+        f = open('dynamic_loop.txt','a')
+        f.write('{};{};{};{}; \n'.format(int(env.now), active_bundle_infos[0],active_bundle_infos[1],active_bundle_infos[2]))
+        f.close()
         print('Simulation Time : {}'.format(env.now))
 
 def Platform_process6(env, platform, orders, riders, p2,thres_p,interval, end_t = 1000,

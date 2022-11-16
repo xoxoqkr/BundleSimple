@@ -611,7 +611,7 @@ def OrdergeneratorByCSV(env, csv_dir, orders, stores, platform = None, p2_ratio 
 
 
 def OrdergeneratorByCSVForStressTest(env, orders, stores, lamda, platform = None, p2_ratio = 1, rider_speed = 1, unit_fee = 110, fee_type = 'linear',
-                                     output_data = None, cooktime_detail = None, cook_first = False, customer_pend = False):
+                                     output_data = None, cooktime_detail = None, cook_first = False, customer_pend = False, manual_cook_time = 7):
     """
     Generate customer order
     :param env: Simpy Env
@@ -649,7 +649,7 @@ def OrdergeneratorByCSVForStressTest(env, orders, stores, lamda, platform = None
             cook_time = numpy.random.choice(cooktime_detail[0], p = cooktime_detail[1]) # todo : 221101실험을 현실적으로 변경.
             p2_ratio2 = store.p2
         else:
-            cook_time = 7
+            cook_time = manual_cook_time
             p2_ratio2 = p2_ratio
         OD_dist = distance(store_loc[0],store_loc[1], customer_loc[0],customer_loc[1])
         p2 = (OD_dist / rider_speed) * p2_ratio2 # todo : 221101실험을 현실적으로 변경.

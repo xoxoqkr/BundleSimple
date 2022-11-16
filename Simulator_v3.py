@@ -81,7 +81,7 @@ bundle_start_fix = False
 if save_data == True:
     save_root_dir = 'E:/GXBoost/old3/'
     save_id = 'xgb_1'
-
+manual_cook_time = 7 #음식 조리 시간
 cut_info3 = [12,24] # [12,24] [15,25] [7.5,10]#[7.5,10] #B3의 거리를 줄이는 함수
 cut_info2 = [100,100]#[10,10]#[10,10]
 stopping_index = 15 #40
@@ -121,7 +121,7 @@ divide_option = True  # True : 구성된 번들에 속한 고객들을 다시 �
 p2_set = True
 rider_p2 = 2 #1.5
 platform_p2 = 2 # rider_p2*0.8  #1.3 p2_set이 False인 경우에는 p2만큼의 시간이 p2로 고정됨. #p2_set이 True인 경우에는 p2*dis(가게,고객)/speed 만큼이 p2시간으로 설정됨.
-customer_p2 = 4 #2
+customer_p2 = 1 #2
 obj_types = ['simple_max_s'] #['simple_max_s', 'max_s+probability', 'simple_over_lt','over_lt+probability'] #todo : 0317_수정본. min_pr을 무의미한 제약식으로 설정
 # order_p2 = [[1.5,2,3],[0.3,0.3,0.4]] #음식 별로 민감도가 차이남.
 wait_para = False  # True: 음식조리로 인한 대기시간 발생 #False : 음식 대기로 인한 대기시간 발생X
@@ -353,15 +353,15 @@ for ite in exp_range:#range(0, 1):
 
             if dynamic_env == True:
                 env.process(OrdergeneratorByCSVForStressTestDynamic(env, Orders, Store_dict, stress_lamda, platform=Platform2,
-                                                             p2_ratio=customer_p2, rider_speed=rider_speed,
+                                                             customer_p2=customer_p2, platform_p2= platform_p2,rider_speed=rider_speed,
                                                              unit_fee=unit_fee, fee_type=fee_type,
                                                              output_data=CustomerCoord, dynamic_infos = dynamic_infos, riders = Rider_dict, pr_off= pr_off, end_t= run_time,
-                                                                    dynamic_para = dynamic_env, customer_pend = customer_pend, search_range_index = stopping_index))
+                                                                    dynamic_para = dynamic_env, customer_pend = customer_pend, search_range_index = stopping_index, manual_cook_time = manual_cook_time))
             else:
                 env.process(OrdergeneratorByCSVForStressTest(env, Orders, Store_dict, stress_lamda, platform=Platform2,
                                                              p2_ratio=customer_p2, rider_speed=rider_speed,
                                                              unit_fee=unit_fee, fee_type=fee_type,
-                                                             output_data=CustomerCoord, cooktime_detail= None, customer_pend = customer_pend))
+                                                             output_data=CustomerCoord, cooktime_detail= None, customer_pend = customer_pend, manual_cook_time = manual_cook_time))
             env.process(RiderGenerator(env, Rider_dict, Platform2, Store_dict, Orders, capacity=rider_capacity, speed=rider_speed,working_duration=run_time, interval=0.01,
                            gen_num=stress_rider_num,  wait_para=wait_para, platform_recommend = sc.platform_recommend, input_order_select_type = order_select_type,
                                        bundle_construct= sc.rider_bundle_construct))

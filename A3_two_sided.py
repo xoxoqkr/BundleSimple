@@ -1196,9 +1196,9 @@ def DynamicBundleConstruct(t_customer, customers, rider_names, riders, platform,
     else:
         return -1, []
 
-def OrdergeneratorByCSVForStressTestDynamic(env, orders, stores, lamda, platform = None, p2_ratio = 1, rider_speed = 1, unit_fee = 110, fee_type = 'linear',
+def OrdergeneratorByCSVForStressTestDynamic(env, orders, stores, lamda, platform = None, customer_p2 = 1, platform_p2 = 1,rider_speed = 1, unit_fee = 110, fee_type = 'linear',
                                      output_data = None, cooktime_detail = None, cook_first = False, dynamic_infos = None, riders = None, pr_off = True, end_t = 90,
-                                            dynamic_para = False, customer_pend = False, search_range_index = 15):
+                                            dynamic_para = False, customer_pend = False, search_range_index = 15, stopping_range = 15, manual_cook_time = 7):
     """
     Generate customer order
     :param env: Simpy Env
@@ -1239,15 +1239,15 @@ def OrdergeneratorByCSVForStressTestDynamic(env, orders, stores, lamda, platform
             cook_time = np.random.choice(cooktime_detail[0], p = cooktime_detail[1]) # todo : 221101실험을 현실적으로 변경.
             p2_ratio2 = store.p2
         else:
-            cook_time = 3
-            p2_ratio2 = p2_ratio
+            cook_time = manual_cook_time
+            p2_ratio2 = customer_p2
         OD_dist = distance(store_loc[0],store_loc[1], customer_loc[0],customer_loc[1])
-        p2 = (OD_dist / rider_speed) * p2_ratio2 # todo : 221101실험을 현실적으로 변경.
+        this_p2 = (OD_dist / rider_speed) * p2_ratio2 # todo : 221101실험을 현실적으로 변경.
         cook_time_type = 0
         cooking_time = [7,1]
         #order = A1_Class.Customer(env, name, input_location, store=store_num, store_loc=store_loc, p2=p2,
         #                       cooking_time=cook_time, cook_info=[cook_time_type, cooking_time])
-        order = re_A1_class.Customer(env, name, customer_loc, store=store_name, store_loc=store_loc, p2=p2,
+        order = re_A1_class.Customer(env, name, customer_loc, store=store_name, store_loc=store_loc, p2=this_p2,
                                cooking_time=cook_time, cook_info=[cook_time_type, cooking_time], platform = platform, unit_fee = unit_fee, fee_type = fee_type)
         #order.actual_cook_time = random.choice(stores[store_name].FRT)
         order.actual_cook_time = cook_time
@@ -1316,12 +1316,12 @@ def OrdergeneratorByCSVForStressTestDynamic(env, orders, stores, lamda, platform
                 max_ds.append([active_rider_names[tem_count],max_d])
                 tem_count += 1
             dynamic_run = False
-            for index_1 in range(d_infos):
-                if distance(d_infos[index_1][0], d_infos[index_1][1], order.store_loc[0], order.store_loc[1]) <= max_ds[index_1]:
+            for index_1 in range(len(d_infos)):
+                if distance(d_infos[index_1][0], d_infos[index_1][1], order.store_loc[0], order.store_loc[1]) <= max_ds[index_1][1]:
                     dynamic_run = True
                     break
             if dynamic_run == True:
-                b_type, new_bundle_info1 = DynamicBundleConstruct(orders[name], orders, active_rider_names, riders, platform, env.now, p2=p2, stopping=15,
+                b_type, new_bundle_info1 = DynamicBundleConstruct(orders[name], orders, active_rider_names, riders, platform, env.now, p2=platform_p2, stopping=stopping_range,
                                        bundle_permutation_option=bundle_permutation_option, feasible_return=feasible_return, min_time_buffer=min_time_buffer,
                                        max_dist=max_dist, sort_index=sort_index, fix_start=fix_start, pr_off= pr_off, check_info= t_info)
                 e_time = time.time()
