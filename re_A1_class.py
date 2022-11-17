@@ -125,7 +125,7 @@ class Rider(object):
                     exp_idle_t = round(env.now + move_t + order.service_time,1) + 0.1
                     self.next_search_time2 = min(exp_idle_t, self.next_search_time2)
                 with self.resource.request() as req:
-                    print('T: {} 노드 {} 시작'.format(int(env.now), node_info))
+                    print('T: {} 노드 {} 시작 고객 이름{}'.format(int(env.now), node_info, order.name))
                     yield req  # users에 들어간 이후에 작동
                     req.loc = node_info[2]
                     print('T: {} 라이더 : {} 노드 {} 이동 시작 예상 시간{}'.format(int(env.now), self.name, node_info, move_t))
@@ -139,7 +139,7 @@ class Rider(object):
                         else:  # 'bundle'
                             exp_cook_time = order.platform_exp_cook_time
                         exp_cook_time = order.cook_time # todo : 221101실험을 현실적으로 변경.
-                        remain_cook_time = max(0, order.cook_time - (env.now - order.who_picked[-1][1]))
+                        remain_cook_time = max(0.1, order.cook_time - (env.now - order.who_picked[-1][1]))
                         if exp_cook_time == None:
                             print(order.leave)
                             print(order.time_info)
@@ -156,11 +156,12 @@ class Rider(object):
                             self.bundle_store_wait.append(wait_at_store)
                         else:
                             self.single_store_wait.append(wait_at_store)
-                        cal_cook_time = max(0.001, (order.time_info[1] + order.actual_cook_time) - env.now)
                         expPickUpT = env.now + move_t
-                        #yield env.process(stores[store_name].Cook(env, order, order.cook_info[0], manual_cook_time = cal_cook_time)) & env.process(self.RiderMoving(env, move_t))
-                        #yield order.cooking_process & env.process(self.RiderMoving(env, move_t))
-                        yield env.process(order.FinsiehdCooking(env, remain_cook_time)) & env.process(self.RiderMoving(env, move_t))
+                        #yield env.process(stores[store_name].Cook(env, order, order.cook_info[0], manual_cook_time = remain_cook_time)) & env.process(self.RiderMoving(env, move_t))
+                        yield order.cooking_process & env.process(self.RiderMoving(env, move_t))
+                        #yield env.process(order.FinsiehdCooking(env, remain_cook_time)) & env.process(self.RiderMoving(env, move_t))
+                        #print('예상 시간 {} Vs 실제 시간 {}; 고객 이름{}'.format(expPickUpT, int(env.now), order.name))
+                        #input('도착시 조리 시작')
                         if expPickUpT < env.now:
                             self.rider_wait2.append(env.now -expPickUpT)
                             order.rider_wait3 = env.now - expPickUpT
@@ -229,12 +230,12 @@ class Rider(object):
                 self.empty_serach_count += 1
                 self.next_search_time2 = round(env.now,4) + self.check_t
                 print('ord1')
-                self.OrderSelect_module(self.env, platform, customers, p2 = self.p2)
+                self.OrderSelect_module(self.env, platform, customers, stores, p2 = self.p2)
                 print('ord1 end')
                 yield env.timeout(self.check_t)
 
 
-    def OrderSelect_module(self,env, platform, customers, p2=0, order_select_type='simple', uncertainty=False, score_type = 'simple'):
+    def OrderSelect_module(self,env, platform, customers, stores, p2=0, order_select_type='simple', uncertainty=False, score_type = 'simple'):
         if self.bundle_construct == True:  # FT/ TT
             # 주문 고르기 #번들 생성 가능하도록
             print('FT/TT')
@@ -285,7 +286,7 @@ class Rider(object):
                 plt.close()
                 # target_customer, res_C_T, now_t = 0, titleinfo = 'None'
             # print('F:TaskSearch/라이더#:{}/order_info:{}'.format(self.name, order_info))
-            self.OrderPick(env, order_info, order_info[1], customers, env.now, route_revise_option=self.bundle_construct,
+            self.OrderPick(env, order_info, order_info[1], customers, env.now, stores, route_revise_option=self.bundle_construct,
                            self_bundle=self_bundle)  # 라우트 결정 후
             if order_info[8] == 'platform' and len(order_info[5]) > 1:
                 self.b_select += 1
@@ -669,7 +670,7 @@ class Rider(object):
             return []
 
 
-    def OrderPick(self, env, order_info, route, customers, now_t, route_revise_option = 'simple', self_bundle = None):
+    def OrderPick(self, env, order_info, route, customers, now_t, stores, route_revise_option = 'simple', self_bundle = None):
         """
         수행한 order에 대한 경로를 차량 경로self.route에 반영하고, onhand에 해당 주문을 추가.
         @param order: class order
@@ -695,7 +696,10 @@ class Rider(object):
             customer.time_info[1] = now_t
             customer.who_picked.append([self.name, now_t,self_bundle,'single'])
             if 0 < customer.dp_cook_time < 15:
-                customer.cooking_process = env.process(customer.CookingFirst(env, customer.actual_cook_time))
+                #env.process(stores[customer.store].Cook(env, customer, manual_cook_time = customer.cook_time))
+                customer.cooking_process = env.process(stores[customer.store].Cook(env, customer, manual_cook_time = customer.cook_time))
+                print('접수 후 조리 시작 음식 {}/ 가게 {}'.format(customer.name, customer.store))
+                #customer.cooking_process = env.process(customer.CookingFirst(env, customer.actual_cook_time))
             if len(names) > 1:
                 customer.inbundle = True
                 customer.type = 'bundle'
@@ -813,22 +817,11 @@ class Store(object):
         :param open_time: store open time
         :param close_time: store close time
         """
-        #input('가게 주문 채택')
-        #yield env.timeout(open_time)
         now_time = round(env.now, 1)
-        #input('가게 주문 채택0')
         while now_time < close_time:
             now_time = round(env.now,1)
-            #받은 주문을 플랫폼에 올리기
-            #print('값 확인',len(self.resource.users) , len(self.wait_orders), capacity , self.slack,len(self.received_orders))
             if len(self.resource.users) + len(self.resource.put_queue) < capacity + self.slack:  # 플랫폼에 자신이 생각하는 여유 만큼을 게시
-            #if len(self.resource.users) + len(self.wait_orders) < capacity + self.slack: #플랫폼에 자신이 생각하는 여유 만큼을 게시
-                #self.received_orders.append()
-                #print('접수된 고객 수', len(self.received_orders))
-                #input('가게 주문 채택1')
-                #slack = min(capacity + self.slack - len(self.resource.users), len(self.received_orders))
                 slack = capacity + self.slack - len(self.resource.users)
-                #print('가게:',self.name,'/ 잔여 용량:', slack,'/대기 중 고객 수:',len(self.received_orders))
                 received_orders_num = len(self.received_orders)
                 platform_exist_order = []
                 for index in platform.platform:
@@ -837,33 +830,35 @@ class Store(object):
                         if len(customer_names) == 1:
                             platform_exist_order += platform.platform[index].customers
                     except:
-                        #print(' 에러 확인 용', platform.platform, index,platform.platform[index].customers)
                         pass
-                #print('플랫폼에 있는 주문 {}'.format(platform_exist_order))
                 if received_orders_num > 0:
                     for count in range(min(slack,received_orders_num)):
-                        order = self.received_orders[0] #앞에서 부터 플랫폼에 주문 올리기
-                        route = [order.name, 0, order.store_loc, 0], [order.name, 1, order.location,0]
-                        if len(list(platform.platform.keys())) > 0:
-                            order_index = max(list(platform.platform.keys())) + 1
-                        else:
-                            order_index = 1
-                        o = Order(order_index, [order.name],route,'single', fee = order.fee)
-                        #print('주문 정보',o.index, o.customers, o.route, o.type)
-                        if self.customer_pend == False and o.customers[0] not in platform_exist_order:
-                            #platform[order_index] = o
+                        order = self.received_orders[0]  # 앞에서 부터 플랫폼에 주문 올리기 received_orders는 주문이 발생할 때 추가됨
+                        if self.customer_pend == False and order.name not in platform_exist_order:
+                            route = [order.name, 0, order.store_loc, 0], [order.name, 1, order.location, 0]
+                            if len(list(platform.platform.keys())) > 0:
+                                order_index = max(list(platform.platform.keys())) + 1
+                            else:
+                                order_index = 1
+                            o = Order(order_index, [order.name], route, 'single', fee=order.fee)
                             platform.platform[order_index] = o
                             print('T : {} 가게 {} 고객 {} 주문 인덱스 {}에 추가'.format(env.now, self.name, o.customers, o.index))
                             print('플랫폼 ID{}'.format(id(platform)))
-                        #platform.append(o)
-                        #print('T : {} 가게 {} 고객 {} 주문 인덱스 {}에 추가'.format(env.now, self.name, o.customers, o.index))
                         if print_para == True:
                             print('현재T:', int(env.now), '/가게', self.name, '/주문', order.name, '플랫폼에 접수/조리대 여유:',capacity - len(self.resource.users),'/조리 중',len(self.resource.users))
                         self.wait_orders.append(order)
                         self.received_orders.remove(order)
-                        #input('가게 주문 채택2')
             else: #이미 가게의 능력 최대로 조리 중. 잠시 주문을 막는다(block)
-                #print("가게", self.name, '/',"여유 X", len(self.resource.users),'/주문대기중',len(self.received_orders))
+                #print("가게", self.name, '/',"여유 X;현재 조리 중:", len(self.resource.users),';큐:',len(self.resource.put_queue),'/주문대기중',len(self.received_orders),'맥스',capacity + self.slack)
+                #r1 = []
+                #for i in self.resource.users:
+                #    r1.append(i.info)
+                #r2 = []
+                #for i in self.resource.put_queue:
+                #    r2.append(i.info)
+                #print(r1)
+                #print(r2)
+                #input('가게 작동 확인')
                 pass
             #만약 현재 조리 큐가 꽉차는 경우에는 주문을 더이상 처리하지 X
             yield env.timeout(1)
@@ -879,6 +874,7 @@ class Store(object):
         """
         #print('현재 사용중', len(self.resource.users))
         with self.resource.request() as req:
+            print('음식:{};가게:{} 시작'.format(customer.name, self.name))
             yield req #resource를 점유 해야 함.
             now_time = round(env.now , 1)
             req.info = [customer.name, now_time]
@@ -890,11 +886,12 @@ class Store(object):
                 cooking_time = random.choice(self.FRT)
             else:
                 cooking_time = 0.001
-            #customer.actual_cook_time = cooking_time
-            print('T :{} 가게 {}, {} 분 후 주문 {} 조리 완료'.format(int(env.now),self.name,cooking_time,customer.name))
             if manual_cook_time == None:
+                print('T :{} 가게 {}, {} 분 후 주문 {} 조리 완료'.format(int(env.now), self.name, cooking_time, customer.name))
                 yield env.timeout(cooking_time)
+
             else:
+                print('T :{} 가게 {}, {} 분 후 주문 {} 조리 완료'.format(int(env.now), self.name, manual_cook_time, customer.name))
                 yield env.timeout(manual_cook_time)
             #print(self.resource.users)
             print('T :{} 가게 {} 주문 {} 완료'.format(int(env.now),self.name,customer.name))
@@ -903,8 +900,24 @@ class Store(object):
             self.ready_order.append(customer)
 
 
+    def CookingFirst(self,env,time):
+        print('음식 {} 선 조리 시작1/ T{}'.format(self.name,int(env.now)))
+        self.cook_start_time = env.now
+        yield env.timeout(time)
+        self.cook_finish_time = env.now
+        print('음식 {} 조리 완료1/ T{}'.format(self.name, int(env.now)))
+        #input('조리 경과 확인')
+
+    def FinsiehdCooking(self,env,time):
+        print('음식 {} 선 조리 시작2/ T{}'.format(self.name,int(env.now)))
+        self.cook_start_time = env.now
+        yield env.timeout(time)
+        self.cook_finish_time = env.now
+        print('음식 {} 조리 완료2/ T{}'.format(self.name, int(env.now)))
+        #input('조리 경과 확인')
+
 class Customer(object):
-    def __init__(self, env, name, input_location, store = 0, store_loc = (25, 25),end_time = 60, ready_time=0, service_time=2,
+    def __init__(self, env, name, input_location, store = 0, store_loc = (25, 25),end_time = 60, ready_time=2, service_time=3,
                  fee = 2500, p2 = 15, cooking_time = (2,5), cook_info = (None, None), platform = None, unit_fee = 110, fee_type = 'linear', cancel_input = False):
         self.name = name  # 각 고객에게 unique한 이름을 부여할 수 있어야 함. dict의 key와 같이
         self.time_info = [round(env.now, 2), None, None, None, None, end_time, ready_time, service_time, None]
@@ -968,22 +981,6 @@ class Customer(object):
             self.cancel = True
         else:
             pass
-
-    def CookingFirst(self,env,time):
-        print('음식 {} 선 조리 시작1/ T{}'.format(self.name,int(env.now)))
-        self.cook_start_time = env.now
-        yield env.timeout(time)
-        self.cook_finish_time = env.now
-        print('음식 {} 조리 완료1/ T{}'.format(self.name, int(env.now)))
-        #input('조리 경과 확인')
-
-    def FinsiehdCooking(self,env,time):
-        print('음식 {} 선 조리 시작2/ T{}'.format(self.name,int(env.now)))
-        self.cook_start_time = env.now
-        yield env.timeout(time)
-        self.cook_finish_time = env.now
-        print('음식 {} 조리 완료2/ T{}'.format(self.name, int(env.now)))
-        #input('조리 경과 확인')
 
 
 class Platform_pool(object):

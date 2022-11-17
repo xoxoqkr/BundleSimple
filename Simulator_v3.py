@@ -66,7 +66,7 @@ ellipse_w=10
 heuristic_theta=10
 heuristic_r1=10
 heuristic_type = 'XGBoost'#'XGBoost'#'enumerate'
-rider_num= 320 #8
+rider_num= 1 #8
 mix_ratios=None
 exp_range = [0] #list(range(10))#[0,1] [0,1,2,3,4,5,6,7,8,9]
 unit_fee = 110
@@ -93,7 +93,7 @@ search_type2 = 'XGBoost' #'XGBoost'#'enumerate' -> 실제로 XGBoost냐 Enumerat
 
 setting = 'stresstest'
 stress_lamda = 40 # 분당 주문 발생 수 # (2400/60)/5 #기준은 한 구에 분당 3750/60 #원래 40
-stress_rider_num = 320  #기준은 한 구에 400명
+stress_rider_num = 1  #기준은 한 구에 400명
 # Parameter define
 interval = 5
 

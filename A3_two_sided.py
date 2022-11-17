@@ -1260,8 +1260,8 @@ def OrdergeneratorByCSVForStressTestDynamic(env, orders, stores, lamda, platform
             order.rest_type = store.rest_type
         else:
             order.temperature = 'T'
-        if order.dp_cook_time >= 15 and cook_first == True:
-            order.cooking_process = env.process(order.CookingFirst(env, order.actual_cook_time)) #todo : 15분 이상 음식은 미리 조리 시작
+        #if order.dp_cook_time >= 15 and cook_first == True:
+        #    order.cooking_process = env.process(order.CookingFirst(env, order.actual_cook_time)) #todo : 15분 이상 음식은 미리 조리 시작
         if customer_pend == False:
             if len(list(platform.platform.keys())) > 0:
                 task_index = max(list(platform.platform.keys())) + 1
@@ -1270,11 +1270,12 @@ def OrdergeneratorByCSVForStressTestDynamic(env, orders, stores, lamda, platform
             platform_exp_error = 1
             pool = np.random.normal(order.cook_info[1][0], order.cook_info[1][1] * platform_exp_error, 1000)
             order.platform_exp_cook_time = random.choice(pool)
-            o = GenSingleOrder(task_index, order)  # todo 1115 : 주문을 추가
-            platform.platform[task_index] = o
-        print('T {} 음식 {} 조리 확인/ 시간 {}'.format(int(env.now), order.name,order.actual_cook_time))
+            #o = GenSingleOrder(task_index, order)  # todo 1115 : 주문을 추가
+            #platform.platform[task_index] = o
+        print('T {} 음식 {} 발생/ 시간 {}'.format(int(env.now), order.name,order.actual_cook_time))
         orders[name] = order
         stores[store_name].received_orders.append(orders[name])
+        print('가게 {} / 음식 {} 알림 받음'.format(store_name,name))
         interval = 1.0/lamda
         #todo : 0317 지연되는 조건 생각할 것.
         if dynamic_para == True and dynamic_infos != None and riders != None:

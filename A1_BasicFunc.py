@@ -248,8 +248,8 @@ def FLT_Calculate(customer_in_order, customers, route, p2, except_names , M = 10
                 #print('FLT 고려 대상 {} 시간 정보 {}'.format(order_name,customers[order_name].time_info))
                 last_time = now_t - customers[order_name].time_info[2] #이미 음식이 실린 후 지난 시간
                 #rev_p2 = p2 - last_time
-                #rev_p2 = customers[order_name].min_FLT - last_time
-                rev_p2 = rev_p2 - last_time # todo : 221101실험을 현실적으로 변경. -> 고객 마다 p2가 달라짐.
+                rev_p2 = customers[order_name].min_FLT - last_time
+                #rev_p2 = rev_p2 - last_time # todo : 221101실험을 현실적으로 변경. -> 고객 마다 p2가 달라짐.
                 #input('p2 확인 2 :: {}'.format(rev_p2))
             try:
                 s = route.index(order_name + M)
@@ -434,9 +434,10 @@ def GenerateStoreByCSVStressTest(env, num, platform,Store_dict, mus = [5,10,15],
         capacity = 10
         slack = 2
         store = re_A1_class.Store(env, platform, name, loc=loc, order_ready_time=order_ready_time, capacity=capacity, print_para=False, slack = slack, customer_pend= customer_pend)
-        if name <= 4: #
+        rv = random.random()
+        if rv <= 0.2: #
             store.FRT = numpy.random.normal(mus[0], mus[0]*std_ratio, 1000)
-        elif name <= 10:
+        elif rv <= 0.8:
             store.FRT = numpy.random.normal(mus[1], mus[1]*std_ratio, 1000)
         else:
             store.FRT = numpy.random.normal(mus[2], mus[2] * std_ratio, 1000)
