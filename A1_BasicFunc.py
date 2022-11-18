@@ -414,7 +414,7 @@ def GenerateStoreByCSV(env, csv_dir, platform,Store_dict, mus = [5,10,15], std_r
         Store_dict[name] = store
 
 
-def GenerateStoreByCSVStressTest(env, num, platform,Store_dict, mus = [5,10,15], std_ratio = 0.2, store_type = 'Instance_random', ITE = 1, output_data = None, detail_pr = None, customer_pend = True):
+def GenerateStoreByCSVStressTest(env, num, platform,Store_dict, mus = [5,10,15], std_ratio = 0.2, store_type = 'Instance_random', ITE = 1, output_data = None, detail_pr = None, customer_pend = True, store_capacity = 100):
     # detail_pr = [rest_type_list, pr_list, frt_list, temperature_list, p2_list] -> array
     #mus = [11.5,13.5,15.5]
     rest_type_check = []
@@ -431,7 +431,7 @@ def GenerateStoreByCSVStressTest(env, num, platform,Store_dict, mus = [5,10,15],
         #['name', 'start_loc_x', 'start_loc_y', 'order_ready_time', 'capacity', 'slack']
         name = count
         order_ready_time = 5
-        capacity = 10
+        capacity = store_capacity
         slack = 2
         store = re_A1_class.Store(env, platform, name, loc=loc, order_ready_time=order_ready_time, capacity=capacity, print_para=False, slack = slack, customer_pend= customer_pend)
         rv = random.random()

@@ -93,7 +93,7 @@ search_type2 = 'XGBoost' #'XGBoost'#'enumerate' -> 실제로 XGBoost냐 Enumerat
 
 setting = 'stresstest'
 stress_lamda = 40 # 분당 주문 발생 수 # (2400/60)/5 #기준은 한 구에 분당 3750/60 #원래 40
-stress_rider_num = 1  #기준은 한 구에 400명
+stress_rider_num = 320  #기준은 한 구에 400명
 # Parameter define
 interval = 5
 
@@ -121,7 +121,7 @@ divide_option = True  # True : 구성된 번들에 속한 고객들을 다시 �
 p2_set = True
 rider_p2 = 2 #1.5
 platform_p2 = 2 # rider_p2*0.8  #1.3 p2_set이 False인 경우에는 p2만큼의 시간이 p2로 고정됨. #p2_set이 True인 경우에는 p2*dis(가게,고객)/speed 만큼이 p2시간으로 설정됨.
-customer_p2 = 1 #2
+customer_p2 = 1.5 #2#todo 1118 : BundleConsist2 -> FLTCalculator -> 더 많은 수의 가능 번들을 만듬
 obj_types = ['simple_max_s'] #['simple_max_s', 'max_s+probability', 'simple_over_lt','over_lt+probability'] #todo : 0317_수정본. min_pr을 무의미한 제약식으로 설정
 # order_p2 = [[1.5,2,3],[0.3,0.3,0.4]] #음식 별로 민감도가 차이남.
 wait_para = False  # True: 음식조리로 인한 대기시간 발생 #False : 음식 대기로 인한 대기시간 발생X

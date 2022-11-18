@@ -834,7 +834,7 @@ class Store(object):
                 if received_orders_num > 0:
                     for count in range(min(slack,received_orders_num)):
                         order = self.received_orders[0]  # 앞에서 부터 플랫폼에 주문 올리기 received_orders는 주문이 발생할 때 추가됨
-                        if self.customer_pend == False and order.name not in platform_exist_order:
+                        if self.customer_pend == False and order.name not in platform_exist_order and order.time_info[1] == None and order.cancel == False:
                             route = [order.name, 0, order.store_loc, 0], [order.name, 1, order.location, 0]
                             if len(list(platform.platform.keys())) > 0:
                                 order_index = max(list(platform.platform.keys())) + 1
@@ -917,7 +917,7 @@ class Store(object):
         #input('조리 경과 확인')
 
 class Customer(object):
-    def __init__(self, env, name, input_location, store = 0, store_loc = (25, 25),end_time = 60, ready_time=2, service_time=3,
+    def __init__(self, env, name, input_location, store = 0, store_loc = (25, 25),end_time = 60, ready_time=0, service_time=0,
                  fee = 2500, p2 = 15, cooking_time = (2,5), cook_info = (None, None), platform = None, unit_fee = 110, fee_type = 'linear', cancel_input = False):
         self.name = name  # 각 고객에게 unique한 이름을 부여할 수 있어야 함. dict의 key와 같이
         self.time_info = [round(env.now, 2), None, None, None, None, end_time, ready_time, service_time, None]
