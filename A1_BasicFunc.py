@@ -135,6 +135,7 @@ def RouteTime(orders, route, M = 10000, speed = 1, uncertainty = False, error = 
     :param speed: rider speed
     :return: time : float
     """
+    #print('ROUTE SAMPLE', route)
     if uncertainty == False:
         exp_error = [1]
     else:
@@ -394,45 +395,42 @@ def RiderGeneratorByCSV(env, csv_dir, Rider_dict, Platform, Store_dict, Customer
             break
 
 
-def GenerateStoreByCSV(env, csv_dir, platform,Store_dict, mus = [5,10,15], std_ratio = 0.2):
-    #mus = [11.5,13.5,15.5]
-    datas = ReadCSV(csv_dir)
-    for data in datas:
-        #['name', 'start_loc_x', 'start_loc_y', 'order_ready_time', 'capacity', 'slack']
-        name = data[0]
-        loc = [data[1], data[2]]
-        order_ready_time = data[3]
-        capacity = data[4]
-        slack = data[5]
-        store = re_A1_class.Store(env, platform, name, loc=loc, order_ready_time=order_ready_time, capacity=capacity, print_para=False, slack = slack)
-        if name <= 4: #
-            store.FRT = numpy.random.normal(mus[0], mus[0]*std_ratio, 1000)
-        elif name <= 10:
-            store.FRT = numpy.random.normal(mus[1], mus[1]*std_ratio, 1000)
-        else:
-            store.FRT = numpy.random.normal(mus[2], mus[2] * std_ratio, 1000)
-        Store_dict[name] = store
-
-
-def GenerateStoreByCSVStressTest(env, num, platform,Store_dict, mus = [5,10,15], std_ratio = 0.2, store_type = 'Instance_random', ITE = 1, output_data = None, detail_pr = None, customer_pend = True, store_capacity = 100):
+def GenerateStoreByCSVStressTest(env, num, platform,Store_dict, mus = [5,10,15], std_ratio = 0.2, store_type = 'Instance_random', ITE = 1, output_data = None,
+                                 detail_pr = None, customer_pend = True, store_capacity = 100, csv_dir = None):
     # detail_pr = [rest_type_list, pr_list, frt_list, temperature_list, p2_list] -> array
     #mus = [11.5,13.5,15.5]
+    if csv_dir != None:
+        try:
+            datas = ReadCSV(csv_dir)
+        except:
+            print('dir::',str(csv_dir))
+            input('csv_dir이 없음')
     rest_type_check = []
     for count in range(num):
-        if output_data == None:
-            if store_type == 'Instance_random':
-                loc = [random.randint(10, 40), random.randint(10, 40)]
-            else:
-                loc = [random.randint(20, 30), random.randint(20, 30)]
+        if csv_dir != None:
+            if count == len(datas):
+                break #csv 파일을 모두 읽었기 때문에 삭제
+            data = datas[count]
+            name = data[0]
+            loc = [data[1], data[2]]
+            order_ready_time = data[3]
+            capacity = data[4]
+            slack = data[5]
         else:
-            if count > len(output_data) - 1:
-                break
-            loc = [output_data[count][1],output_data[count][2]]
-        #['name', 'start_loc_x', 'start_loc_y', 'order_ready_time', 'capacity', 'slack']
-        name = count
-        order_ready_time = 5
-        capacity = store_capacity
-        slack = 2
+            name = count
+            if output_data == None:
+                if store_type == 'Instance_random':
+                    loc = [random.randint(10, 40), random.randint(10, 40)]
+                else:
+                    loc = [random.randint(20, 30), random.randint(20, 30)]
+            else:
+                if count > len(output_data) - 1:
+                    break
+                loc = [output_data[count][1],output_data[count][2]]
+            #['name', 'start_loc_x', 'start_loc_y', 'order_ready_time', 'capacity', 'slack']
+            order_ready_time = 5
+            capacity = store_capacity
+            slack = 2
         store = re_A1_class.Store(env, platform, name, loc=loc, order_ready_time=order_ready_time, capacity=capacity, print_para=False, slack = slack, customer_pend= customer_pend)
         rv = random.random()
         if rv <= 0.2: #
@@ -461,53 +459,6 @@ def GenerateStoreByCSVStressTest(env, num, platform,Store_dict, mus = [5,10,15],
     print(list(set(rest_type_check)))
     print(len(Store_dict))
     #input('가게')
-
-def Ordergenerator(env, orders, stores, max_range = 50, interval = 5, runtime = 100, history = None, p2 = 15, p2_set = False, speed = 4, cooking_time = [2,5], cook_time_type = 'random'):
-    """
-    Generate customer order
-    :param env: Simpy Env
-    :param orders: Order
-    :param platform: 플랫폼에 올라온 주문들 {[KY]order index : [Value]class order, ...}
-    :param stores: 플랫폼에 올라온 가게들 {[KY]store name : [Value]class store, ...}
-    :param interval: 주문 생성 간격
-    :param runtime: 시뮬레이션 동작 시간
-    """
-    name = 0
-    while env.now < runtime:
-        #process_time = random.randrange(1,5)
-        #input_location = [36,36]
-        if history == None:
-            input_location = random.sample(list(range(max_range)),2)
-            store_num = random.randrange(0, len(stores))
-        else:
-            input_location = history[name][2]
-            store_num = history[name][1]
-            interval = history[name + 1][0] - history[name][0]
-        if cook_time_type == 'random':
-            cook_time = random.randrange(cooking_time[0],cooking_time[1])
-        else:
-            pool = numpy.random.normal(cooking_time[0],cooking_time[1], 1000)
-            cook_time = round(random.choice(pool),4)
-        if cook_time < 0:
-            input('조리 시간 음수 {}/ 생성 정보 {}'.format(cook_time,cooking_time))
-        order = re_A1_class.Customer(env, name, input_location, store=store_num, store_loc=stores[store_num].location, p2=p2, cooking_time = cook_time, cook_info = [cook_time_type, cooking_time])
-        #input('주문 {} 정보 {}'.format(order.name, order.cook_info))
-        if p2_set == True:
-            if type(p2) == list:
-                selected_p2 = random.choices(population=p2[0],weights=p2[1],k=1)
-                selected_p2 = selected_p2[0]
-                #input('test {} {} {}'.format(selected_p2, order.distance, speed))
-                order.p2 = selected_p2 * order.distance / speed
-                order.min_FLT = order.p2
-            else:
-                order.p2 = p2 * (order.distance / speed)
-                order.min_FLT = order.p2
-                #input('p2 {} / dist {}  order.p2 {}'.format(p2, order.p2))
-        orders[name] = order
-        stores[store_num].received_orders.append(orders[name])
-        yield env.timeout(interval)
-        #print('현재 {} 플랫폼 주문 수 {}'.format(int(env.now), len(platform)))
-        name += 1
 
 
 def ReadCSV(csv_dir, interval_index = None):
@@ -745,6 +696,24 @@ def ActiveRiderCalculator(rider, t_now = 0, option = None, interval = 5, print_o
     @return: True/ False
     """
     if t_now <= rider.end_t :
+        if len(rider.resource.users) == 0:
+            return True
+        else:
+            if rider.exp_end_time <= t_now and len(rider.picked_orders) < rider.max_order_num:
+                return True
+            else:
+                return False
+    else:
+        return False
+
+
+def ActiveRiderCalculator_ORG(rider, t_now = 0, option = None, interval = 5, print_option = True):
+    """
+    현재 라이더가 새로운 주문을 선택할 수 있는지 유/무를 계산.
+    @param rider: class rider
+    @return: True/ False
+    """
+    if t_now <= rider.end_t :
         #print('ActiveRiderCalculator check')
         #print (rider.name ,'::', len(rider.picked_orders) , rider.max_order_num, '::',t_now , rider.next_search_time2 , t_now + interval)
         if option == None:
@@ -760,7 +729,6 @@ def ActiveRiderCalculator(rider, t_now = 0, option = None, interval = 5, print_o
     else:
         print('False time3')
         return False
-
 
 def WillingtoWork(rider, t_now):
     """
@@ -884,7 +852,7 @@ def ResultSave(Riders, Customers, title = 'Test', sub_info = 'None', type_name =
     f.close()
 
 
-def ExpValueCalculator(rider_names, riders, order_names, orders, rider_check_index = 15):
+def ExpValueCalculator(rider_names, riders, order_names, orders, rider_check_index = 15): #todo 1118: 요주 함수1
     """
     라이더가 선택할 주문의 가치(수수료/운행시간)을 계산.
     @param rider_names: 주문을 선택할 라이더 이름들
@@ -918,7 +886,7 @@ def ExpValueCalculator(rider_names, riders, order_names, orders, rider_check_ind
     return m_r
 
 
-def BundleExpValueCalculator(bundle_infos, rider_names, riders, orders, M = 10000, m_r = None):
+def BundleExpValueCalculator(bundle_infos, rider_names, riders, orders, M = 10000, m_r = None): #todo 1118: 요주 함수2
     """
     가능한 번들 정보 집합이 주어지면, 해당 번들이 라이더들에게 선택될 법한지를 계산.
     @param bundle_infos: 번들 정보 집합. 자세한 사항은 아래 참고
@@ -968,7 +936,7 @@ def BundleExpValueCalculator(bundle_infos, rider_names, riders, orders, M = 1000
         rider_index += 1
     return res_r
 
-def Y_b_r(m_r, res_r):
+def Y_b_r(m_r, res_r): #todo 1118: 요주 함수3
     """
     계산한 값으로 부터 번들 계시 문제의 indicator "y"를 계산
     @param m_r: ExpValueCalculator 결과 값

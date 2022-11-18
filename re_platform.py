@@ -28,7 +28,7 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                       XGBmodel3 = None, XGBmodel2 = None, thres_label = 1, considered_customer_type = 'all',search_range_index = 15,
                       pr_para = False, ML_Saved_Data_B2 = [],ML_Saved_Data_B3 = [], fix_start = True, ite = 0,revise_type_para = None,
                       cut_info3 = [100,100], cut_info2= [100,100], stopping_index = 100, clustering = True, search_type2 = 'enumerate',
-                      revise_type = 'stopping', cut_infoC = [100,100], customer_pend = False):
+                      revise_type = 'stopping', cut_infoC = [100,100], customer_pend = False, M = 10000):
     f = open("loop시간정보.txt", 'a')
     locat_t = time.localtime(time.time())
     f.write('시간;{};연산 시작; obj;{};searchTypt;{};threslabel;{};#Riders;{};ITE;{};'.format(locat_t,obj_type,search_type,thres_label,len(riders), ite))
@@ -53,7 +53,8 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
         if bundle_para == True:
             lamda1, lamda2, mu1, mu2 = LamdaMuCalculate(orders, riders, env.now, interval=interval, return_type='class')
             p = CalculateRho(lamda1, lamda2, mu1, mu2)
-            active_rider_names, d_infos, time_data = CountActiveRider(riders, interval, min_pr= 0.05, t_now=env.now, option='w', point_return=True, print_option= False)
+            active_rider_names, d_infos, time_data = CountActiveRider(riders, interval, orders, min_pr= 0.05, t_now=env.now, option='w', point_return=True, print_option= False)
+            platform.active_rider_names = active_rider_names
             if p > thres_p:
                 #pr_para = True
                 #if search_type == 'XGBoost' or search_type == 'enumerate':
@@ -132,10 +133,11 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                         bundle_infos['length'].append(info[5])
                         bundle_infos['od'].append(ods)
                         #bundle_infos.append([len(info[4]), info[5], ods])
-                        tem_riders = [] #todo 1115: 라이더 번들 상세
+                        tem_riders = [] #todo 1115 : 라이더 번들 상세
                         for ct_name in info[4]:
                             tem_riders += BundleCloseRider[ct_name]
                         tem_riders = list(set(tem_riders))
+                        tem_riders = BundleCloseRider[info[0][0] - M] #todo 1118 : 정오표 더 정확하게
                         o = GenBundleOrder(task_index, info, orders, env.now, add_fee= 0) #todo 0929 : 인위 장치
                         o.old_info = info
                         o.exp_riders = tem_riders
@@ -405,7 +407,7 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
     else:
         considered_customers_names, interval_orders = CountUnpickedOrders(orders, now_t, interval=interval,return_type='name')
     print('탐색 대상 고객들 {}'.format(considered_customers_names))
-    active_rider_names, d_infos, times = CountActiveRider(riders, interval, min_pr=min_pr, t_now=now_t, option='w', point_return= True, print_option= False)
+    active_rider_names, d_infos, times = CountActiveRider(riders, interval, orders, min_pr=min_pr, t_now=now_t, option='w', point_return= True, print_option= False)
     # d_infos : 라이더가 주문을 선택할 지점 = 라이더가 주문을 완료하는 지점
 
     ###todo : 0913 Time save IDEA 01 START
@@ -429,12 +431,14 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
         tem.sort(key=operator.itemgetter(1))
         try:
             max_d = tem[min(search_index,len(tem) - 1)][1] #max_d : 라이더로 부터 search_index 까지 멀리 떨어진 지점의 이동시간
-            for dist_info in tem[:min(search_index,len(tem) - 1)]:
+            for dist_info in tem[:min(search_index + 5,len(tem) - 1)]:
                 BundleCloseRider[dist_info[0]].append(active_rider_names[tem_count])
         except:
             max_d = 10
         max_d_list += [[active_rider_names[tem_count], p1, max_d, times[tem_count]]]
         tem_count += 1
+    #for key in BundleCloseRider:
+    #    BundleCloseRider[key] = active_rider_names
     for test1 in max_d_list:
         #print(test1)
         pass

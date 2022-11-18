@@ -6,7 +6,7 @@ import operator
 import itertools
 from numba import jit
 import re_A1_class
-from A1_BasicFunc import distance, ActiveRiderCalculator, t_counter, counter2, BundleExpValueCalculator
+from A1_BasicFunc import distance, ActiveRiderCalculator, t_counter, counter2, BundleExpValueCalculator, RouteTime
 from A2_Func import BundleConsist, BundleConsist2, GenBundleOrder, GenSingleOrder
 import math
 import numpy as np
@@ -15,7 +15,7 @@ import random
 import copy
 
 
-def CountActiveRider(riders, t, min_pr = 0, t_now = 0, option = 'w', point_return = False, print_option = True):
+def CountActiveRider(riders, t, orders, min_pr = 0, t_now = 0, option = 'w', point_return = False, print_option = True):
     """
     현대 시점에서 t 시점내에 주문을 선택할 확률이 min_pr보다 더 높은 라이더를 계산
     @param riders: RIDER CLASS DICT
@@ -32,15 +32,20 @@ def CountActiveRider(riders, t, min_pr = 0, t_now = 0, option = 'w', point_retur
         if ActiveRiderCalculator(rider, t_now, option = option, print_option = print_option) == True :#and rider.select_pr(t) >= min_pr:
             names.append(rider_name)
             if point_return == True:
-                dists.append(rider.CurrentLoc(rider.next_search_time2, tag = 'tr3'))
+                dists.append(rider.exp_end_location)
+                times.append(rider.exp_end_time)
+                #dists.append(rider.CurrentLoc(rider.next_search_time2, tag = 'tr3'))
                 """
                 if len(rider.resource.users) > 0:
                     dists.append(rider.CurrentLoc(rider.next_search_time))
                 else:
                     dists.append(rider.last_departure_loc)
                 """
-                times.append(rider.next_search_time2)
+                #dists.append(rider.CurrentLoc(rider.next_search_time2, tag = 'tr3'))
+                #times.append(rider.next_search_time2)
                 #print('라이더 {} 마지막 위치 {} 마지막 시간 {} 다음 탐색 시간 {}'.format(rider_name, dists[-1], times[-1], rider.next_search_time2))
+                #route_time = RouteTime(orders, rider.route, speed=rider.speed)
+
             else:
                 print('False')
         else:
@@ -1200,7 +1205,7 @@ def DynamicBundleConstruct(t_customer, customers, rider_names, riders, platform,
 
 def OrdergeneratorByCSVForStressTestDynamic(env, orders, stores, lamda, platform = None, customer_p2 = 1, platform_p2 = 1,rider_speed = 1, unit_fee = 110, fee_type = 'linear',
                                      output_data = None, cooktime_detail = None, cook_first = False, dynamic_infos = None, riders = None, pr_off = True, end_t = 90,
-                                            dynamic_para = False, customer_pend = False, search_range_index = 15, stopping_range = 15, manual_cook_time = 7):
+                                            dynamic_para = False, customer_pend = False, search_range_index = 15, stopping_range = 15, manual_cook_time = 7, M = 10000):
     """
     Generate customer order
     :param env: Simpy Env
@@ -1374,6 +1379,7 @@ def OrdergeneratorByCSVForStressTestDynamic(env, orders, stores, lamda, platform
                             print(list(BundleCloseRider.keys()))
                             #input('왜 없나?')
                     tem_riders = list(set(tem_riders))
+                    tem_riders = BundleCloseRider[new_bundle_info[0][0] - M] #todo 1118 : 정오표 더 정확하게
                     o.exp_riders = tem_riders
                     # todo 1115: exp rider 계산 추가 End
                     platform.platform[task_index] = o

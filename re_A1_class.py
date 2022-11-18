@@ -87,6 +87,9 @@ class Rider(object):
         self.selected_info = [] #선택한 번들 중 번들이 있었는가?
         self.searched_info = [] #탐색한 고객 중 번들이 있었는가?
         self.pick_loc_history = []
+        self.exp_end_time = 0
+        self.exp_end_location = [25, 25]
+        self.count_info = [0,0]
         env.process(self.RunProcess(env, platform, customers, stores, self.p2, freedom= freedom, order_select_type = order_select_type, uncertainty = uncertainty))
         #env.process(self.TaskSearch(env, platform, customers, p2=self.p2, order_select_type=order_select_type, uncertainty=uncertainty))
 
@@ -235,7 +238,7 @@ class Rider(object):
                 yield env.timeout(self.check_t)
 
 
-    def OrderSelect_module(self,env, platform, customers, stores, p2=0, order_select_type='simple', uncertainty=False, score_type = 'simple'):
+    def OrderSelect_module(self,env, platform, customers, stores, p2=0, order_select_type='simple', uncertainty=False, score_type = 'simple', M = 10000):
         if self.bundle_construct == True:  # FT/ TT
             # 주문 고르기 #번들 생성 가능하도록
             print('FT/TT')
@@ -288,99 +291,36 @@ class Rider(object):
             # print('F:TaskSearch/라이더#:{}/order_info:{}'.format(self.name, order_info))
             self.OrderPick(env, order_info, order_info[1], customers, env.now, stores, route_revise_option=self.bundle_construct,
                            self_bundle=self_bundle)  # 라우트 결정 후
+            #라우트 타임 계산용 경로 만들기
+            tem_route = []
+            tem_customers = []
+            for node_info in order_info[1]:
+                tem_customers.append(customers[node_info[0]])
+                if node_info[1] == 0:
+                    tem_route.append(node_info[0] + M)
+                else:
+                    tem_route.append(node_info[0])
+            print(order_info)
+            #input('체크')
+            self.exp_end_time = env.now + Basic.RouteTime(tem_customers, tem_route, speed = self.speed) #todo 1118 : 라이더가 번들을 구성한다면 수정해야 함
+            self.exp_end_location = customers[tem_route[-1]].location
+            if self.name in platform.active_rider_names:
+                self.count_info[1] += 1
+            else:
+                self.count_info[0] += 1
             if order_info[8] == 'platform' and len(order_info[5]) > 1:
                 self.b_select += 1
                 self.num_bundle_customer += len(order_info[5])
                 if self.name in platform.platform[order_info[0]].exp_riders:
-                    self.bundles_infos[-1].append(1)
+                    self.bundles_infos[-1].append(1) #예상한 라이더
                 else:
-                    self.bundles_infos[-1].append(0)
+                    self.bundles_infos[-1].append(0) #예상하지 못한 라이더
                 #print(self.bundles_infos[-1])
                 #input('self.bundles_infos[-1]')
             elif order_info[8] == 'rider':
                 for customer_name in platform.platform[order_info[0]].customers:
                     customers[customer_name].rider_bundle_t = env.now
             Basic.UpdatePlatformByOrderSelection(platform, order_info[0])  # 만약 개별 주문 선택이 있다면, 해당 주문이 선택된 번들을 제거.
-
-
-    def TaskSearch(self, env, platform, customers, p2=0, order_select_type='simple', uncertainty=False, score_type = 'simple'):
-        while int(env.now) < self.end_t:
-            onhand_slack = self.max_order_num - len(self.onhand)
-            if env.now >= self.next_search_time2 and (onhand_slack > 0 or len(self.onhand_bundle) == 0):
-                print('ord2')
-                #self.OrderSelect_module(self.env, platform, customers, p2=p2)
-                if self.bundle_construct == True: #FT/ TT
-                    #주문 고르기 #번들 생성 가능하도록
-                    order_info, self_bundle = self.OrderSelect(platform, customers, p2=p2, uncertainty=uncertainty)
-                elif len(self.onhand) == 0: # FF/ TF
-                    #플랫폼에 있는 주문만 고르기
-                    order_info, self_bundle = self.OrderSelect(platform, customers, p2=p2, uncertainty=uncertainty)
-                else:
-                    order_info = None
-                """
-                #선택된 번들 반영 부분
-                empty_t = 1000
-                if order_info != None:
-                    platform.platform[order_info[0]].picked = True
-                    if self.rider_select_print_fig == True:
-                        input('주문 선택')
-                        selected_task = platform.platform[order_info[0]]
-                        x1 = []
-                        y1 = []
-                        x2 = []
-                        y2 = []
-                        # 1 현재 위치 그리기
-                        plt.scatter(self.last_departure_loc[0], self.last_departure_loc[1], marker='*', color='b', label='current_loc')
-                        #2 선택한 번들 위치 그리기
-                        #3 확인
-                        for index in range(1, len(order_info[1])):
-                            start = order_info[1][index - 1][2]
-                            end = [order_info[1][index][2][0] - order_info[1][index - 1][2][0],
-                                   order_info[1][index][2][1] - order_info[1][index - 1][2][1]]
-                            plt.arrow(start[0], start[1], end[0], end[1], width=0.2, length_includes_head=True)
-                        for ct_name in order_info[5]:
-                            x1.append(customers[ct_name].store_loc[0])
-                            y1.append(customers[ct_name].store_loc[1])
-                            x2.append(customers[ct_name].location[0])
-                            y2.append(customers[ct_name].location[1])
-                        # if bundle_infos != None:
-                        #    bundle_infos.append([len(o.customers),])
-                        plt.scatter(x1, y1, marker='o', color='k', label='store')
-                        plt.scatter(x2, y2, marker='x', color='m', label='customer')
-                        plt.legend()
-                        plt.axis([0, 50, 0, 50])
-                        title = 'RiderBundle {} ;Rider {};T {}'.format(self.bundle_construct,self.name, round(env.now, 2))
-                        plt.title(title)
-                        #plt.savefig(title + '.png', dpi=1000)
-                        plt.show()
-                        input('라이더 선택 확인2')
-                        plt.close()
-                        #target_customer, res_C_T, now_t = 0, titleinfo = 'None'
-                    """
-                print('F:TaskSearch/라이더#:{}/order_info:{}'.format(self.name, order_info))
-                self.OrderPick(order_info, order_info[1], customers, env.now,route_revise_option=self.bundle_construct, self_bundle = self_bundle)  # 라우트 결정 후
-                if order_info[8] == 'platform' and len(order_info[5]) > 1:
-                    self.b_select += 1
-                    self.num_bundle_customer += len(order_info[5])
-                Basic.UpdatePlatformByOrderSelection(platform,order_info[0])  # 만약 개별 주문 선택이 있다면, 해당 주문이 선택된 번들을 제거.
-                #종류에 따른 다음 선택 시간 결정 :todo 라이더의 효율에 영향을 미침.
-                if self.bundle_construct == True:
-                    pr = 1/(onhand_slack + 1)
-                    if pr < random.random():
-                        next = self.Rand.poisson(self.search_lamda)/(onhand_slack + 1)
-                    else:
-                        next = self.Rand.poisson(self.search_lamda)
-                elif len(self.onhand) < self.max_order_num:
-                    next = self.check_t #order_end_time
-                else:
-                    next = self.Rand.poisson(self.search_lamda)
-                #print('다음 시간 {}'.format(next))
-                self.next_search_time2 += next
-                self.order_select_time.append(env.now)
-                yield env.timeout(next)
-            else:
-                self.next_search_time2 += self.check_t
-                yield env.timeout(self.check_t) #시간을 흘려 보내기 위한 장치
 
 
     def OrderSelect(self, platform, customers, p2, uncertainty, l = 4):
@@ -777,13 +717,6 @@ class Rider(object):
             return [nodeA[0] + x_inc, nodeA[1] + y_inc]
 
 
-    def select_pr(self, t):
-        # t분 이내에 주문을 선택을 할 확률을 반환
-        mu = (1.0/self.search_lamda)*t
-        x = 0
-        return round(1 - poisson.pmf(x, mu),4) # 주문을 1번이상 수행할 확률
-
-
 class Store(object):
     """
     Store can received the order.
@@ -867,10 +800,12 @@ class Store(object):
 
     def Cook(self, env, customer, cooking_time_type = 'fixed', manual_cook_time = None):
         """
-        Occupy the store capacity and cook the order
+        Occupy the store capacity and cook the order.
+        라이더의 pick이 trigger임. (#중요# 추후에, 조리 시간이 긴 음식에 대해서는 미리 cook을 시작하도록 바꿀 수 있음)
         :param env: simpy Env
         :param customer: class customer
         :param cooking_time_type: option
+        :param manual_cook_time : {float} 값을 가질 시 해당 시간 만큼을 대기 시킴.
         """
         #print('현재 사용중', len(self.resource.users))
         with self.resource.request() as req:
@@ -900,24 +835,8 @@ class Store(object):
             self.ready_order.append(customer)
 
 
-    def CookingFirst(self,env,time):
-        print('음식 {} 선 조리 시작1/ T{}'.format(self.name,int(env.now)))
-        self.cook_start_time = env.now
-        yield env.timeout(time)
-        self.cook_finish_time = env.now
-        print('음식 {} 조리 완료1/ T{}'.format(self.name, int(env.now)))
-        #input('조리 경과 확인')
-
-    def FinsiehdCooking(self,env,time):
-        print('음식 {} 선 조리 시작2/ T{}'.format(self.name,int(env.now)))
-        self.cook_start_time = env.now
-        yield env.timeout(time)
-        self.cook_finish_time = env.now
-        print('음식 {} 조리 완료2/ T{}'.format(self.name, int(env.now)))
-        #input('조리 경과 확인')
-
 class Customer(object):
-    def __init__(self, env, name, input_location, store = 0, store_loc = (25, 25),end_time = 60, ready_time=0, service_time=0,
+    def __init__(self, env, name, input_location, store = 0, store_loc = (25, 25),end_time = 60, ready_time = 1, service_time = 2,
                  fee = 2500, p2 = 15, cooking_time = (2,5), cook_info = (None, None), platform = None, unit_fee = 110, fee_type = 'linear', cancel_input = False):
         self.name = name  # 각 고객에게 unique한 이름을 부여할 수 있어야 함. dict의 key와 같이
         self.time_info = [round(env.now, 2), None, None, None, None, end_time, ready_time, service_time, None]
@@ -988,7 +907,7 @@ class Platform_pool(object):
         self.platform = {}
         self.info = []
         self.p = 1
-
+        self.active_rider_names = []
 
 class scenario(object):
     def __init__(self, name, p1 = True, search_option= False,  scoring_type = 'myopic',  unserved_bundle_order_break = True, bundle_selection_type = 'greedy', considered_customer_type = 'new'):
@@ -1014,7 +933,7 @@ class scenario(object):
         self.countf = [0,0,0,0,0]
         self.countt = [0, 0, 0, 0, 0]
         self.dynamic = False
-        self.bundle_select_infos = [0,0]
+        self.bundle_select_infos = [0,0,0,0]
 
 
 def WaitTimeCal1(exp_store_arrive_t, assign_t, exp_cook_time, cook_time, move_t = 0):
