@@ -348,7 +348,12 @@ for ite in exp_range:#range(0, 1):
                                                         dynamic_para=dynamic_env, cooktime_detail=None,
                                                         customer_pend=customer_pend,
                                                         manual_cook_time=manual_cook_time,
-                                                        search_range_index=stopping_index))
+                                                        search_range_index=stopping_index,
+                                                        XGBmodel3 = XGBmodel3,
+                                                        XGBmodel2 = XGBmodel2,
+                                                        cut_info3 = cut_info3,
+                                                        cut_info2 = cut_info2,
+                                                        cal_type = 'XGBoost'))
             """
             if dynamic_env == True:
                 env.process(OrdergeneratorByCSVForStressTestDynamic(env, Orders, Store_dict, stress_lamda, platform=Platform2,
