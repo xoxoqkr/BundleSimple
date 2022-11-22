@@ -7,7 +7,7 @@ run_time = 60
 customer_pend_options = [False]
 dir = "E:/python_백업/py_charm/BundleSimple/"
 basic_infos = [[False,False],[False,True],[True,False],[True,True]] #P2P,Dynamic,Static,Hybrid,
-basic_infos = [[False,True]] #
+basic_infos = [[True,False]] #
 infos = []
 
 for customer_pend in customer_pend_options:

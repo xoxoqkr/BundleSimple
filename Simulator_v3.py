@@ -198,7 +198,7 @@ for sc3 in scenarios:
     print(sc3.platform_recommend, sc3.rider_bundle_construct,sc3.obj_type, sc3.search_type)
 scenarios = scenarios[:1]
 
-scenarios[0].obj_type = 'simple_max_s'
+scenarios[0].obj_type = 'value+selective' #todo : simple_max_s Vs value+selective
 
 print('시나리오 확인 Start')
 print(scenarios)

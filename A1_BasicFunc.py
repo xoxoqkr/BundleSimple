@@ -860,33 +860,38 @@ def ExpValueCalculator(rider_names, riders, order_names, orders, rider_check_ind
     @param order_names: 라이더가 선택할 수 있는 주문 이름들
     @param orders: 고객 집합
     @param rider_check_index: 라이더가 확인할 주문 수
-    @return:
+    @return: [[라이더 이름, 주문 이름,주문 OD-거리, 단위 시간당 이익],...,]
     """
     m_r = []
     for rider_name in rider_names:
         rider = riders[rider_name]
-        dist = []
-        rider_end_loc = rider.route[-1][2]
+        dists = []
+        try:
+            rider_end_loc = rider.route[-1][2]
+        except:
+            rider_end_loc = rider.visited_route[-1][2]
         for order_name in order_names:
             order = orders[order_name]
-            dist.append([order.name, distance(rider_end_loc[0],rider_end_loc[1],order.store_loc[0],order.store_loc[1])])
-        dist.sort(key=operator.itemgetter(1))
-        dist = dist[:rider_check_index]
+            dists.append([order.name, distance(rider_end_loc[0],rider_end_loc[1],order.store_loc[0],order.store_loc[1])])
+        dists.sort(key=operator.itemgetter(1))
+        dists = dists[:rider_check_index]
         rider_value = []
-        for info in dist:
+        for info in dists:
             dist1 = distance(order.store_loc[0],order.store_loc[1],order.location[1],order.location[1])
             move_t = (info[1] + dist1)/rider.speed
             val = order.fee / move_t
             rider_value.append([info[0],dist1, val])
-        dist.sort(key=operator.itemgetter(2), reverse=True) #시간당 이윤이 높은 순서대로
-        if len(dist) > 0:
-            m_r.append([rider.name, dist[0],  dist[1], dist[2]])
+        rider_value.sort(key=operator.itemgetter(2), reverse=True) #시간당 이윤이 높은 순서대로
+        if len(dists) > 0:
+            win_dist = rider_value[0]
+            max_dist = dists[:rider_check_index][1]
+            m_r.append([rider.name, win_dist[0],  win_dist[1], win_dist[2],max_dist])
         else:
             m_r.append([rider.name, 0 ,100, 0 ])
     return m_r
 
 
-def BundleExpValueCalculator(bundle_infos, rider_names, riders, orders, M = 10000, m_r = None): #todo 1118: 요주 함수2
+def BundleExpValueCalculator(bundle_infos, rider_names, riders, orders, M = 10000, m_r = None, output_type = 'matrix'): #todo 1118: 요주 함수2
     """
     가능한 번들 정보 집합이 주어지면, 해당 번들이 라이더들에게 선택될 법한지를 계산.
     @param bundle_infos: 번들 정보 집합. 자세한 사항은 아래 참고
@@ -896,13 +901,15 @@ def BundleExpValueCalculator(bundle_infos, rider_names, riders, orders, M = 1000
     @param orders: 주문 집합
     @param M: BundleConsist2에 사용되는 임의의 큰 수 M
     @param m_r: ExpValueCalculator의 계산 결과. 반드시 필요하지는 않지만, 있는 경우 연산 시간이 단축 됨.
-    @return:
+    @return: [행:라이더, 열 : 주어진 bundle_infos index] 1:라이더i가 번들 j 선택할 가능성 높음. 0 : 라이더i가 번들 j 선택할 가능성 낮음
     """
-    res_r = [-1]
+    res_r = []
     rider_index = 0
     for rider_name in rider_names:
         rider = riders[rider_name]
+        tem_r = []
         for b_info in bundle_infos:
+            #print(bundle_infos)
             #print(b_info)
             #input('check1234')
             start_order_name = b_info[0][0] - M
@@ -920,21 +927,36 @@ def BundleExpValueCalculator(bundle_infos, rider_names, riders, orders, M = 1000
             if len(rider_end_loc) != 2:
                 rider_end_loc = rider.visited_route[-1][2]
             #print(rider_end_loc, start_point)
-            #input('노드 정보 확인')
-            dist = distance(rider_end_loc[0], rider_end_loc[1], start_point[0], start_point[1])
-            if m_r != None and dist > m_r[rider_index][2]:
-                val = 0
+            d2start = distance(rider_end_loc[0], rider_end_loc[1], start_point[0], start_point[1])
+            move_t = d2start / rider.speed
+            move_t += b_info[5]
+            fee = 0
+            for name in b_info[4]:
+                fee += orders[name].fee
+            # rider_end_loc = rider.route[-1][2]
+            val = move_t / fee
+            if d2start < m_r[rider_index][3]:
+                if val > m_r[rider_index][2]:
+                    #tem = val
+                    tem = 1
+                else:
+                    #tem = m_r[rider_index][2]
+                    tem = 0
             else:
-                move_t = distance(rider_end_loc[0], rider_end_loc[1], start_point[0], start_point[1]) / rider.speed
-                move_t += b_info[5]
-                fee = 0
-                for name in b_info[4]:
-                    fee += orders[name].fee
-                #rider_end_loc = rider.route[-1][2]
-                val = move_t / fee
-        res_r.append(val)
+                tem = 0
+            tem_r.append(tem)
+        res_r.append(tem_r)
         rider_index += 1
-    return res_r
+    if output_type == 'matrix':
+        return res_r
+    else:
+        rev_r = []
+        for bundle_index in range(len(res_r[0])):
+            val = 0
+            for rider_index in range(len(res_r)):
+                val += res_r[rider_index][bundle_index]
+            rev_r.append(val)
+    return rev_r
 
 def Y_b_r(m_r, res_r): #todo 1118: 요주 함수3
     """

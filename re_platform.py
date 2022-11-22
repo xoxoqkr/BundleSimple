@@ -2,7 +2,7 @@
 from numba import jit
 import time
 import math
-from A1_BasicFunc import PrintSearchCandidate, check_list, t_counter, counter2, counter
+from A1_BasicFunc import PrintSearchCandidate, check_list, t_counter, counter2, counter, ExpValueCalculator, BundleExpValueCalculator
 from A2_Func import CountUnpickedOrders, CalculateRho, RequiredBreakBundleNum, BreakBundle, GenBundleOrder,  LamdaMuCalculate, NewCustomer, RebaseCustomer1, RebaseCustomer2, GenSingleOrder
 from A3_two_sided import BundleConsideredCustomers, CountActiveRider,  ConstructFeasibleBundle_TwoSided, SearchRaidar_heuristic, SearchRaidar_ellipse, SearchRaidar_ellipseMJ, XGBoost_Bundle_Construct
 import operator
@@ -62,7 +62,7 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                 #feasible_bundle_set, phi_b, d_matrix, s_b, D, lt_matrix = Bundle_Ready_Processs(env.now, platform, orders, riders, p2, interval,
                 #                                                                                speed = riders[0].speed, bundle_permutation_option= True, search_type = search_type, print_fig = print_fig,
                 #                                                                                ellipse_w = ellipse_w, heuristic_theta = heuristic_theta,heuristic_r1 = heuristic_r1)
-                feasible_bundle_set, phi_b, d_matrix, s_b, D, lt_matrix, act_considered_ct_num, label_infos, D_rev, sc_add_infos, BundleCloseRider = Bundle_Ready_Processs2(
+                feasible_bundle_set, phi_b, d_matrix, s_b, D, lt_matrix, act_considered_ct_num, label_infos, D_rev, sc_add_infos, BundleCloseRider, considered_customers = Bundle_Ready_Processs2(
                     env.now, platform, orders, riders, p2, interval,
                     speed=riders[0].speed, bundle_permutation_option=True, search_type=search_type, print_fig=print_fig,
                     ellipse_w=ellipse_w, heuristic_theta=heuristic_theta, heuristic_r1=heuristic_r1,
@@ -77,7 +77,10 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                 #문제 풀이
                 #unique_bundle_indexs = Bundle_selection_problem3(phi_b, d_matrix, s_b, min_pr = 0.05)
                 mip_s = time.time()
-                unique_bundle_indexs, num_const = Bundle_selection_problem4(phi_b, D, s_b, lt_matrix, D_rev, min_pr = 1, obj_type= obj_type, pr_para=pr_para) #todo : 0317_수정본. min_pr을 무의미한 제약식으로 설정
+                #todo 20221122 : y_b_r
+                m_r = ExpValueCalculator(platform.active_rider_names, riders, considered_customers, orders, rider_check_index = 12)
+                y_b = BundleExpValueCalculator(feasible_bundle_set, platform.active_rider_names, riders, orders, m_r = m_r, output_type = 'vector')
+                unique_bundle_indexs, num_const = Bundle_selection_problem4(phi_b, D, s_b, lt_matrix, D_rev, min_pr = 1, obj_type= obj_type, pr_para=pr_para, y_datas = y_b) #todo : 0317_수정본. min_pr을 무의미한 제약식으로 설정
                 mip_end = time.time()
                 mip_duration = mip_end - mip_s
 
@@ -803,7 +806,7 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
     end_test6 = time.time()
     t_counter('test6', end_test6 - start_test6)
     add_info_return = [consider_ct_num , consider_ct_search_num, sucess_info_b3_DD, sucess_info_b3_OO]
-    return Feasible_bundle_set, phi_b, d_matrix, s_matrix, D, lt_vector, len(check_considered_customers), res_label_count, D_rev, add_info_return, BundleCloseRider
+    return Feasible_bundle_set, phi_b, d_matrix, s_matrix, D, lt_vector, len(check_considered_customers), res_label_count, D_rev, add_info_return, BundleCloseRider, considered_customers
 
 
 def Break_the_bundle(platform, orders, org_bundle_num, rev_bundle_num):

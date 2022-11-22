@@ -149,6 +149,8 @@ def Bundle_selection_problem4(phi_b, D, s_b, lt_matrix,D_rev, min_pr=0.05, obj_t
         m.setObjective(gp.quicksum(lt_matrix[i] * x[i] for i in bundle_indexs), GRB.MAXIMIZE)
     elif obj_type == 'over_lt+probability':
         m.setObjective(gp.quicksum(lt_matrix[i] * x[i] - w * z[i] for i in bundle_indexs), GRB.MAXIMIZE)
+    elif obj_type == 'value+selective':
+        m.setObjective(gp.quicksum(s_b[i] * x[i] + y_datas[i] * x[i] for i in bundle_indexs), GRB.MAXIMIZE)
     else:
         pass
     #for info in D:
@@ -157,7 +159,9 @@ def Bundle_selection_problem4(phi_b, D, s_b, lt_matrix,D_rev, min_pr=0.05, obj_t
         m.addConstr(gp.quicksum(x[i] for i in info) <= 1)
     if pr_para == True:
         m.addConstrs(x[i] * phi_b[i] - z[i] <= min_pr for i in bundle_indexs)
-    if likely_para == True and y_datas != None:
+    #if likely_para == True and y_datas != None:
+    #    m.addConstrs(x[i] <= y_datas[i] for i in bundle_indexs)
+    if y_datas != None and obj_type == 'value+selective':
         m.addConstrs(x[i] <= y_datas[i] for i in bundle_indexs)
     #풀이
     m.optimize()
