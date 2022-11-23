@@ -400,8 +400,18 @@ for ite in exp_range:#range(0, 1):
         print(Platform2.selected_bundle_type)
         #input('check')
         for select_info in Platform2.selected_bundle_type:
-            b_type_count[select_info[1]] += 1
-            b_type_len_sum[select_info[1]] += select_info[2]
+            if select_info[1] == 1:
+                b_type_count[0] += 1
+                b_type_len_sum[0] += select_info[2]
+            elif select_info[1] == 2:
+                b_type_count[1] += 1
+                b_type_len_sum[1] += select_info[2]
+            else:
+                b_type_count[2] += 1
+                b_type_len_sum[2] += select_info[2]
+                pass
+            #b_type_count[select_info[1]] += 1
+            #b_type_len_sum[select_info[1]] += select_info[2]
         sc.bundle_type_infos = b_type_count + b_type_len_sum
         res = ResultPrint(sc.name + str(ite), Orders, speed=rider_speed, riders = Rider_dict)
         sc.res.append(res)
@@ -430,7 +440,7 @@ for ite in exp_range:#range(0, 1):
                 pass
         print(Platform2.suggested_bundles)
         #input('확인 ㅎ')
-        sc.suggested_bundles_count = Platform2.suggested_bundles
+        sc.suggested_bundles_count = copy.deepcopy(Platform2.suggested_bundles)
         #input('확인')
 
         #저장 부
@@ -748,19 +758,21 @@ for sc in scenarios:
     ave_dynamic = 0
     ave_static = 0
     try:
-        ave_dynamic = sc.bundle_type_infos[4]/sc.bundle_type_infos[1]
-        ave_static = sc.bundle_type_infos[5]/sc.bundle_type_infos[2]
+        ave_dynamic = sc.bundle_type_infos[3]/sc.bundle_type_infos[0]
+        ave_static = sc.bundle_type_infos[4]/sc.bundle_type_infos[1]
     except:
         pass
+    print(sc.suggested_bundles_count)
+    #input('확인 ㅎ')
     try:
-        tem_data = '{];{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};'.format(
+        tem_data = '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};'.format(
                 local_t,customer_pend,dynamic_env, sc.platform_recommend,instance_type , str(sc.name[0]),sc.search_type, ave_duration,sc.platform_recommend,sc.rider_bundle_construct,stress_rider_num,sc.obj_type, res_info[0],res_info[1],
                 res_info[2], res_info[3], res_info[4], res_info[5], res_info[6], res_info[7], res_info[8],res_info[9],res_info[10],res_info[11],res_info[12],res_info[13],
             res_info[14], res_info[15], res_info[16],res_info[17], res_info[18], res_info[19],res_info[20],res_info[21],res_info[22],res_info[23], res_info[24],res_info[25],
             res_info[26],res_info[27],res_info[28],res_info[29],res_info[30],res_info[31],res_info[32], res_info[33],res_info[34], res_info[35],res_info[36], res_info[37],res_info[38],res_info[39], res_info[40], res_info[41],
             offered_bundle_num,res_info[42], res_info[43], res_info[44],res_info[45],ellipse_w, heuristic_theta, heuristic_r1, sc.mix_ratio, sc.countf[0], sc.countf[1], sc.countf[2], sc.countf[3],
-        sc.countt[0], sc.countt[1],sc.countt[2], sc.bundle_select_infos[0], sc.bundle_select_infos[1],sc.bundle_select_infos[2], sc.bundle_select_infos[3], sc.bundle_type_infos[0],sc.bundle_type_infos[1],sc.bundle_type_infos[2],
-        ave_dynamic, ave_static, sc.suggested_bundles_count[0],sc.suggested_bundles_count[1])
+        sc.countt[0], sc.countt[1],sc.countt[2], sc.bundle_select_infos[0], sc.bundle_select_infos[1],sc.bundle_select_infos[2], sc.bundle_select_infos[3], sc.bundle_type_infos[2],sc.bundle_type_infos[0],sc.bundle_type_infos[1],
+        ave_dynamic, ave_static,sc.suggested_bundles_count[0],sc.suggested_bundles_count[1])
         """
         print(
             '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{}'.format(

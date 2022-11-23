@@ -144,7 +144,7 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                         o = GenBundleOrder(task_index, info, orders, env.now, add_fee= 0, bundle_type= 2) #todo 0929 : 인위 장치
                         platform.suggested_bundles[1] += 1
                         o.old_info = info
-                        o.bundle_type = 4
+                        #o.bundle_type = 4
                         o.exp_riders = tem_riders
                         platform.platform[task_index] = o
                         task_index += 1
