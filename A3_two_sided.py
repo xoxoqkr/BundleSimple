@@ -1008,7 +1008,7 @@ def SubF1_SingleCustomerBundleInsert(t_customer, customers, input_bundle_info, r
         cts = []
         for name in ct_names:
             cts.append(customers[name])
-        tem_bundle_info = BundleConsist2(cts, customers, p2,feasible_return= True) #가능한 모든 번들만 반환; [번들1 정보, 번들2_정보,..., 번들n_정보]
+        tem_bundle_info = BundleConsist2(cts, customers, p2,bundle_permutation_option= True,feasible_return= True) #가능한 모든 번들만 반환; [번들1 정보, 번들2_정보,..., 번들n_정보]
         if len(tem_bundle_info) > 0:
             for b_info in tem_bundle_info:
                 if pr_off == False:
@@ -1418,8 +1418,9 @@ def OrdergeneratorByCSVForStressTestDynamic(env, orders, stores, lamda, platform
                         task_index = 1
                     print(b_type, new_bundle_info)
                     #input('new_bundle_info')
-                    o = GenBundleOrder(task_index, new_bundle_info, orders, env.now, add_fee=0)
+                    o = GenBundleOrder(task_index, new_bundle_info, orders, env.now, add_fee=0, bundle_type = 1)
                     o.old_info = new_bundle_info
+                    o.dynamic_type = b_type
                     #todo 1115: exp rider 계산 추가 Start -> 부하가 매우 크게 발생할 것임.
                     #active_rider_names, d_infos, times = CountActiveRider(riders, interval, min_pr=0.05, t_now=env.now,option='w', point_return=True, print_option=False)
                     # d_infos : 라이더가 주문을 선택할 지점 = 라이더가 주문을 완료하는 지점
@@ -1450,7 +1451,8 @@ def OrdergeneratorByCSVForStressTestDynamic(env, orders, stores, lamda, platform
                 tem_dist = distance(order.store_loc[0], order.store_loc[1], order.location[0], order.location[1])
                 tem_od_dist.append(tem_dist)
             od_dist = sum(tem_od_dist)/len(tem_od_dist)
-            f = open('E:/python_백업/py_charm/BundleSimple/log_dynamic.txt','a')
+            #f = open('E:/python_백업/py_charm/BundleSimple/log_dynamic.txt','a')
+            f = open('C:/Users/박태준/PycharmProjects/BundleSimple/log_dynamic.txt','a')
             vals = []
             for key in t_info:
                 vals += t_info[key]

@@ -771,7 +771,7 @@ def ForABundleCount(route_info):
 def ResultSave(Riders, Customers, title = 'Test', sub_info = 'None', type_name = 'A'):
     tm = time.localtime(time.time())
     sub = ['Day {} Hr{}Min{}Sec{}/ SUB {} '.format(tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec,sub_info)]
-    rider_header = ['라이더 이름', '서비스 고객수', '주문 탐색 시간','선택한 번들 수','번들로 서비스된 고객 수','라이더 수익','음식점 대기시간','대기시간_번들','대기시간_단건주문','주문 선택 간격','경로']
+    rider_header = ['라이더 이름', '서비스 고객수', '주문 탐색 시간','선택한 번들 수','번들로 서비스된 고객 수','라이더 수익','음식점 대기시간','대기시간_번들','대기시간_단건주문','주문 선택 간격','대기 시간','주문이 없는 시간 수','경로']
     rider_infos = [sub,rider_header]
     for rider_name in Riders:
         rider = Riders[rider_name]
@@ -798,11 +798,12 @@ def ResultSave(Riders, Customers, title = 'Test', sub_info = 'None', type_name =
         except:
             decision_moment = 0
         #print('평균 주문간격{}'.format(decision_moment))
-        info = [rider_name, len(rider.served), rider.idle_time, rider.b_select,rider.num_bundle_customer, int(rider.income), round(rider.store_wait,2) ,bundle_store_wait,single_store_wait,decision_moment,rider.visited_route]
+        info = [rider_name, len(rider.served), rider.idle_time, rider.b_select,rider.num_bundle_customer, int(rider.income), round(rider.store_wait,2) ,bundle_store_wait,single_store_wait,decision_moment,rider.check_t,rider.empty_serach_count,rider.visited_route]
         rider_infos.append(info)
     customer_header = ['고객 이름', '생성 시점', '라이더 선택 시점','가게 출발 시점','고객 도착 시점','가게 도착 시점','음식조리시간','음식 음식점 대기 시간'
         ,'라이더 가게 대기시간1','라이더 가게 대기시간2','수수료', '수행 라이더 정보', '직선 거리','p2(민감정도)','번들여부','조리시간','기사 대기 시간'
-        ,'번들로 구성된 시점', '취소','LT', 'FLT', '라이더 번들 여부','라이더 번들 LT','조리 시작 시간','조리소요시간','가게에서 소요 시간','고객에게서 소요 시간','차량 대기 시간', '음식 대기 시간']
+        ,'번들로 구성된 시점', '취소','LT', 'FLT', '라이더 번들 여부','라이더 번들 LT','조리 시작 시간','조리소요시간','가게에서 소요 시간','고객에게서 소요 시간','차량 대기 시간', '음식 대기 시간',
+                       'who_picked','bundle_size','bundle_route','who_serve', 'bundletype','dynamic 번들 유형']
     customer_infos = [sub, customer_header]
     for customer_name in Customers:
         customer = Customers[customer_name]
@@ -823,6 +824,7 @@ def ResultSave(Riders, Customers, title = 'Test', sub_info = 'None', type_name =
             info += [None, None]
         info += customer.rider_bundle
         info += [customer.cook_start_time, customer.actual_cook_time, customer.time_info[6], customer.time_info[7], customer.rider_wait3, customer.food_wait3]
+        info += [customer.who_picked, customer.bundle_size, customer.bundle_route, customer.who_serve, customer.bundle_type, customer.dynamic_type]
         customer_infos.append(info)
     f = open(title + "riders.txt", 'a')
     for info in rider_infos:

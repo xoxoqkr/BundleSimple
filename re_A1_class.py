@@ -24,6 +24,8 @@ class Order(object):
         self.old_info = None
         self.gen_t = 0
         self.exp_riders = []
+        self.bundle_type = None
+        self.dynamic_type = None
 
 
 class Rider(object):
@@ -165,17 +167,19 @@ class Rider(object):
                         #yield env.process(order.FinsiehdCooking(env, remain_cook_time)) & env.process(self.RiderMoving(env, move_t))
                         #print('예상 시간 {} Vs 실제 시간 {}; 고객 이름{}'.format(expPickUpT, int(env.now), order.name))
                         #input('도착시 조리 시작')
-                        if expPickUpT < env.now:
+                        if expPickUpT < env.now: #라이더가 대기 후 기다리는 경우
                             self.rider_wait2.append(env.now -expPickUpT)
                             order.rider_wait3 = env.now - expPickUpT
-                        elif expPickUpT == env.now:
+                            order.food_wait3 = 0
+                        elif expPickUpT > env.now: #음식이 대기하는 경우
+                            order.rider_wait3 = 0
                             order.food_wait2.append(expPickUpT - env.now)
                             order.food_wait3 = env.now - (order.cook_start_time + order.actual_cook_time)
-                        else: #완전 일치.ㅎㅎ
+                        else: #완전 일치. 라이더와 음식이 동시에 준비된 경우
                             print('현재T{};음식 조리 시작{};음식 조리시간{};음식조리 완료 시간{} expPickUpT{}'.format(env.now,order.cook_start_time, order.actual_cook_time,order.cook_start_time + order.actual_cook_time,expPickUpT))
                             order.rider_wait3 = 0
                             order.food_wait3 = 0
-                            input('확인')
+                            #input('확인')
                         print('T:{} 라이더{} 고객{}을 위해 가게 {} 도착'.format(int(env.now), self.name, customers[node_info[0]].name,customers[node_info[0]].store))
                         self.container.append(node_info[0])
                         print('라이더 {} 음식{} 적재'.format(self.name, node_info[0]))
@@ -291,6 +295,11 @@ class Rider(object):
             # print('F:TaskSearch/라이더#:{}/order_info:{}'.format(self.name, order_info))
             self.OrderPick(env, order_info, order_info[1], customers, env.now, stores, route_revise_option=self.bundle_construct,
                            self_bundle=self_bundle)  # 라우트 결정 후
+            if len(order_info[5]) > 1:
+                platform.selected_bundle_type.append([int(env.now),platform.platform[order_info[0]].bundle_type, len(order_info[5])])
+            for name in order_info[5]:
+                customers[name].bundle_type = platform.platform[order_info[0]].bundle_type
+                customers[name].dynamic_type = platform.platform[order_info[0]].dynamic_type
             #라우트 타임 계산용 경로 만들기
             tem_route = []
             tem_customers = []
@@ -638,12 +647,15 @@ class Rider(object):
             if 0 < customer.dp_cook_time < 15:
                 #env.process(stores[customer.store].Cook(env, customer, manual_cook_time = customer.cook_time))
                 customer.cooking_process = env.process(stores[customer.store].Cook(env, customer, manual_cook_time = customer.cook_time))
+                customer.cook_start_time = env.now
                 print('접수 후 조리 시작 음식 {}/ 가게 {}'.format(customer.name, customer.store))
                 #customer.cooking_process = env.process(customer.CookingFirst(env, customer.actual_cook_time))
             if len(names) > 1:
                 customer.inbundle = True
                 customer.type = 'bundle'
                 customer.who_picked[-1][3] = 'bundle'
+                customer.bundle_size = len(names)
+                customer.bundle_route = route
             #print('주문 {}의 고객 {} 가게 위치{} 고객 위치{}'.format(order.index, name, customers[name].store_loc, customers[name].location))
         #print('선택된 주문의 고객들 {} / 추가 경로{}'.format(names, route))
         if route[0][1] != 0:
@@ -886,6 +898,10 @@ class Customer(object):
         self.cook_start_t = None
         self.rider_select_t = None
         self.temperature = None
+        self.bundle_type = None
+        self.bundle_size = 0
+        self.bundle_route = []
+        self.dynamic_type = None
         env.process(self.CustomerLeave(env, platform))
 
     def CustomerLeave(self, env, platform):
@@ -908,6 +924,8 @@ class Platform_pool(object):
         self.info = []
         self.p = 1
         self.active_rider_names = []
+        self.selected_bundles = []
+        self.selected_bundle_type = []
 
 class scenario(object):
     def __init__(self, name, p1 = True, search_option= False,  scoring_type = 'myopic',  unserved_bundle_order_break = True, bundle_selection_type = 'greedy', considered_customer_type = 'new'):
@@ -934,6 +952,7 @@ class scenario(object):
         self.countt = [0, 0, 0, 0, 0]
         self.dynamic = False
         self.bundle_select_infos = [0,0,0,0]
+        self.bundle_type_infos = [0,0,0]
 
 
 def WaitTimeCal1(exp_store_arrive_t, assign_t, exp_cook_time, cook_time, move_t = 0):

@@ -5,9 +5,9 @@ import time
 #고객들의 주문이 발생 후 cancel == True인 상태에서 다음 interval이 되면 canceal = False가 되는 상황
 run_time = 60
 customer_pend_options = [False]
-dir = "E:/python_백업/py_charm/BundleSimple/"
-basic_infos = [[False,False],[False,True],[True,False],[True,True]] #P2P,Dynamic,Static,Hybrid,
-basic_infos = [[True,False]] #
+dir = "C:/users/박태준/PycharmProjects/BundleSimple/"
+basic_infos = [[False,False,'simple_max_s'],[False,True,'simple_max_s'],[True,False,'simple_max_s'],[True,True,'simple_max_s'],[True,False,'value+selective'],[True,True,'value+selective']] #P2P,Dynamic,Static,Hybrid,
+basic_infos = [[False,True,'simple_max_s']]
 infos = []
 
 for customer_pend in customer_pend_options:
@@ -21,7 +21,7 @@ for ite in range(1):
         s_t = time.time()
         exec(open(dir + 'Simulator_v3.py', encoding='UTF8').read(),
              globals().update(run_time=run_time, platform_recommend_input=info[0], dynamic_env=info[1],
-                              customer_pend=info[2]))
+                              customer_pend=info[3], obj_type = info[2]))
         f = open(dir + 'report_test.txt', 'a')
         e_t = time.time()
         # f.write('success; duration;{};t_now;{} \n'.format(e_t - s_t, time.strftime('%Y-%m-%d %I:%M:%S %p', e_t)))

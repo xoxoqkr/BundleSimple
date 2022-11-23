@@ -11,9 +11,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import random
 from Bundle_selection_problem import RebaseProblem
-from sklearn.cluster import KMeans
 import os
-#os.environ["OMP_NUM_THREADS"] = '1'
+os.environ["OMP_NUM_THREADS"] = '1'
+from sklearn.cluster import KMeans
+
 
 def LamdaMuCalculate(orders, riders, now_t, interval = 5, return_type = 'class'):
     unpicked_orders, lamda2 = CountUnpickedOrders(orders, now_t, interval=interval, return_type=return_type)  # lamda1
@@ -363,8 +364,13 @@ def BundleConsist2(orders, customers, p2, time_thres = 0, speed = 1,M = 10000, b
                 route_time, unsync_t, time_buffer = RouteTime(orders, route, speed=speed, M=M, uncertainty = uncertainty, error = platform_exp_error,
                                                               sync_output_para = True, now_t = now_t, bywho='Platform', time_buffer_para= True)
                 if min(time_buffer) >= min_time_buffer:
-                    origin = customers[route[0] - M].store_loc
-                    destination = customers[route[-1]].location
+                    try:
+                        origin = customers[route[0] - M].store_loc
+                        destination = customers[route[-1]].location
+                    except:
+                        print(route)
+                        #input('잘못된 경로')
+                        return []
                     line_dist = round(route_time, 2) - (distance(origin[0],origin[1], destination[0],destination[1])/speed)
                     tem = [route, unsync_t[0], round(sum(ftds) / len(ftds), 2), unsync_t[1], order_names, round(route_time, 2),min(time_buffer), round(P2P_dist - route_time, 2), line_dist, round(P2P_dist,4), distance(origin[0],origin[1], destination[0],destination[1])/speed]
                     if line_dist <= 0.1 :
@@ -580,7 +586,19 @@ def GenSingleOrder(order_index, customer, platform_exp_error = 1):
     return o
 
 
-def GenBundleOrder(order_index, bundie_info, customer_set, now_t, M = 10000, platform_exp_error = 1, add_fee = 0):
+def GenBundleOrder(order_index, bundie_info, customer_set, now_t, M = 10000, platform_exp_error = 1, add_fee = 0, bundle_type = 0):
+    """
+
+    @param order_index:
+    @param bundie_info:
+    @param customer_set:
+    @param now_t:
+    @param M:
+    @param platform_exp_error:
+    @param add_fee:
+    @param bundle_type: 0 : single 1: Dynamic 2: Static
+    @return:
+    """
     route = []
     for node in bundie_info[0]:
         if node >= M:
@@ -603,6 +621,7 @@ def GenBundleOrder(order_index, bundie_info, customer_set, now_t, M = 10000, pla
     o.gen_t = now_t
     o.old_info = bundie_info
     o.average_ftd = bundie_info[2]
+    o.bundle_type = bundle_type
     return o
 
 
@@ -696,7 +715,7 @@ def ResultPrint(name, customers, speed = 1, riders = None):
                     p3.append(customer.time_info[3] - customer.time_info[2])
                     p4.append(customer.time_info[3] - customer.time_info[2] - mflt)
                     count_p += 1
-            test1.append(customer.time_info[3]- (customer.cook_start_time + customer.actual_cook_time + customer.time_info[7]))
+            test1.append(customer.time_info[3] - (customer.cook_start_time + customer.actual_cook_time))
             if customer.food_wait3 != None:
                 food_wait3.append(customer.food_wait3)
                 if customer.dp_cook_time < 15:

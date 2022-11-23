@@ -141,7 +141,7 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                             tem_riders += BundleCloseRider[ct_name]
                         tem_riders = list(set(tem_riders))
                         tem_riders = BundleCloseRider[info[0][0] - M] #todo 1118 : 정오표 더 정확하게
-                        o = GenBundleOrder(task_index, info, orders, env.now, add_fee= 0) #todo 0929 : 인위 장치
+                        o = GenBundleOrder(task_index, info, orders, env.now, add_fee= 0, bundle_type= 2) #todo 0929 : 인위 장치
                         o.old_info = info
                         o.exp_riders = tem_riders
                         platform.platform[task_index] = o
@@ -937,6 +937,7 @@ def BundleInfoHandle2(riders, orders, now_t, considered_customer_type= None, sea
         try:
             current_select_info = rider.snapshots[-1]
             if now_t - interval <= current_select_info[1]:
+                #[self.name, now_t, page,l, len(bundle_values) - 1, max_bundle_value, max_single_value, type, nearest_bundle, nearest_bundle_page]
                 if current_select_info[4] > 0:
                     see_bundle_infos.append([rider.name, current_select_info[4]])
                     see_bundle_infos_vals.append(current_select_info[4])
@@ -964,10 +965,11 @@ def BundleInfoHandle2(riders, orders, now_t, considered_customer_type= None, sea
         if orders[order_name].time_info[4] == None:
             undone_num += 1
     if len(see_bundle_infos) > 0:
-        info += '{};{};{};'.format(len(see_bundle_infos), sum(see_bundle_infos_vals) / len(see_bundle_infos_vals),
-                                   len(in_bundle_infos))
+        info += '{};{};{};{};'.format(len(see_bundle_infos), sum(see_bundle_infos_vals) / len(see_bundle_infos_vals),
+                                   len(in_bundle_infos),len(select_normal_cts))
     else:
         info += 'None;None;None;'
-    info += '{};'.format(len(select_normal_cts))
     f.write(info + '\n')
     f.close()
+    print(info)
+    #input('저장 확인')

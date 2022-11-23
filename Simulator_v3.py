@@ -14,6 +14,8 @@ from A2_Func import ResultPrint
 from A3_two_sided import OrdergeneratorByCSVForStressTestDynamic
 from re_platform import Platform_process5,Rider_Bundle_plt, DefreezeCustomers
 from datetime import datetime
+import os
+os.environ["OMP_NUM_THREADS"] = '2'
 
 from onnxmltools.convert.xgboost.operator_converters.XGBoost import convert_xgboost  # noqa
 import onnxruntime as rt
@@ -197,8 +199,8 @@ for sc3 in scenarios:
     sc3.rider_bundle_construct = False
     print(sc3.platform_recommend, sc3.rider_bundle_construct,sc3.obj_type, sc3.search_type)
 scenarios = scenarios[:1]
-
-scenarios[0].obj_type = 'value+selective' #todo : simple_max_s Vs value+selective
+global obj_type
+scenarios[0].obj_type = obj_type #'simple_max_s' #todo : simple_max_s Vs value+selective
 
 print('시나리오 확인 Start')
 print(scenarios)
@@ -228,7 +230,7 @@ pr_off = True
 #search_type = 'heuristic'
 #input('확인 {}'.format(len(scenarios)))
 if heuristic_type == 'XGBoost':
-    see_dir = 'C:/Users/xoxoq/OneDrive/Ipython/handson-gb-main/handson-gb-main/Chapter05/'
+    see_dir = 'C:/Ipython/handson-gb-main/handson-gb-main/Chapter05/'
     if instance_type == 'Instance_random':
         sees2 = rt.InferenceSession(see_dir + r2_onx + '.onnx',providers=['CPUExecutionProvider'])  # "pipeline_xgboost2_r_2_ver3.onnx"
         sess3 = rt.InferenceSession(see_dir + r3_onx + '.onnx',providers=['CPUExecutionProvider'])  #pipeline_xgboost2_r_3
@@ -263,8 +265,9 @@ for ite in exp_range:#range(0, 1):
     num_bundles = []
 
     ###외부 데이터를 읽어 오는 과정
-    customer_file = 'E:/학교업무 동기화용/py_charm/BundleSimple/' + instance_type + '/고객_coord_정보' + str(ite) + '_' + instance_type + '.txt'
-    store_file = 'E:/학교업무 동기화용/py_charm/BundleSimple/' + instance_type + '/가게_coord_정보' + str(ite) + '_' + instance_type + '.txt'
+
+    customer_file = 'C:/Users/박태준/PycharmProjects/BundleSimple/' + instance_type + '/고객_coord_정보' + str(ite) + '_' + instance_type + '.txt'
+    store_file = 'C:/Users/박태준/PycharmProjects/BundleSimple/' + instance_type + '/가게_coord_정보' + str(ite) + '_' + instance_type + '.txt'
     CustomerCoord = []
     StoreCoord = []
     f_c = open(customer_file, 'r')
@@ -391,7 +394,15 @@ for ite in exp_range:#range(0, 1):
         else:
             env.process(DefreezeCustomers(env, Orders, Rider_dict, Platform2, end_t = run_time, interval = interval, customer_pend = customer_pend))
         env.run(run_time)
-
+        #번들 종류 count함수
+        b_type_count = [0,0,0]
+        b_type_len_sum = [0,0,0]
+        print(Platform2.selected_bundle_type)
+        #input('check')
+        for select_info in Platform2.selected_bundle_type:
+            b_type_count[select_info[1]] += 1
+            b_type_len_sum[select_info[1]] += select_info[2]
+        sc.bundle_type_infos = b_type_count + b_type_len_sum
         res = ResultPrint(sc.name + str(ite), Orders, speed=rider_speed, riders = Rider_dict)
         sc.res.append(res)
         #end_time_sec = time.time()
@@ -531,9 +542,9 @@ for ite in exp_range:#range(0, 1):
         except:
             pass
         # input('파일 확인')
-        sub_info = 'divide_option : {}, p2: {}, divide_option: {}, unserved_order_break : {}'.format(divide_option, platform_p2,
+        sub_info = 'divide_option : {}, p2: {}, divide_option: {}, unserved_order_break : {}, dynamic : {}, platform_recommend : {}, obj : {}'.format(divide_option, platform_p2,
                                                                                                      sc.platform_work,
-                                                                                                     sc.unserved_order_break)
+                                                                                                     sc.unserved_order_break, dynamic_env,sc.platform_recommend,sc.obj_type)
         ResultSave(Rider_dict, Orders, title='Test', sub_info=sub_info, type_name=sc.name)
         # input('저장 확인')
         # 시나리오 저장
@@ -570,6 +581,10 @@ for ite in exp_range:#range(0, 1):
             else:
                 if customer.cancel == True and customer.time_info[0]  < run_time - interval*2:
                     canceled_ct += 1
+            print('문제 발생 고객 시작')
+            if len(customer.who_picked) > 1:
+                print(customer.name, customer.who_picked)
+            print('문제 발생 고객 종료')
         lead_time_stroage.append(tem)
         foodlead_time_stroage.append(tem2)
         foodlead_time_ratio_stroage.append(tem3)
@@ -721,20 +736,28 @@ for sc in scenarios:
         head = 'local_t;customer_pend;dynamic;sc.platform_recommend;인스턴스종류;SC;번들탐색방식;연산시간(sec);플랫폼;라이더;라이더수;obj;전체 고객;서비스된 고객;서비스율;평균LT;평균FLT;직선거리 대비 증가분;원래 O-D길이;라이더 수익 분산;LT분산;' \
                'OD증가수;OD증가 분산;OD평균;수행된 번들 수;수행된번들크기평균;b1;b2;b3;b4;b5;b수;p1;p2;p3;p4;p수;r1;r2;r3;r4;r5;r수;평균서비스시간;(테스트)음식 대기 시간;(테스트)버려진 음식 수;(테)음식대기;' \
                '(테)라이더대기;(테)15분이하 음식대기분;(테)15분이상 음식대기분;(테)15분이하 음식대기 수;(테)15분이상 음식대기 수;(테)라이더 대기 수;라이더평균운행시간;제안된 번들수;라이더수수료;size;length;ods;ellipse_w; ' \
-               'heuristic_theta; heuristic_r1;rider_ratio;#dist;#bc1;#bc2;#dist(xgb);#t1;#t2;#t3;예상X라이더 선택;예상O라이더 선택;예상X라이더 주문 선택;예상한 라이더 주문 선택'
+               'heuristic_theta; heuristic_r1;rider_ratio;#dist;#bc1;#bc2;#dist(xgb);#t1;#t2;#t3;예상X라이더 선택;예상O라이더 선택;예상X라이더 주문 선택;예상한 라이더 주문 선택;그외;Dynamic_B;Static_B;ave_dynamic;ave_static;'
         #print('인스턴스종류;SC;번들탐색방식;연산시간(sec);플랫폼;라이더;obj;전체 고객;서비스된 고객;서비스율;평균LT;평균FLT;직선거리 대비 증가분;원래 O-D길이;라이더 수익 분산;LT분산;'
         #     'OD증가수;OD증가 분산;OD평균;수행된 번들 수;수행된번들크기평균;제안된 번들수;size;length;ods')
         print(head)
         f3.write(head + '\n')
     ave_duration = sum(sc.durations)/len(sc.durations)
+    ave_dynamic = 0
+    ave_static = 0
     try:
-        tem_data = '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};'.format(
-                local_t,customer_pend,dynamic_env, sc.platform_recommend,instance_type , str(sc.name[0]),sc.search_type, ave_duration,sc.platform_recommend,sc.rider_bundle_construct,rider_num,sc.obj_type, res_info[0],res_info[1],
+        ave_dynamic = sc.bundle_type_infos[4]/sc.bundle_type_infos[1]
+        ave_static = sc.bundle_type_infos[5]/sc.bundle_type_infos[2]
+    except:
+        pass
+    try:
+        tem_data = '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};'.format(
+                local_t,customer_pend,dynamic_env, sc.platform_recommend,instance_type , str(sc.name[0]),sc.search_type, ave_duration,sc.platform_recommend,sc.rider_bundle_construct,stress_rider_num,sc.obj_type, res_info[0],res_info[1],
                 res_info[2], res_info[3], res_info[4], res_info[5], res_info[6], res_info[7], res_info[8],res_info[9],res_info[10],res_info[11],res_info[12],res_info[13],
             res_info[14], res_info[15], res_info[16],res_info[17], res_info[18], res_info[19],res_info[20],res_info[21],res_info[22],res_info[23], res_info[24],res_info[25],
             res_info[26],res_info[27],res_info[28],res_info[29],res_info[30],res_info[31],res_info[32], res_info[33],res_info[34], res_info[35],res_info[36], res_info[37],res_info[38],res_info[39], res_info[40], res_info[41],
             offered_bundle_num,res_info[42], res_info[43], res_info[44],res_info[45],ellipse_w, heuristic_theta, heuristic_r1, sc.mix_ratio, sc.countf[0], sc.countf[1], sc.countf[2], sc.countf[3],
-        sc.countt[0], sc.countt[1],sc.countt[2], sc.bundle_select_infos[0], sc.bundle_select_infos[1],sc.bundle_select_infos[2], sc.bundle_select_infos[3])
+        sc.countt[0], sc.countt[1],sc.countt[2], sc.bundle_select_infos[0], sc.bundle_select_infos[1],sc.bundle_select_infos[2], sc.bundle_select_infos[3], sc.bundle_type_infos[0],sc.bundle_type_infos[1],sc.bundle_type_infos[2],
+        ave_dynamic, ave_static)
         """
         print(
             '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{}'.format(
