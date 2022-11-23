@@ -428,7 +428,9 @@ for ite in exp_range:#range(0, 1):
                       distance(ct.location[0],ct.location[1], ct.store_loc[0],ct.store_loc[1]) / ct.p2)
             except:
                 pass
-
+        print(Platform2.suggested_bundles)
+        #input('확인 ㅎ')
+        sc.suggested_bundles_count = Platform2.suggested_bundles
         #input('확인')
 
         #저장 부
@@ -736,7 +738,8 @@ for sc in scenarios:
         head = 'local_t;customer_pend;dynamic;sc.platform_recommend;인스턴스종류;SC;번들탐색방식;연산시간(sec);플랫폼;라이더;라이더수;obj;전체 고객;서비스된 고객;서비스율;평균LT;평균FLT;직선거리 대비 증가분;원래 O-D길이;라이더 수익 분산;LT분산;' \
                'OD증가수;OD증가 분산;OD평균;수행된 번들 수;수행된번들크기평균;b1;b2;b3;b4;b5;b수;p1;p2;p3;p4;p수;r1;r2;r3;r4;r5;r수;평균서비스시간;(테스트)음식 대기 시간;(테스트)버려진 음식 수;(테)음식대기;' \
                '(테)라이더대기;(테)15분이하 음식대기분;(테)15분이상 음식대기분;(테)15분이하 음식대기 수;(테)15분이상 음식대기 수;(테)라이더 대기 수;라이더평균운행시간;제안된 번들수;라이더수수료;size;length;ods;ellipse_w; ' \
-               'heuristic_theta; heuristic_r1;rider_ratio;#dist;#bc1;#bc2;#dist(xgb);#t1;#t2;#t3;예상X라이더 선택;예상O라이더 선택;예상X라이더 주문 선택;예상한 라이더 주문 선택;그외;Dynamic_B;Static_B;ave_dynamic;ave_static;'
+               'heuristic_theta; heuristic_r1;rider_ratio;#dist;#bc1;#bc2;#dist(xgb);#t1;#t2;#t3;예상X라이더 선택;예상O라이더 선택;예상X라이더 주문 선택;예상한 라이더 주문 선택;그외;Dynamic_B;Static_B;ave_dynamic;ave_static;' \
+               'dtnamic번들 제안;Static번들 제안;'
         #print('인스턴스종류;SC;번들탐색방식;연산시간(sec);플랫폼;라이더;obj;전체 고객;서비스된 고객;서비스율;평균LT;평균FLT;직선거리 대비 증가분;원래 O-D길이;라이더 수익 분산;LT분산;'
         #     'OD증가수;OD증가 분산;OD평균;수행된 번들 수;수행된번들크기평균;제안된 번들수;size;length;ods')
         print(head)
@@ -750,14 +753,14 @@ for sc in scenarios:
     except:
         pass
     try:
-        tem_data = '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};'.format(
+        tem_data = '{];{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};'.format(
                 local_t,customer_pend,dynamic_env, sc.platform_recommend,instance_type , str(sc.name[0]),sc.search_type, ave_duration,sc.platform_recommend,sc.rider_bundle_construct,stress_rider_num,sc.obj_type, res_info[0],res_info[1],
                 res_info[2], res_info[3], res_info[4], res_info[5], res_info[6], res_info[7], res_info[8],res_info[9],res_info[10],res_info[11],res_info[12],res_info[13],
             res_info[14], res_info[15], res_info[16],res_info[17], res_info[18], res_info[19],res_info[20],res_info[21],res_info[22],res_info[23], res_info[24],res_info[25],
             res_info[26],res_info[27],res_info[28],res_info[29],res_info[30],res_info[31],res_info[32], res_info[33],res_info[34], res_info[35],res_info[36], res_info[37],res_info[38],res_info[39], res_info[40], res_info[41],
             offered_bundle_num,res_info[42], res_info[43], res_info[44],res_info[45],ellipse_w, heuristic_theta, heuristic_r1, sc.mix_ratio, sc.countf[0], sc.countf[1], sc.countf[2], sc.countf[3],
         sc.countt[0], sc.countt[1],sc.countt[2], sc.bundle_select_infos[0], sc.bundle_select_infos[1],sc.bundle_select_infos[2], sc.bundle_select_infos[3], sc.bundle_type_infos[0],sc.bundle_type_infos[1],sc.bundle_type_infos[2],
-        ave_dynamic, ave_static)
+        ave_dynamic, ave_static, sc.suggested_bundles_count[0],sc.suggested_bundles_count[1])
         """
         print(
             '{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{};{}'.format(

@@ -142,7 +142,9 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                         tem_riders = list(set(tem_riders))
                         tem_riders = BundleCloseRider[info[0][0] - M] #todo 1118 : 정오표 더 정확하게
                         o = GenBundleOrder(task_index, info, orders, env.now, add_fee= 0, bundle_type= 2) #todo 0929 : 인위 장치
+                        platform.suggested_bundles[1] += 1
                         o.old_info = info
+                        o.bundle_type = 4
                         o.exp_riders = tem_riders
                         platform.platform[task_index] = o
                         task_index += 1
@@ -938,7 +940,7 @@ def BundleInfoHandle2(riders, orders, now_t, considered_customer_type= None, sea
             current_select_info = rider.snapshots[-1]
             if now_t - interval <= current_select_info[1]:
                 #[self.name, now_t, page,l, len(bundle_values) - 1, max_bundle_value, max_single_value, type, nearest_bundle, nearest_bundle_page]
-                if current_select_info[4] > 0:
+                if current_select_info[4]> 0:
                     see_bundle_infos.append([rider.name, current_select_info[4]])
                     see_bundle_infos_vals.append(current_select_info[4])
                     if current_select_info[5] > current_select_info[6]:

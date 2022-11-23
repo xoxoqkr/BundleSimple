@@ -926,6 +926,7 @@ class Platform_pool(object):
         self.active_rider_names = []
         self.selected_bundles = []
         self.selected_bundle_type = []
+        self.suggested_bundles = [0,0]
 
 class scenario(object):
     def __init__(self, name, p1 = True, search_option= False,  scoring_type = 'myopic',  unserved_bundle_order_break = True, bundle_selection_type = 'greedy', considered_customer_type = 'new'):
@@ -953,7 +954,7 @@ class scenario(object):
         self.dynamic = False
         self.bundle_select_infos = [0,0,0,0]
         self.bundle_type_infos = [0,0,0]
-
+        self.suggested_bundles_count = [0,0]
 
 def WaitTimeCal1(exp_store_arrive_t, assign_t, exp_cook_time, cook_time, move_t = 0):
     exp_food_ready_t = assign_t + exp_cook_time

@@ -1419,6 +1419,7 @@ def OrdergeneratorByCSVForStressTestDynamic(env, orders, stores, lamda, platform
                     print(b_type, new_bundle_info)
                     #input('new_bundle_info')
                     o = GenBundleOrder(task_index, new_bundle_info, orders, env.now, add_fee=0, bundle_type = 1)
+                    platform.suggested_bundles[0] += 1
                     o.old_info = new_bundle_info
                     o.dynamic_type = b_type
                     #todo 1115: exp rider 계산 추가 Start -> 부하가 매우 크게 발생할 것임.
