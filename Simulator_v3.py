@@ -27,7 +27,7 @@ global run_time
 global customer_pend
 global platform_recommend_input
 global dynamic_env
-
+global ct_gen_time
 """
 run_time = 90
 customer_pend = False
@@ -347,7 +347,7 @@ for ite in exp_range:#range(0, 1):
                                                         rider_speed=rider_speed,
                                                         unit_fee=unit_fee, fee_type=fee_type,
                                                         output_data=CustomerCoord, dynamic_infos=dynamic_infos,
-                                                        riders=Rider_dict, pr_off=pr_off, end_t=run_time,
+                                                        riders=Rider_dict, pr_off=pr_off, end_t=ct_gen_time,
                                                         dynamic_para=dynamic_env, cooktime_detail=None,
                                                         customer_pend=customer_pend,
                                                         manual_cook_time=manual_cook_time,

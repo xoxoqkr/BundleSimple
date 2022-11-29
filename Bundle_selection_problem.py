@@ -188,6 +188,11 @@ def Bundle_selection_problem4(phi_b, D, s_b, lt_matrix,D_rev, min_pr=0.05, obj_t
             if val.VarName[0] == 'x' and float(val.x) == 1.0:
                 res.append(count)
             count += 1
+        if obj_type == 'value+selective':
+            #print(y_datas)
+            #print(res)
+            #input('확인')
+            pass
         return res, len(m.getConstrs())
     except:
         print('Infeasible')

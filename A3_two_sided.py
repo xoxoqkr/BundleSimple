@@ -1462,3 +1462,5 @@ def OrdergeneratorByCSVForStressTestDynamic(env, orders, stores, lamda, platform
             f.write('T;{};고객 수;{};평균 거리;{}; \n'.format(time.localtime(time.time()),len(orders), od_dist))
             f.close()
             save_txt = True
+        if env.now > end_t:
+            break

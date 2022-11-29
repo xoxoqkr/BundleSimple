@@ -929,16 +929,18 @@ def BundleExpValueCalculator(bundle_infos, rider_names, riders, orders, M = 1000
             if len(rider_end_loc) != 2:
                 rider_end_loc = rider.visited_route[-1][2]
             #print(rider_end_loc, start_point)
-            d2start = distance(rider_end_loc[0], rider_end_loc[1], start_point[0], start_point[1])
+            d2start = distance(rider_end_loc[0], rider_end_loc[1], start_point[0], start_point[1]) / rider.speed
             move_t = d2start / rider.speed
             move_t += b_info[5]
             fee = 0
             for name in b_info[4]:
                 fee += orders[name].fee
             # rider_end_loc = rider.route[-1][2]
-            val = move_t / fee
-            if d2start < m_r[rider_index][3]:
-                if val > m_r[rider_index][2]:
+            val = fee / move_t
+            #print('check1',rider_name,d2start , m_r[rider_index][4][1])
+            if d2start < m_r[rider_index][4][1]:
+                #print('check2',rider_name,val, m_r[rider_index][3])
+                if val > m_r[rider_index][3]:
                     #tem = val
                     tem = 1
                 else:
@@ -949,6 +951,7 @@ def BundleExpValueCalculator(bundle_infos, rider_names, riders, orders, M = 1000
             tem_r.append(tem)
         res_r.append(tem_r)
         rider_index += 1
+    print('res_r',res_r)
     if output_type == 'matrix':
         return res_r
     else:

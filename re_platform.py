@@ -78,7 +78,9 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                 #unique_bundle_indexs = Bundle_selection_problem3(phi_b, d_matrix, s_b, min_pr = 0.05)
                 mip_s = time.time()
                 #todo 20221122 : y_b_r
-                m_r = ExpValueCalculator(platform.active_rider_names, riders, considered_customers, orders, rider_check_index = 12)
+                considered_customers_name2, interval_orders = CountUnpickedOrders(orders, env.now, interval=interval,return_type='name')
+                m_r = ExpValueCalculator(platform.active_rider_names, riders, considered_customers_name2, orders, rider_check_index = 12)
+                #print('m_r',m_r)
                 y_b = BundleExpValueCalculator(feasible_bundle_set, platform.active_rider_names, riders, orders, m_r = m_r, output_type = 'vector')
                 unique_bundle_indexs, num_const = Bundle_selection_problem4(phi_b, D, s_b, lt_matrix, D_rev, min_pr = 1, obj_type= obj_type, pr_para=pr_para, y_datas = y_b) #todo : 0317_수정본. min_pr을 무의미한 제약식으로 설정
                 mip_end = time.time()
@@ -483,7 +485,7 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
         print('rebase 문제 풀이 시작; 대상 고객 :', len(rev_considered_customers_names))
         org_ct_num = copy.deepcopy(len(rev_considered_customers_names))
         processed, rev_considered_customers_names = RebaseCustomer1(rev_considered_customers_names, orders, r_inc=0.5, max_r=3, end_ite=10, num_thres=300)
-        print(rev_considered_customers_names)
+        #print(rev_considered_customers_names)
         #input('rebase확인')
         if processed == True:
             print('처리 필요 고객 수',len(rev_considered_customers_names))
