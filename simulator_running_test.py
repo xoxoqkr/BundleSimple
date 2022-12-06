@@ -27,12 +27,12 @@ def email_fun(title, con):
 """
 #고객 주문이 발생하자 마자 바로 서비스 받을 수 있는 상태가 되는 경우 <- 이번 실험 상태
 #고객들의 주문이 발생 후 cancel == True인 상태에서 다음 interval이 되면 canceal = False가 되는 상황
-run_time = 120
-ct_gen_time = 120
+run_time = 60
+ct_gen_time = 60
 customer_pend_options = [False]
 dir = "C:/users/박태준/PycharmProjects/BundleSimple/"
 basic_infos = [[False,False,'simple_max_s'],[False,True,'simple_max_s'],[True,False,'simple_max_s'],[True,True,'simple_max_s'],[True,False,'value+selective'],[True,True,'value+selective']] #P2P,Dynamic,Static,Hybrid,
-basic_infos = [[True,False,'simple_max_s']]
+basic_infos = [[True,False,'value+selective']]
 infos = []
 
 for customer_pend in customer_pend_options:

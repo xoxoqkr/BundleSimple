@@ -460,7 +460,51 @@ def GenerateStoreByCSVStressTest(env, num, platform,Store_dict, mus = [5,10,15],
     print(len(Store_dict))
     #input('가게')
 
-
+def GenerateStoreByCSVStressTest2(env, platform,Store_dict, order_dir, mus = [5,10,15], std_ratio = 0.2, store_type = 'Instance_random', ITE = 1, output_data = None,
+                                 detail_pr = None, customer_pend = True, store_capacity = 100, csv_dir = None):
+    f = open(order_dir , 'r')
+    leadlines = f.readlines()
+    store_names = []
+    store_infos = []
+    for info in leadlines[1:]:
+        tem = info.split(';')
+        data = [int(tem[1]), float(tem[2]), float(tem[3]), int(tem[5]) , float(tem[6]), float(tem[7])]
+        if int(tem[1]) not in store_names:
+            store_names.append(int(tem[1]))
+            store_infos.append([int(tem[1]), float(tem[2]), float(tem[3])])
+    for store_info in store_infos:
+        name = store_info[0]
+        loc = [store_info[1],store_info[2]]
+        #['name', 'start_loc_x', 'start_loc_y', 'order_ready_time', 'capacity', 'slack']
+        order_ready_time = 5
+        capacity = store_capacity
+        slack = 2
+        store = re_A1_class.Store(env, platform, name, loc=loc, order_ready_time=order_ready_time, capacity=capacity, print_para=False, slack = slack, customer_pend= customer_pend)
+        rv = random.random()
+        if rv <= 0.2: #
+            store.FRT = numpy.random.normal(mus[0], mus[0]*std_ratio, 1000)
+        elif rv <= 0.8:
+            store.FRT = numpy.random.normal(mus[1], mus[1]*std_ratio, 1000)
+        else:
+            store.FRT = numpy.random.normal(mus[2], mus[2] * std_ratio, 1000)
+        if detail_pr != None: # todo : 221101실험을 현실적으로 변경.
+            rest_type = numpy.random.choice(detail_pr[0],p = detail_pr[1])
+            store.FRT = detail_pr[2][detail_pr[0].index(rest_type)]
+            store.rest_type = rest_type
+            store.temperature = detail_pr[3][detail_pr[0].index(rest_type)]
+            store.p2 = detail_pr[4][detail_pr[0].index(rest_type)]
+        Store_dict[name] = store
+    """
+    f3 = open("가게_coord_정보" + str(ITE) + '_' + store_type + ".txt", 'a')
+    for store_name in Store_dict:
+        store = Store_dict[store_name]
+        con = '{};{};{};\n'.format(store.name, store.location[0], store.location[1])
+        f3.write(con)
+    f3.write('Exp End' + '\n')
+    f3.close()
+    """
+    print(len(Store_dict))
+    #input('가게')
 def ReadCSV(csv_dir, interval_index = None):
     raw_datas = []
     datas = []
@@ -646,6 +690,71 @@ def OrdergeneratorByCSVForStressTest(env, orders, stores, lamda, platform = None
 
 
 
+def OrdergeneratorByCSVForStressTest2(env, orders, stores, lamda, order_dir, platform = None, p2_ratio = 1, rider_speed = 1, unit_fee = 110, fee_type = 'linear', cook_first = False, customer_pend = False, manual_cook_time = 7):
+    """
+    Generate customer order
+    :param env: Simpy Env
+    :param orders: Order
+    :param platform: 플랫폼에 올라온 주문들 {[KY]order index : [Value]class order, ...}
+    :param stores: 플랫폼에 올라온 가게들 {[KY]store name : [Value]class store, ...}
+    :param interval: 주문 생성 간격
+    :param runtime: 시뮬레이션 동작 시간
+    """
+    f = open(order_dir , 'r')
+    leadlines = f.readlines()
+    order_infos = []
+    for info in leadlines[1:]:
+        tem = info.split(';')
+        data = [int(tem[1]), float(tem[2]), float(tem[3]), int(tem[5]) , float(tem[6]), float(tem[7])]
+        order_infos.append(data)
+    count = 0
+    for info in order_infos:
+        store_name = info[0]
+        store = stores[store_name]
+        store_loc = store.location
+        customer_loc = [info[4], info[5]]
+        name = count
+        cook_time = manual_cook_time
+        p2_ratio2 = p2_ratio
+        OD_dist = distance(store_loc[0],store_loc[1], customer_loc[0],customer_loc[1])
+        p2 = (OD_dist / rider_speed) * p2_ratio2 # todo : 221101실험을 현실적으로 변경.
+        cook_time_type = 0
+        cooking_time = [7,1]
+        #order = A1_Class.Customer(env, name, input_location, store=store_num, store_loc=store_loc, p2=p2,
+        #                       cooking_time=cook_time, cook_info=[cook_time_type, cooking_time])
+        order = re_A1_class.Customer(env, name, customer_loc, store=store_name, store_loc=store_loc, p2=p2,
+                               cooking_time=cook_time, cook_info=[cook_time_type, cooking_time], platform = platform, unit_fee = unit_fee, fee_type = fee_type)
+        #order.actual_cook_time = random.choice(stores[store_name].FRT)
+        order.actual_cook_time = cook_time
+        #order.dp_cook_time = cook_time
+        order.dp_cook_time = 5*(1 + order.actual_cook_time//5)
+        order.temperature = 'T'
+        if order.dp_cook_time >= 15 and cook_first == True:
+            order.cooking_process = env.process(order.CookingFirst(env, order.actual_cook_time)) #todo : 15분 이상 음식은 미리 조리 시작
+        order.cancel = customer_pend
+        if customer_pend == False:
+            if len(list(platform.platform.keys())) > 0:
+                task_index = max(list(platform.platform.keys())) + 1
+            else:
+                task_index = 1
+            platform_exp_error = 1
+            pool = numpy.random.normal(order.cook_info[1][0], order.cook_info[1][1] * platform_exp_error, 1000)
+            order.platform_exp_cook_time = random.choice(pool)
+            route = [[order.name, 0, order.store_loc, 0], [order.name, 1, order.location, 0]]
+            o = re_A1_class.Order(task_index, [order.name], route, 'single', fee=order.fee, parameter_info=None)
+            platform.platform[task_index] = o
+        print('T {} 음식 {} 조리 확인/ 시간 {}'.format(int(env.now), order.name,order.actual_cook_time))
+        orders[name] = order
+        stores[store_name].received_orders.append(orders[name])
+        interval = 1.0/lamda
+        if interval > 0:
+            yield env.timeout(interval)
+        else:
+            print('현재 T :{} / 마지막 고객 {} 생성'.format(int(env.now), name))
+            pass
+
+
+
 def ReadRiderData(env, rider_data, Platform, Rider_dict, Customer_dict, Store_dict):
     #저장된 txt 데이터를 읽고, 그에 따라서 인스턴스 생성
     #rider_data = [name, start_loc, gen_time, ExpectWagePerHr]
@@ -771,6 +880,7 @@ def ForABundleCount(route_info):
 def ResultSave(Riders, Customers, title = 'Test', sub_info = 'None', type_name = 'A'):
     tm = time.localtime(time.time())
     sub = ['Day {} Hr{}Min{}Sec{}/ SUB {} '.format(tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec,sub_info)]
+    save_key = 'Day {} Hr{}Min{}Sec{}'.format(tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec)
     rider_header = ['라이더 이름', '서비스 고객수', '주문 탐색 시간','선택한 번들 수','번들로 서비스된 고객 수','라이더 수익','음식점 대기시간','대기시간_번들','대기시간_단건주문','주문 선택 간격','대기 시간','주문이 없는 시간 수','경로']
     rider_infos = [sub,rider_header]
     for rider_name in Riders:
@@ -803,7 +913,7 @@ def ResultSave(Riders, Customers, title = 'Test', sub_info = 'None', type_name =
     customer_header = ['고객 이름', '생성 시점', '라이더 선택 시점','가게 출발 시점','고객 도착 시점','가게 도착 시점','음식조리시간','음식 음식점 대기 시간'
         ,'라이더 가게 대기시간1','라이더 가게 대기시간2','수수료', '수행 라이더 정보', '직선 거리','p2(민감정도)','번들여부','조리시간','기사 대기 시간'
         ,'번들로 구성된 시점', '취소','LT', 'FLT', '라이더 번들 여부','라이더 번들 LT','조리 시작 시간','조리소요시간','가게에서 소요 시간','고객에게서 소요 시간','차량 대기 시간', '음식 대기 시간',
-                       'who_picked','bundle_size','bundle_route','who_serve', 'bundletype','dynamic 번들 유형']
+                       'who_picked','bundle_size','bundle_route','who_serve', 'bundletype','dynamic 번들 유형','번들 가게 순서','번들 고객 순서','번들크기']
     customer_infos = [sub, customer_header]
     for customer_name in Customers:
         customer = Customers[customer_name]
@@ -824,9 +934,9 @@ def ResultSave(Riders, Customers, title = 'Test', sub_info = 'None', type_name =
             info += [None, None]
         info += customer.rider_bundle
         info += [customer.cook_start_time, customer.actual_cook_time, customer.time_info[6], customer.time_info[7], customer.rider_wait3, customer.food_wait3]
-        info += [customer.who_picked, customer.bundle_size, customer.bundle_route, customer.who_serve, customer.bundle_type, customer.dynamic_type]
+        info += [customer.who_picked, customer.bundle_size, customer.bundle_route, customer.who_serve, customer.bundle_type, customer.dynamic_type, customer.inbundle_order[0],customer.inbundle_order[1], customer.bundle_len]
         customer_infos.append(info)
-    f = open(title + "riders.txt", 'a')
+    f = open(title + "riders_" + save_key + ".txt", 'a')
     for info in rider_infos:
         count = 0
         for ele in info:
@@ -839,7 +949,7 @@ def ResultSave(Riders, Customers, title = 'Test', sub_info = 'None', type_name =
             if count == len(info):
                 f.write('\n')
     f.close()
-    f = open(title + "customers.txt", 'a')
+    f = open(title + "customers_" + save_key + ".txt", 'a')
     for info in customer_infos:
         count = 0
         for ele in info:

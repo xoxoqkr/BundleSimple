@@ -300,15 +300,28 @@ class Rider(object):
             for name in order_info[5]:
                 customers[name].bundle_type = platform.platform[order_info[0]].bundle_type
                 customers[name].dynamic_type = platform.platform[order_info[0]].dynamic_type
+                customers[name].bundle_len = len(order_info[5])
             #라우트 타임 계산용 경로 만들기
             tem_route = []
             tem_customers = []
+            tem_o_seq = []
+            tem_d_seq = []
+            o_index = 0
+            d_index = 0
             for node_info in order_info[1]:
                 tem_customers.append(customers[node_info[0]])
                 if node_info[1] == 0:
                     tem_route.append(node_info[0] + M)
+                    tem_o_seq.append([node_info[0],o_index])
+                    o_index += 1
                 else:
                     tem_route.append(node_info[0])
+                    tem_d_seq.append([node_info[0], d_index])
+                    d_index += 1
+            for tem_info in tem_o_seq:
+                customers[tem_info[0]].inbundle_order[0] = tem_info[1]
+            for tem_info in tem_d_seq:
+                customers[tem_info[0]].inbundle_order[1] = tem_info[1]
             print(order_info)
             #input('체크')
             self.exp_end_time = env.now + Basic.RouteTime(tem_customers, tem_route, speed = self.speed) #todo 1118 : 라이더가 번들을 구성한다면 수정해야 함
@@ -902,6 +915,8 @@ class Customer(object):
         self.bundle_size = 0
         self.bundle_route = []
         self.dynamic_type = None
+        self.inbundle_order = [None, None]
+        self.bundle_len = None
         env.process(self.CustomerLeave(env, platform))
 
     def CustomerLeave(self, env, platform):

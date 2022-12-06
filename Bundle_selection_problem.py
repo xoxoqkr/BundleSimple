@@ -2,7 +2,7 @@
 
 import gurobipy as gp
 from gurobipy import GRB
-
+import numpy as np
 
 def Bundle_selection_problem(F):
     bundle_index = list(range(len(F)))
@@ -125,7 +125,7 @@ def Bundle_selection_problem3(phi_b, d_matrix, s_b, min_pr):
         return []
 
 
-def Bundle_selection_problem4(phi_b, D, s_b, lt_matrix,D_rev, min_pr=0.05, obj_type = 'simple_max_s',pr_para = True, y_datas = None, likely_para = False):
+def Bundle_selection_problem4(phi_b, D, s_b, lt_matrix,D_rev, min_pr=0.05, obj_type = 'simple_max_s',pr_para = True, y_datas = None, likely_para = False, add_obj_type = 'single'):
     #print('풀이전 확인 ',D, s_b,obj_type)
     bundle_indexs = list(range(len(s_b)))
     try:
@@ -150,7 +150,18 @@ def Bundle_selection_problem4(phi_b, D, s_b, lt_matrix,D_rev, min_pr=0.05, obj_t
     elif obj_type == 'over_lt+probability':
         m.setObjective(gp.quicksum(lt_matrix[i] * x[i] - w * z[i] for i in bundle_indexs), GRB.MAXIMIZE)
     elif obj_type == 'value+selective':
-        m.setObjective(gp.quicksum(s_b[i] * x[i] + y_datas[i] * x[i] for i in bundle_indexs), GRB.MAXIMIZE)
+        m.setObjectiveN(gp.quicksum(s_b[i] * x[i] for i in bundle_indexs), 1, 1)
+        m.setObjectiveN(gp.quicksum(y_datas[i] * x[i] for i in bundle_indexs), 0, 0)
+
+        m.ModelSense = GRB.MAXIMIZE
+        """
+        if add_obj_type == 'single':
+            m.setObjective(gp.quicksum(s_b[i] * x[i] + y_datas[i] * x[i] for i in bundle_indexs), GRB.MAXIMIZE)
+        else: 
+            m.setObjectiveN(gp.quicksum(s_b[i]*x[i] for i in bundle_indexs), 0, 1)
+            m.setObjectiveN(gp.quicksum(y_datas[i]*x[i] for i in bundle_indexs), 1, 0)
+            m.ModelSense = GRB.MAXIMIZE
+        """
     else:
         pass
     #for info in D:
@@ -167,6 +178,24 @@ def Bundle_selection_problem4(phi_b, D, s_b, lt_matrix,D_rev, min_pr=0.05, obj_t
     m.optimize()
     m.write("out_test.lp")
     count = 0
+    obj_val = 0
+    for i in bundle_indexs:
+        obj_val += (s_b[i]+ y_datas[i]) * x[i].X
+    print(m.objVal, obj_val)
+    #input('check obj val')
+
+    if obj_type == 'value+selective':
+        f = open('scaling.txt','a')
+        f.write('{};{};{};{};{};{};{};{};'.format(np.mean(s_b), np.std(s_b),len(s_b),np.mean(y_datas), np.std(y_datas),len(y_datas), m.objVal,obj_val) + '\n')
+        tem1 = ''
+        for i in s_b:
+            tem1 += str(round(i,4)) + ';'
+        tem2 = ''
+        for j in y_datas:
+            tem2 += str(round(j,4)) + ';'
+        f.write(tem1 + '\n')
+        f.write(tem2 + '\n')
+        f.close()
     """
     test = []
     for val in m.getVars():

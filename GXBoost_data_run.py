@@ -3,10 +3,12 @@
 import time
 
 for instance_type in ['Instance_random','Instance_cluster']:
-    for gen_B_size in [3]:
+    for gen_B_size in [3,2]:
         for _ in range(10):
             try:
                 exec(open('Simulator_for_GXBoost.py', encoding='UTF8').read(),globals().update(gen_B_size = gen_B_size, instance_type = instance_type))
+                #exec(open('Simulator_for_GXBoost2.py', encoding='UTF8').read(),
+                #     globals().update(gen_B_size=gen_B_size, instance_type=instance_type))
             except:
                 f = open('error_log.txt', 'a')
                 tm = time.localtime(time.time())

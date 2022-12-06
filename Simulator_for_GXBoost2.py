@@ -10,16 +10,15 @@ import simpy
 from A1_BasicFunc import  OrdergeneratorByCSV, counter, check_list, counter2, t_counter, GenerateStoreByCSVStressTest, OrdergeneratorByCSVForStressTest, OrdergeneratorByCSVForStressTest2, GenerateStoreByCSVStressTest2
 import datetime
 
-global gen_B_size
-global instance_type
-global order_dir
-#instance_type = 'Instance_cluster'
-#gen_B_size = 2
-
-save_root_dir = 'E:/'
-#gen_B_size = 3
-#instance_type = 'Instance_random'
-test_run_time = 100
+#global gen_B_size
+#global instance_type
+#global order_dir
+#global test_run_time
+instance_type = '송파구'
+gen_B_size = 2
+order_dir = 'C:/Users/박태준/jupyter_notebook_base/data/' + instance_type + '/1206_ORG' + str(0) + '.txt'
+save_root_dir = 'C:/rev/'
+test_run_time = 30
 
 ##count 확인
 counter.dist = 0
@@ -72,11 +71,11 @@ Orders = {}
 test1 = []
 store_dir = '송파구store_Coor.txt'
 customer_dir = '송파구house_Coor.txt'
-rider_speed = 3
+rider_speed = 3/70 #todo 1206 : ->좌표계가 변했기 때문
 heuristic_theta = 10
 heuristic_r1 = 10
 ellipse_w = 10
-speed = 3
+speed = 3/70 #todo 1206 : ->좌표계가 변했기 때문
 rider_p2 = 2 #1.5
 platform_p2 = 2 #rider_p2*0.8
 Saved_data = []
@@ -85,9 +84,9 @@ DummyB3 = []
 customer_p2 = 1 #2
 unit_fee = 110
 fee_type = 'linear'
-stress_lamda = 5 # 분당 주문 발생 수 # (2400/60)/5 #기준은 한 구에 분당 3750/60
+stress_lamda = 10 # 분당 주문 발생 수 # (2400/60)/5 #기준은 한 구에 분당 3750/60
 #1 주문 생성
-orders, stores, customers = OrderGen(store_dir, customer_dir, store_size = 100, customer_size = 1000, order_size = 1000, coor_random = True)
+#orders, stores, customers = OrderGen(store_dir, customer_dir, store_size = 100, customer_size = 1000, order_size = 1000, coor_random = True)
 
 #todo : 실험 환경 현실화
 StoreDetailPara = False
@@ -133,7 +132,7 @@ test3 = 'E:/학교업무 동기화용/py_charm/BundleSimple/'+ instance_type +'/
 #env.process(OrdergeneratorByCSV(env, test3, Orders, Store_dict, Platform_dict, p2_ratio = 1,rider_speed= 3,  service_time_diff = False, shuffle= True))
 Store_dict = {}
 #GenerateStoreByCSVStressTest(env, 50, Platform_dict, Store_dict, store_type=instance_type, detail_pr = store_detail)
-GenerateStoreByCSVStressTest2(env, 1000, Platform_dict, Store_dict, order_dir, store_type=instance_type, detail_pr = store_detail)
+GenerateStoreByCSVStressTest2(env, Platform_dict, Store_dict, order_dir, store_type=instance_type, detail_pr = store_detail)
 print('음식점 수',len(Store_dict))
 #input('확인2')
 """
@@ -166,8 +165,11 @@ for ct_num in Orders:
     print(ct_num,';',ct.time_info[0], ';',ct.location[0], ';',ct.location[1], ';',ct.store_loc[0], ';',ct.store_loc[1], ';',ct.p2, ';',distance(ct.location[0],ct.location[1], ct.store_loc[0],ct.store_loc[1]),';',ct.time_info[7])
     tem = [ct.name,ct.time_info[0],ct.location[0],ct.location[1],ct.store, ct.store_loc[0],ct.store_loc[1],ct.p2,ct.cook_time,ct.cook_info[1][0],ct.cook_info[1][1],ct.time_info[6],ct.time_info[7], 3]
     saved_orders.append(tem)
-
-instance_type_i = instance_type[9]
+print('저장1 종료')
+try:
+    instance_type_i = instance_type[9]
+except:
+    instance_type_i = instance_type[0]
 #input('STOP')
 order_np = np.array(saved_orders, dtype=np.float64)
 #np.save('./GXBoost'+str(gen_B_size)+'/'+save_id+'saved_orders_'+instance_type_i+'_'+str(gen_B_size), order_np)
@@ -222,7 +224,10 @@ print('고객 수::', len(Orders), '찾아진 번들 수::' , count)
 print('counter', counter.dist, counter.bundle_consist, counter.bundle_consist2)
 if gen_B_size == 2:
     #DummyB2
-    dummy_thres = min(0.3, (100000/len(DummyB2)))
+    if len(DummyB2) == 0:
+        dummy_thres = 1
+    else:
+        dummy_thres = min(0.3, (100000/len(DummyB2)))
     Dummy_B2_datas = []
     Dummy_B2_datas_names = []
     count = 0

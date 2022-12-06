@@ -540,6 +540,17 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
                 for s_order in s_orders:
                     tem_name.append(s_order.name)
                 rev_M1_names.append(tem_name)
+            if False: #count == 0:
+                #belonged_cts로 만든 번들을 추가해 보자
+                belonged_subset = list(itertools.combinations(belonged_cts, s - 1))
+                added_subset = []
+                for name_subset in belonged_subset:
+                    tem = [M1[count][s-1]]
+                    for j in name_subset:
+                        tem.append(orders[j])
+                    added_subset.append(tem)
+                rev_M1 += added_subset
+                pass
             if len(rev_M1_names) > 1:
                 #print('Target',target_order.name)
                 #print('확장 됨',rev_M1_names)
