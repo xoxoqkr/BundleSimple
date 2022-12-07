@@ -244,7 +244,7 @@ def ConstructFeasibleBundle_TwoSided(target_order, orders, s, p2, thres = 0.05, 
         #print(orders[customer_name].time_info[1], orders[customer_name].cancel)
         if customer_name != target_order.name and orders[customer_name].time_info[1] == None and orders[customer_name].cancel == False:
             d.append(customer_name)
-    #print(d,s)
+    #print('d and s',d,s)
     #input("확인2")
     new = 0
     M2_count = 0

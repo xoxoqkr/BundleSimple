@@ -10,15 +10,18 @@ import simpy
 from A1_BasicFunc import  OrdergeneratorByCSV, counter, check_list, counter2, t_counter, GenerateStoreByCSVStressTest, OrdergeneratorByCSVForStressTest, OrdergeneratorByCSVForStressTest2, GenerateStoreByCSVStressTest2
 import datetime
 
-#global gen_B_size
-#global instance_type
-#global order_dir
-#global test_run_time
-instance_type = '송파구'
-gen_B_size = 2
-order_dir = 'C:/Users/박태준/jupyter_notebook_base/data/' + instance_type + '/1206_ORG' + str(0) + '.txt'
+global gen_B_size
+global instance_type
+global order_dir
+global test_run_time
+global input_speed
+#instance_type = '동작구'
+#gen_B_size = 3
+#order_dir = 'C:/Users/박태준/jupyter_notebook_base/data/' + instance_type + '/1206_NOR' + str(0) + '.txt'
+#order_dir = 'C:/Users/박태준/jupyter_notebook_base/data/' + instance_type + '/R_972_1206_NOR' + str(0) + '.txt'
+
 save_root_dir = 'C:/rev/'
-test_run_time = 30
+#test_run_time = 30
 
 ##count 확인
 counter.dist = 0
@@ -71,11 +74,11 @@ Orders = {}
 test1 = []
 store_dir = '송파구store_Coor.txt'
 customer_dir = '송파구house_Coor.txt'
-rider_speed = 3/70 #todo 1206 : ->좌표계가 변했기 때문
+rider_speed = input_speed #todo 1206 : ->좌표계가 변했기 때문
 heuristic_theta = 10
 heuristic_r1 = 10
 ellipse_w = 10
-speed = 3/70 #todo 1206 : ->좌표계가 변했기 때문
+speed = input_speed #todo 1206 : ->좌표계가 변했기 때문
 rider_p2 = 2 #1.5
 platform_p2 = 2 #rider_p2*0.8
 Saved_data = []
@@ -84,7 +87,7 @@ DummyB3 = []
 customer_p2 = 1 #2
 unit_fee = 110
 fee_type = 'linear'
-stress_lamda = 10 # 분당 주문 발생 수 # (2400/60)/5 #기준은 한 구에 분당 3750/60
+stress_lamda = 20 # 분당 주문 발생 수 # (2400/60)/5 #기준은 한 구에 분당 3750/60
 #1 주문 생성
 #orders, stores, customers = OrderGen(store_dir, customer_dir, store_size = 100, customer_size = 1000, order_size = 1000, coor_random = True)
 
@@ -251,11 +254,11 @@ if gen_B_size == 2:
     # np.save('./GXBoost'+str(gen_B_size)+'/'+save_id+'raw_data_np_'+instance_type_i+'_'+str(gen_B_size), raw_data_np)
     np.save(save_root_dir + 'GXBoost' + str(gen_B_size) + '/' + save_id + 'label1_B2_raw_data_np_' + instance_type_i + '_' + str(
         gen_B_size), raw_data_np)
-    print('입력2_중복제거', len(label1_data))
+    print('입력2_중복제거1', len(label1_data))
     print('입력2',len(Dummy_B2_datas_names), Dummy_B2_datas_names[:5])
     #label0_data = BundleFeaturesCalculator(saved_orders, Dummy_B2_datas_names, label = 0)
     label0_data = BundleFeaturesCalculator2(Orders, Dummy_B2_datas_names, label=0, add_info=4)
-    print('입력2_중복제거',len(label0_data))
+    print('입력2_중복제거2',len(label0_data))
     #input('확인2')
 if gen_B_size == 3:
     #DummyB3
@@ -280,12 +283,12 @@ if gen_B_size == 3:
     # np.save('./GXBoost'+str(gen_B_size)+'/'+save_id+'raw_data_np_'+instance_type_i+'_'+str(gen_B_size), raw_data_np)
     np.save(save_root_dir + 'GXBoost' + str(gen_B_size) + '/' + save_id + 'label1_B3_raw_data_np_' + instance_type_i + '_' + str(
         gen_B_size), raw_data_np)
-    print('입력3_중복제거',len(label1_data))
+    print('입력3_중복제거1',len(label1_data))
     #input('확인3')
     print('입력3',len(Dummy_B3_datas_names), Dummy_B3_datas_names[:5])
     #label0_data = BundleFeaturesCalculator(saved_orders, Dummy_B3_datas_names, label = 0)
     label0_data = BundleFeaturesCalculator2(Orders, Dummy_B3_datas_names, label=0, add_info=4)
-    print('입력3_중복제거',len(label0_data))
+    print('입력3_중복제거2',len(label0_data))
     #input('확인3')
 #print(len(label1_data[0]), len(label0_data[0]))
 #print(label1_data[0], label0_data[0])

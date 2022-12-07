@@ -707,6 +707,7 @@ def OrdergeneratorByCSVForStressTest2(env, orders, stores, lamda, order_dir, pla
         tem = info.split(';')
         data = [int(tem[1]), float(tem[2]), float(tem[3]), int(tem[5]) , float(tem[6]), float(tem[7])]
         order_infos.append(data)
+    f.close()
     count = 0
     for info in order_infos:
         store_name = info[0]
@@ -747,6 +748,7 @@ def OrdergeneratorByCSVForStressTest2(env, orders, stores, lamda, order_dir, pla
         orders[name] = order
         stores[store_name].received_orders.append(orders[name])
         interval = 1.0/lamda
+        count += 1
         if interval > 0:
             yield env.timeout(interval)
         else:

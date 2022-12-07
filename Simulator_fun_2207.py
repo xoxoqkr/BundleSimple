@@ -50,16 +50,16 @@ def BundleFilter(Route):
     return bundles
 
 
-def BundleProcess(env, customers,dummy_platform, heuristic_theta, heuristic_r1,ellipse_w,p2, bundle_permutation_option, bundle_size = [2], interval= 10, speed = 2,Data = [],DummyB2_data=[], DummyB3_data=[]):
+def BundleProcess(env, customers,dummy_platform, heuristic_theta, heuristic_r1,ellipse_w,p2, bundle_permutation_option, bundle_size = [2], interval= 5, speed = 2,Data = [],DummyB2_data=[], DummyB3_data=[]):
+    used_target = []
     for t in range(100):
         now_t = env.now
-        used_target = []
         Feasible_bundle_set, DummyB2, DummyB3 = IdealBundleCalculator(now_t, customers, used_target, dummy_platform, [],
                                                     heuristic_theta, heuristic_r1,ellipse_w,p2, bundle_permutation_option,
                                                     speed=speed, search_type='enumerate', bundle_size=bundle_size)
         Data +=Feasible_bundle_set
         DummyB2_data += DummyB2
-        print('더미2',DummyB2_data)
+        print('더미2',DummyB2_data[:min(len(DummyB2_data), 10)])
         DummyB3_data += DummyB3
         print('T: {} 가능해 번들 수:{}'.format(int(env.now),len(Feasible_bundle_set)))
         try:
@@ -81,11 +81,13 @@ def IdealBundleCalculator(now_t, customers, used_target, dummy_platform , riders
     #input('번들 계산 시작')
     Feasible_bundle_set = []
     start = time.time()
+    print('사용된 고객',used_target[:min(len(used_target)-1, 10)])
     for customer_name in customers:
         if customer_name in used_target:
             continue
         target_order = customers[customer_name]
-        #print(target_order)
+        used_target.append(customer_name)
+        print('목표 고객',customer_name, target_order)
         #input("확인")
         if search_type == 'enumerate':
             #input('확인')
@@ -117,6 +119,8 @@ def IdealBundleCalculator(now_t, customers, used_target, dummy_platform , riders
             Feasible_bundle_set += tem_infos
             end = time.time()
             print('고객 {} 번들 계산 시간 {} : B{}::{}'.format(customer_name, end - start, b_size, len(tem_infos)))
+            if len(tem_infos) > 0:
+                print('wow')
         #더미 변수
     #겹치는 것 빼기
     res = []
@@ -134,8 +138,12 @@ def DummyBundleCalculator(bundle_infos, customers, size = 2):
     #INPUT : 주문들, 구성된 번들
     #OUTPUT : 더미 고객들
     customer_combination_set = []
+    rv = 1
+    if len(list(itertools.combinations(list(customers.keys()),size))) > 10000:
+        rv = 0.2
     for names in list(itertools.combinations(list(customers.keys()),size)):
-        customer_combination_set.append(list(names))
+        if random.random() < rv:
+            customer_combination_set.append(list(names))
     used_set = []
     for bundle_info in bundle_infos:
         tem = bundle_info[4]
@@ -143,8 +151,11 @@ def DummyBundleCalculator(bundle_infos, customers, size = 2):
         used_set.append(tem)
         #print(customer_combination_set)
         if len(tem) == size and tem not in customer_combination_set:
-            index = customer_combination_set.index(tem)
-            del customer_combination_set[index]
+            try:
+                index = customer_combination_set.index(tem)
+                del customer_combination_set[index]
+            except:
+                pass
     return customer_combination_set
 
 def BundleFeaturesCalculator(customer_data, names_set, label = 0):
