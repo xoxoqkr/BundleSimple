@@ -424,9 +424,11 @@ def GenerateStoreByCSVStressTest(env, num, platform,Store_dict, mus = [5,10,15],
                 else:
                     loc = [random.randint(20, 30), random.randint(20, 30)]
             else:
-                if count > len(output_data) - 1:
-                    break
-                loc = [output_data[count][1],output_data[count][2]]
+                try:
+                    loc = [output_data[count][1],output_data[count][2]]
+
+                except:
+                    pass
             #['name', 'start_loc_x', 'start_loc_y', 'order_ready_time', 'capacity', 'slack']
             order_ready_time = 5
             capacity = store_capacity
