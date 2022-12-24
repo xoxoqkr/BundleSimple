@@ -425,8 +425,8 @@ def GenerateStoreByCSVStressTest(env, num, platform,Store_dict, mus = [5,10,15],
                     loc = [random.randint(20, 30), random.randint(20, 30)]
             else:
                 try:
+                    print('기존 가게')
                     loc = [output_data[count][1],output_data[count][2]]
-
                 except:
                     pass
             #['name', 'start_loc_x', 'start_loc_y', 'order_ready_time', 'capacity', 'slack']

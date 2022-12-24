@@ -24,17 +24,22 @@ import onnxruntime as rt
 from skl2onnx.common.shape_calculator import calculate_linear_classifier_output_shapes  # noqa
 from Simulator_fun_2207 import BundleFeaturesCalculator2
 
+onnx_reverse_para = True #서울시 데이터의 경우에는 작동이 필요
+
+"""
 global run_time
 global customer_pend
 global platform_recommend_input
 global dynamic_env
 global ct_gen_time
+global obj_type
 """
 run_time = 90
+ct_gen_time = 60
 customer_pend = False
 platform_recommend_input = True
 dynamic_env = False
-"""
+obj_type = 'simple_max_s'
 """
 #global variable
 global instance_type
@@ -117,13 +122,16 @@ obj_types = [
 wait_para = False  # True: 음식조리로 인한 대기시간 발생 #False : 음식 대기로 인한 대기시간 발생X
 scenarios = []
 run_para = True  # True : 시뮬레이션 작동 #False 데이터 저장용
-r2_onx = 'pipeline_xgboost2_r_ver11'  # pipeline_xgboost2_r_ver28_R_False
-r3_onx = 'pipeline_xgboost3_r_ver11'  # pipeline_xgboost3_r_ver28_R_False
-c2_onx = 'pipeline_xgboost2_c_ver9' # pipeline_xgboost2_c_ver28_R_False
-c3_onx = 'pipeline_xgboost3_c_ver10' # pipeline_xgboost3_c_ver28_R_False
+
+r2_onx = 'pipeline_xgboost2_s_ver29_R_False'  # pipeline_xgboost2_r_ver28_R_False #송파
+r3_onx = 'pipeline_xgboost3_s_ver29_R_False'  # pipeline_xgboost3_r_ver28_R_False
+c2_onx = 'pipeline_xgboost2_d_ver29_R_False' # pipeline_xgboost2_c_ver28_R_False #동작
+c3_onx = 'pipeline_xgboost3_d_ver29_R_False' # pipeline_xgboost3_c_ver28_R_False
 f = open("결과저장0706.txt", 'a')
 f.write('결과저장 시작' + '\n')
 f.close()
+
+
 
 order_select_type = 'simple'  # oracle ; simple
 
@@ -196,7 +204,6 @@ for sc3 in scenarios:
     sc3.rider_bundle_construct = False
     print(sc3.platform_recommend, sc3.rider_bundle_construct, sc3.obj_type, sc3.search_type)
 scenarios = scenarios[:1]
-global obj_type
 scenarios[0].obj_type = obj_type  # 'simple_max_s' #todo : simple_max_s Vs value+selective
 
 print('시나리오 확인 Start')
@@ -227,7 +234,8 @@ pr_off = True
 # search_type = 'heuristic'
 # input('확인 {}'.format(len(scenarios)))
 if heuristic_type == 'XGBoost':
-    see_dir = 'C:/Ipython/handson-gb-main/handson-gb-main/Chapter05/'
+    #see_dir = 'C:/Ipython/handson-gb-main/handson-gb-main/Chapter05/'
+    see_dir = 'C:/Users/박태준/jupyter_notebook_base/handson-gb-main/handson-gb-main/Chapter05/'
     if instance_type == 'Instance_random':
         sees2 = rt.InferenceSession(see_dir + r2_onx + '.onnx',
                                     providers=['CPUExecutionProvider'])  # "pipeline_xgboost2_r_2_ver3.onnx"
@@ -270,26 +278,43 @@ for ite in exp_range:  # range(0, 1):
         ite) + '_' + instance_type + '.txt'
     #store_file = 'C:/Users/박태준/PycharmProjects/BundleSimple/' + instance_type + '/가게_coord_정보' + str(ite) + '_' + instance_type + '.txt'
     if instance_type == 'Instance_random':
-        store_file =  'C:/Users/박태준/jupyter_notebook_base/data/송파구/R_1206_NOR'+str(ite)+'.txt' #todo 1219 : 가게 파일 변경
+        store_file = 'C:/Users/박태준/jupyter_notebook_base/data/송파구/R_1206_NOR'+str(ite)+'.txt' #todo 1219 : 가게 파일 변경
+        rider_speed = 1.95
     elif instance_type == 'Instance_cluster':
-        store_file =  'C:/Users/박태준/jupyter_notebook_base/data/동작구/R_1206_NOR'+str(ite)+'.txt' #todo 1219 : 가게 파일 변경
+        store_file = 'C:/Users/박태준/jupyter_notebook_base/data/동작구/R_1206_NOR'+str(ite)+'.txt' #todo 1219 : 가게 파일 변경
+        rider_speed = 2.1
     else:
         input('error')
     StoreCoord = []
     f_s = open(store_file, 'r')
     lines = f_s.readlines()
-    count = 0
-    for line in lines[1]:
+    Store_set_coord = []
+    for line in lines[1:]:
         line1 = line.split(';')
-        StoreCoord.append([int(line1[1]), int(line1[2]), int(line1[3])]) # 가게 번호, 가게 X, 가게 Y
+        store_coord = [float(line1[2]), float(line1[3])]
+        if store_coord not in Store_set_coord:
+            Store_set_coord.append(store_coord) # 가게 번호, 가게 X, 가게 Y
+        else:
+            pass
+    count = 0
+    for store_coord in Store_set_coord:
+        StoreCoord.append([count, store_coord[0], store_coord[1]]) # 가게 번호, 가게 X, 가게 Y
         count += 1
     CustomerCoord = []
     count = 0
-    for line in lines[1]:
+    for line in lines[1:]:
         line1 = line.split(';')
-        CustomerCoord.append([int(line1[0]),int(line1[5]), float(line1[6]), float(line1[7])]) # 주문번호, 고객 번호, 고객 X, 고객 Y
+        store_coord = [float(line1[2]), float(line1[3])]
+        store_index = Store_set_coord.index(store_coord)
+        CustomerCoord.append([float(line1[5]), float(line1[6]), float(line1[7]),store_index,float(line1[2]), float(line1[3])]) # 주문번호, 고객 번호, 고객 X, 고객 Y
         count += 1
     f_s.close()
+    """
+    CustomerCoord index
+        store_name = output_data[count][3]
+        store_loc = [output_data[count][4], output_data[count][5]]
+        customer_loc = [output_data[count][1], output_data[count][2]]
+    """
 
 
     for sc in scenarios:
@@ -350,7 +375,7 @@ for ite in exp_range:  # range(0, 1):
         # run
         env = simpy.Environment()
         if setting == 'stresstest':
-            GenerateStoreByCSVStressTest(env, 200, Platform2, Store_dict, store_type=instance_type, ITE=ite,
+            GenerateStoreByCSVStressTest(env, len(StoreCoord), Platform2, Store_dict, store_type=instance_type, ITE=ite,
                                          output_data=StoreCoord, customer_pend=customer_pend)
             env.process(
                 OrdergeneratorByCSVForStressTestDynamic(env, Orders, Store_dict, stress_lamda, platform=Platform2,
@@ -417,7 +442,7 @@ for ite in exp_range:  # range(0, 1):
                                           ML_Saved_Data_B3=ML_Saved_Data_B3, fix_start=bundle_start_fix, ite=ite,
                                           cut_info3=cut_info3, cut_info2=cut_info2, stopping_index=stopping_index,
                                           clustering=clustering_para, revise_type=revise_type_para, cut_infoC=cut_infoC,
-                                          search_type2=search_type2, customer_pend=customer_pend))
+                                          search_type2=search_type2, customer_pend=customer_pend, onnx_reverse_para = onnx_reverse_para))
         else:
             env.process(DefreezeCustomers(env, Orders, Rider_dict, Platform2, end_t=run_time, interval=interval,
                                           customer_pend=customer_pend))

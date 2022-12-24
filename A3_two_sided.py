@@ -340,7 +340,8 @@ def XGBoost_Bundle_Construct_tem(target_order, orders, s):
     return res
 
 def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, speed = 1 , bundle_permutation_option = False, uncertainty = False,thres = 1,
-                             platform_exp_error = 1,  thres_label = 1, label_check = None, feasible_return = True, fix_start = True, cut_info = [2500,2500], belonged_cts = []):
+                             platform_exp_error = 1,  thres_label = 1, label_check = None, feasible_return = True, fix_start = True, cut_info = [2500,2500], belonged_cts = [],
+                             onnx_reverse_para = False):
     print('XGBoost_Bundle_Construct 시작')
     d = []
     success_OO = [0]
@@ -529,7 +530,15 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
     print('pred_onx 수 세기 ',sum(pred_onx[0]))
     for label in pred_onx[0]:
         labels.append(int(label))
-        if 0 < label <= 100: #todo : 0916 label # thres_label
+        class_value = False
+        if onnx_reverse_para == False:
+            if 0 < label <= 100:
+                class_value = True
+        else:
+            if label == 0:
+                class_value = True
+        if class_value == True:
+        #if 0 < label <= 100: #todo : 0916 label # thres_label
             rev_M1 = [M1[count]]  # [M1[count]] #todo 1110 에러 발생 원인
             rev_M1_names =[]
             print('BC계산 시도!!')
@@ -1299,7 +1308,7 @@ def OrdergeneratorByCSVForStressTestDynamic(env, orders, stores, lamda, platform
             if num == 1000:
                 customer_loc = [random.randint(0,50),random.randint(0,50)]
         else:
-            if count > len(output_data) - 2:
+            if count > len(output_data) - 1:
                 break
             store_name = output_data[count][3]
             store_loc = [output_data[count][4], output_data[count][5]]

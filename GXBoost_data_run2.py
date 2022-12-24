@@ -2,7 +2,7 @@
 ##'Instance_random','Instance_cluster'
 import time
 test_run_time = 50
-for instance_type in ['동작구']:
+for instance_type in ['송파구','동작구']:
     if instance_type == '송파구':
         speed = 1.95
     elif instance_type == '동작구':

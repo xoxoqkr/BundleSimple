@@ -28,7 +28,7 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                       XGBmodel3 = None, XGBmodel2 = None, thres_label = 1, considered_customer_type = 'all',search_range_index = 15,
                       pr_para = False, ML_Saved_Data_B2 = [],ML_Saved_Data_B3 = [], fix_start = True, ite = 0,revise_type_para = None,
                       cut_info3 = [100,100], cut_info2= [100,100], stopping_index = 100, clustering = True, search_type2 = 'enumerate',
-                      revise_type = 'stopping', cut_infoC = [100,100], customer_pend = False, M = 10000):
+                      revise_type = 'stopping', cut_infoC = [100,100], customer_pend = False, M = 10000, onnx_reverse_para = False):
     f = open("loop시간정보.txt", 'a')
     locat_t = time.localtime(time.time())
     f.write('시간;{};연산 시작; obj;{};searchTypt;{};threslabel;{};#Riders;{};ITE;{};'.format(locat_t,obj_type,search_type,thres_label,len(riders), ite))
@@ -70,7 +70,8 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                     XGBmodel2=XGBmodel2, considered_customer_type=considered_customer_type,
                     thres_label=thres_label, pr_para=pr_para, search_range_index=search_range_index,
                     fix_start=fix_start, cut_info3 = cut_info3, cut_info2= cut_info2, stopping_index= stopping_index, clustering = clustering, search_type2 = search_type2,
-                    revise_type= revise_type, cut_infoC = cut_infoC)
+                    revise_type= revise_type, cut_infoC = cut_infoC,
+                    onnx_reverse_para = onnx_reverse_para)
                 print('phi_b {}:{} d_matrix {}:{} s_b {}:{}'.format(len(phi_b), numpy.average(phi_b),
                                                                     d_matrix.shape, numpy.average(d_matrix),len(s_b),numpy.average(s_b),))
                 print('d_matrix : {}'.format(d_matrix))
@@ -400,7 +401,7 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
                           ellipse_w = 1.5, heuristic_theta = 100,heuristic_r1 = 10, min_time_buffer = 5, XGBmodel3 = None, XGBmodel2 = None, thres_label = 1,
                            MAX_RouteConstruct = 100000, MAX_MIP = 5000, pr_para = True, search_range_index = 15, fix_start = True, cut_info3 = [100,100],
                            search_type2 = 'enumerate', cut_info2 = [100,100], stopping_index = 100, clustering = True, revise_type = 'stopping',
-                           cut_infoC = [100,100]):
+                           cut_infoC = [100,100], onnx_reverse_para = False):
     # 번들이 필요한 라이더에게 번들 계산.
     # 단계 1 시작
     sucess_info_b3_DD = []
@@ -569,14 +570,14 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
             size3bundle, label3data, test_b33 = XGBoost_Bundle_Construct(target_order, considered_customers, 3, p2, XGBmodel3, now_t = now_t,
                                                                          speed = speed , bundle_permutation_option = bundle_permutation_option,
                                                                          thres = thres,thres_label=thres_label, label_check=check_label, feasible_return= False,
-                                                                         fix_start = fix_start, cut_info= cut_info3, belonged_cts = belonged_cts)
+                                                                         fix_start = fix_start, cut_info= cut_info3, belonged_cts = belonged_cts, onnx_reverse_para = onnx_reverse_para)
 
             #size3bundle = []
             #label3data = []
             size2bundle, label2data, test_b22 = XGBoost_Bundle_Construct(target_order, considered_customers, 2, p2, XGBmodel2, now_t = now_t,
                                                                          speed = speed , bundle_permutation_option = bundle_permutation_option, thres = thres,
                                                                          thres_label=thres_label, label_check=check_label, feasible_return= False,
-                                                                         fix_start = fix_start, cut_info= cut_info2)
+                                                                         fix_start = fix_start, cut_info= cut_info2, onnx_reverse_para = onnx_reverse_para)
             try:
                 sucess_info_b3_DD += test_b33[0]
                 sucess_info_b3_OO += test_b33[1]
@@ -766,6 +767,7 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
     #info1 : [route, round(max(ftds), 2), round(sum(ftds) / len(ftds), 2), round(min(ftds), 2), order_names, round(route_time, 2)]
     info1_index = 0
     print('D확인1 {}'.format(len(Feasible_bundle_set)))
+    """
     for info1 in Feasible_bundle_set:
         info2_index = 0
         for info2 in Feasible_bundle_set[info1_index + 1:]: #todo: 0907 heavy computation part. -> 중복 연산 제거
@@ -777,6 +779,7 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
         if info1_index % 100 == 0:
             print('현재 진행 ::{}'.format(info1_index))
         info1_index += 1
+    """
     D_rev = []
     for customer_name in orders:
         b_index = 0
