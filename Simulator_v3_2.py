@@ -24,9 +24,9 @@ import onnxruntime as rt
 from skl2onnx.common.shape_calculator import calculate_linear_classifier_output_shapes  # noqa
 from Simulator_fun_2207 import BundleFeaturesCalculator2
 
-onnx_reverse_para = True #서울시 데이터의 경우에는 작동이 필요
+onnx_reverse_para = False #서울시 데이터의 경우에는 작동이 필요
 
-"""
+
 global run_time
 global customer_pend
 global platform_recommend_input
@@ -40,7 +40,7 @@ customer_pend = False
 platform_recommend_input = True
 dynamic_env = False
 obj_type = 'simple_max_s'
-"""
+
 #global variable
 global instance_type
 global ellipse_w
@@ -55,15 +55,17 @@ global unit_fee
 global fee_type
 global service_time_diff
 """
-
-instance_type = 'Instance_random'  # 'Instance_random' 'Instance_cluster'
+global instance_type
+global exp_range
+global sc_type
+#global instance_type = 'Instance_cluster'  # 'Instance_random' 'Instance_cluster'
 ellipse_w = 10
 heuristic_theta = 10
 heuristic_r1 = 10
 heuristic_type = 'XGBoost'  # 'XGBoost'#'enumerate'
 rider_num = 1  # 8
 mix_ratios = None
-exp_range = [0]  # list(range(10))#[0,1] [0,1,2,3,4,5,6,7,8,9]
+#exp_range = [2,3]  # list(range(10))#[0,1] [0,1,2,3,4,5,6,7,8,9]
 unit_fee = 110
 fee_type = 'linear'
 service_time_diff = True
@@ -77,9 +79,17 @@ if save_data == True:
     save_root_dir = 'E:/GXBoost/old3/'
     save_id = 'xgb_1'
 manual_cook_time = 7  # 음식 조리 시간
-cut_info3 = [12, 24]  # [12,24] [15,25] [7.5,10]#[7.5,10] #B3의 거리를 줄이는 함수
-cut_info2 = [100, 100]  # [10,10]#[10,10]
-stopping_index = 20  # 40
+if instance_type == 'Instance_random':
+    cut_info3 = [9, 15]  # [12,24] [15,25] [7.5,10]#[7.5,10] #B3의 거리를 줄이는 함수
+    cut_info2 = [8, 13]  # [10,10]#[10,10]
+elif instance_type == 'Instance_cluster':
+    cut_info3 = [11, 15]  # [12,24] [15,25] [7.5,10]#[7.5,10] #B3의 거리를 줄이는 함수
+    cut_info2 = [9, 13]  # [10,10]#[10,10]
+else:
+    cut_info3 = [12, 24]  # [12,24] [15,25] [7.5,10]#[7.5,10] #B3의 거리를 줄이는 함수
+    cut_info2 = [100, 100]  # [10,10]#[10,10]
+    input('삐빅 인스턴스명 에러')
+stopping_index = 15  # 40
 clustering_para = True
 revise_type_para = 'stopping'  # 'stopping' ; 'cut_info';'cut_info2';
 cut_infoC = [100, 100]  # [8,16] #ConsideredCustomers 에서 잘리는 값 revise_type_para가 'cut_info';'cut_info2'; 경우에 작동
@@ -104,7 +114,7 @@ rider_working_time = 120
 # env = simpy.Environment()
 store_num = 20
 rider_gen_interval = 2  # 라이더 생성 간격.
-rider_speed = 3  # 10
+#rider_speed = 3  # 10
 rider_capacity = 1
 start_ite = 0
 ITE_NUM = 1
@@ -617,7 +627,9 @@ for ite in exp_range:  # range(0, 1):
             divide_option, platform_p2,
             sc.platform_work,
             sc.unserved_order_break, dynamic_env, sc.platform_recommend, sc.obj_type)
-        ResultSave(Rider_dict, Orders, title='Test', sub_info=sub_info, type_name=sc.name)
+        tm1 = time.localtime(time.time())
+        result_save_add_directory = 'C:/Users/박태준/PycharmProjects/BundleSimple/'
+        ResultSave(Rider_dict, Orders, title='Test', sub_info=sub_info, type_name=sc.name, tm = tm1, add_info= sc_type, ite = str(ite), add_dir= result_save_add_directory)
         # input('저장 확인')
         # 시나리오 저장
         # SaveInstanceAsCSV(Rider_dict, Orders, Store_dict, instance_name='res')
@@ -626,7 +638,7 @@ for ite in exp_range:  # range(0, 1):
         string = time.strftime('%Y-%m-%d %I:%M:%S %p', tm)
         try:
             info = [string, ite, sc.name, sc.considered_customer_type, sc.unserved_order_break, sc.scoring_type,
-                    sc.bundle_selection_type, 0, \
+                    sc.bundle_selection_type, 0,
                     sc.res[-1][0], sc.res[-1][1], sc.res[-1][2], sc.res[-1][3], sc.res[-1][4], sc.res[-1][5],
                     sc.res[-1][6], sc.res[-1][7], sc.res[-1][8]]
         except:

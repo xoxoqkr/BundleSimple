@@ -881,10 +881,11 @@ def ForABundleCount(route_info):
             bundle_start = store_index
     return B, num_bundle_customer
 
-def ResultSave(Riders, Customers, title = 'Test', sub_info = 'None', type_name = 'A'):
-    tm = time.localtime(time.time())
-    sub = ['Day {} Hr{}Min{}Sec{}/ SUB {} '.format(tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec,sub_info)]
-    save_key = 'Day {} Hr{}Min{}Sec{}'.format(tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec)
+def ResultSave(Riders, Customers, title = 'Test', sub_info = 'None', type_name = 'A', tm = None, add_info= 'test',ite = '0', add_dir = None):
+    if tm == None:
+        tm = time.localtime(time.time())
+    sub = ['Day {} Hr{}Min{}Sec{}/ SUB {} /sctype {}/ITE {}'.format(tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec,sub_info,add_info,ite)]
+    save_key = 'Day;{};Hr;{};Min;{};Sec;{};sctype;{};ITE;{};'.format(tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec,add_info,ite)
     rider_header = ['라이더 이름', '서비스 고객수', '주문 탐색 시간','선택한 번들 수','번들로 서비스된 고객 수','라이더 수익','음식점 대기시간','대기시간_번들','대기시간_단건주문','주문 선택 간격','대기 시간','주문이 없는 시간 수','경로']
     rider_infos = [sub,rider_header]
     for rider_name in Riders:
@@ -940,7 +941,10 @@ def ResultSave(Riders, Customers, title = 'Test', sub_info = 'None', type_name =
         info += [customer.cook_start_time, customer.actual_cook_time, customer.time_info[6], customer.time_info[7], customer.rider_wait3, customer.food_wait3]
         info += [customer.who_picked, customer.bundle_size, customer.bundle_route, customer.who_serve, customer.bundle_type, customer.dynamic_type, customer.inbundle_order[0],customer.inbundle_order[1], customer.bundle_len]
         customer_infos.append(info)
-    f = open(title + "riders_" + save_key + ".txt", 'a')
+    if add_dir == None:
+        f = open(title  + "riders_" + save_key + ".txt", 'a')
+    else:
+        f = open(add_dir +'Rider_data/'+ title + "riders_" + save_key + ".txt", 'a')
     for info in rider_infos:
         count = 0
         for ele in info:
@@ -953,7 +957,10 @@ def ResultSave(Riders, Customers, title = 'Test', sub_info = 'None', type_name =
             if count == len(info):
                 f.write('\n')
     f.close()
-    f = open(title + "customers_" + save_key + ".txt", 'a')
+    if add_dir == None:
+        f = open(title  + "customers_" + save_key + ".txt", 'a')
+    else:
+        f = open(add_dir +'Customer_data/'+ title + "customers_" + save_key + ".txt", 'a')
     for info in customer_infos:
         count = 0
         for ele in info:
