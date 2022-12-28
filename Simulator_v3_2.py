@@ -24,6 +24,12 @@ import onnxruntime as rt
 from skl2onnx.common.shape_calculator import calculate_linear_classifier_output_shapes  # noqa
 from Simulator_fun_2207 import BundleFeaturesCalculator2
 
+#from pympler import muppy
+import sys
+
+sys.setrecursionlimit(4000)
+#all_objects=muppy.get_objects()  # this causes pydev debugger exit with code -1073741819 (0xC0000005)
+
 onnx_reverse_para = False #서울시 데이터의 경우에는 작동이 필요
 
 
@@ -247,22 +253,22 @@ if heuristic_type == 'XGBoost':
     #see_dir = 'C:/Ipython/handson-gb-main/handson-gb-main/Chapter05/'
     see_dir = 'C:/Users/박태준/jupyter_notebook_base/handson-gb-main/handson-gb-main/Chapter05/'
     if instance_type == 'Instance_random':
-        sees2 = rt.InferenceSession(see_dir + r2_onx + '.onnx',
+        XGBmodel2 = rt.InferenceSession(see_dir + r2_onx + '.onnx',
                                     providers=['CPUExecutionProvider'])  # "pipeline_xgboost2_r_2_ver3.onnx"
-        sess3 = rt.InferenceSession(see_dir + r3_onx + '.onnx',
+        XGBmodel3 = rt.InferenceSession(see_dir + r3_onx + '.onnx',
                                     providers=['CPUExecutionProvider'])  # pipeline_xgboost2_r_3
         # sess3 = None
     else:
-        sees2 = rt.InferenceSession(see_dir + c2_onx + '.onnx',
+        XGBmodel2 = rt.InferenceSession(see_dir + c2_onx + '.onnx',
                                     providers=['CPUExecutionProvider'])  # "pipeline_xgboost2_c_2_ver1.onnx"
-        sess3 = rt.InferenceSession(see_dir + c3_onx + '.onnx',
+        XGBmodel3 = rt.InferenceSession(see_dir + c3_onx + '.onnx',
                                     providers=['CPUExecutionProvider'])  # "pipeline_xgboost2_c_3_ver1.onnx"
         # sess3 = None
     # pred_onx = sess.run(None, {"input": X_test1[:5].astype(numpy.float32)}) #Input must be a list of dictionaries or a single numpy array for input 'input'.
     # print("predict", pred_onx[0])
     # print("predict_proba", pred_onx[1][:1])
-    XGBmodel2 = sees2
-    XGBmodel3 = sess3
+    #XGBmodel2 = sees2
+    #XGBmodel3 = sess3
 else:
     XGBmodel2 = None
     XGBmodel3 = None
