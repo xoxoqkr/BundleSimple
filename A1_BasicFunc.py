@@ -242,7 +242,12 @@ def FLT_Calculate(customer_in_order, customers, route, p2, except_names , M = 10
     for order_name in names:
         if order_name not in except_names:
             #rev_p2 = p2
-            rev_p2 = customers[order_name].p2*p2 + customers[order_name].time_info[6] + customers[order_name].time_info[7] #todo : 시간에 민감한 부분.
+            #rev_p2 = customers[order_name].p2*p2 + customers[order_name].time_info[6] + customers[order_name].time_info[7] #todo : 시간에 민감한 부분.
+            if customers[order_name].p2_type1 == 'test1':
+                rev_p2 = customers[order_name].p2 + customers[order_name].manual_p2+ customers[order_name].time_info[6]  + customers[order_name].time_info[7] #사전에 계산된 대로, 음식 메뉴마다 p2가 상이함.
+            else:
+                rev_p2 = customers[order_name].p2 * p2 + customers[order_name].time_info[6] + customers[order_name].time_info[7]  # todo : 시간에 민감한 부분.
+                input('error1')
             #rev_p2 = customers[order_name].p2 + customers[order_name].time_info[6] + customers[order_name].time_info[7] # todo : 221101실험을 현실적으로 변경. -> 고객 마다 p2가 달라짐.
             #input('p2 확인 1 :: {}'.format(rev_p2))
             if customers[order_name].time_info[2] != None:
@@ -441,14 +446,22 @@ def GenerateStoreByCSVStressTest(env, num, platform,Store_dict, mus = [5,10,15],
             store.FRT = numpy.random.normal(mus[1], mus[1]*std_ratio, 1000)
         else:
             store.FRT = numpy.random.normal(mus[2], mus[2] * std_ratio, 1000)
+        """
         if detail_pr != None: # todo : 221101실험을 현실적으로 변경.
             rest_type = numpy.random.choice(detail_pr[0],p = detail_pr[1])
             store.FRT = detail_pr[2][detail_pr[0].index(rest_type)]
             store.rest_type = rest_type
             store.temperature = detail_pr[3][detail_pr[0].index(rest_type)]
             store.p2 = detail_pr[4][detail_pr[0].index(rest_type)]
-            rest_type_check.append(rest_type)
+            rest_type_check.append(rest_type)        
+        """
+        if detail_pr != None:
+            if name in detail_pr[0]:
+                store.p2 = detail_pr[1]
+            else:
+                store.p2 = detail_pr[2]
         Store_dict[name] = store
+
     """
     f3 = open("가게_coord_정보" + str(ITE) + '_' + store_type + ".txt", 'a')
     for store_name in Store_dict:
@@ -918,7 +931,7 @@ def ResultSave(Riders, Customers, title = 'Test', sub_info = 'None', type_name =
     customer_header = ['고객 이름', '생성 시점', '라이더 선택 시점','가게 출발 시점','고객 도착 시점','가게 도착 시점','음식조리시간','음식 음식점 대기 시간'
         ,'라이더 가게 대기시간1','라이더 가게 대기시간2','수수료', '수행 라이더 정보', '직선 거리','p2(민감정도)','번들여부','조리시간','기사 대기 시간'
         ,'번들로 구성된 시점', '취소','LT', 'FLT', '라이더 번들 여부','라이더 번들 LT','조리 시작 시간','조리소요시간','가게에서 소요 시간','고객에게서 소요 시간','차량 대기 시간', '음식 대기 시간',
-                       'who_picked','bundle_size','bundle_route','who_serve', 'bundletype','dynamic 번들 유형','번들 가게 순서','번들 고객 순서','번들크기']
+                       'who_picked','bundle_size','bundle_route','who_serve', 'bundletype','dynamic 번들 유형','번들 가게 순서','번들 고객 순서','번들크기','manual_p2']
     customer_infos = [sub, customer_header]
     for customer_name in Customers:
         customer = Customers[customer_name]
@@ -939,7 +952,7 @@ def ResultSave(Riders, Customers, title = 'Test', sub_info = 'None', type_name =
             info += [None, None]
         info += customer.rider_bundle
         info += [customer.cook_start_time, customer.actual_cook_time, customer.time_info[6], customer.time_info[7], customer.rider_wait3, customer.food_wait3]
-        info += [customer.who_picked, customer.bundle_size, customer.bundle_route, customer.who_serve, customer.bundle_type, customer.dynamic_type, customer.inbundle_order[0],customer.inbundle_order[1], customer.bundle_len]
+        info += [customer.who_picked, customer.bundle_size, customer.bundle_route, customer.who_serve, customer.bundle_type, customer.dynamic_type, customer.inbundle_order[0],customer.inbundle_order[1], customer.bundle_len, customer.manual_p2]
         customer_infos.append(info)
     if add_dir == None:
         f = open(title  + "riders_" + save_key + ".txt", 'a')
@@ -1072,7 +1085,7 @@ def BundleExpValueCalculator(bundle_infos, rider_names, riders, orders, M = 1000
             tem_r.append(tem)
         res_r.append(tem_r)
         rider_index += 1
-    print('res_r',res_r)
+    #print('res_r',res_r)
     if output_type == 'matrix':
         return res_r
     else:
@@ -1248,3 +1261,13 @@ def SaveScenario(scenario, rider_num, instance_type, ite, ellipse_w = 'None', he
     print_count += 1
     f3.write('Exp End' + '\n')
     f3.close()
+
+def store_p2_reader(dir, ite = 0):
+    f = open(dir, 'r')
+    lines = f.readlines()
+    con = lines[ite].split(',')
+    stores = []
+    for i in con[1:-1]:
+        stores.append(int(i))
+    f.close()
+    return stores

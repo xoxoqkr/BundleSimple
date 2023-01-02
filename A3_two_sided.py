@@ -363,6 +363,10 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
     customer_names = []
     for m in M2:
         q = list(m) + [target_order.name]
+        if len(list(set(q))) != len(q):
+            print('복제 고객 발생1', q)
+            #input('복제 고객 발생1')
+            continue
         customer_names.append(q)
         tem1 = []
         tem2 = []
@@ -478,23 +482,27 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
     #start_time_sec = datetime.now()
     start_time_sec = time.time()
     if len(X_test_np) > 0:
+        if s == 2:
+            print('B2 Try',len(X_test_np))
+            #input('B2 Try')
+            pass
         tem_test = [[],[]]
         cutter = 100
         for tem_index in range(int(len(X_test_np)/cutter)+1):
             s_index = cutter * tem_index
             e_index = cutter * (tem_index + 1)
-            tem_data = X_test_np[s_index: min(e_index, len(X_test_np))]
+            tem_data = copy.deepcopy(X_test_np[s_index: min(e_index, len(X_test_np))])
             print('작업 대상::',s_index,'~', min(e_index, len(X_test_np)))
             if len(tem_data) > 0:
                 tem_pred_onx = XGBmodel.run(None, {"feature_input": tem_data.astype(np.float32)})  # Input must be a list of dictionaries or a single numpy array for input 'input'.
                 #tem_pred_onx = XGBmodel.run(None, {"feature_input": tem_data.astype(np.float32)}) <- ORG
-                print(tem_pred_onx[0])
-                print(list(tem_pred_onx[0]))
-                print('고객 묶음 수',len(tem_pred_onx[0]))
+                #print(tem_pred_onx[0])
+                #print(list(tem_pred_onx[0]))
+                #print('고객 묶음 수',len(tem_pred_onx[0]))
                 #print(tem_pred_onx[1])
-                print('cutter', sum(tem_pred_onx[0]))
+                #print('cutter', sum(tem_pred_onx[0]))
                 #input('확인4678')
-                tem_test[0] += list(tem_pred_onx[0])
+                tem_test[0] += list(copy.deepcopy(tem_pred_onx[0]))
         pred_onx = tem_test
         """
         pred_onx = XGBmodel.run(None, {"feature_input": X_test_np.astype(np.float32)})  # Input must be a list of dictionaries or a single numpy array for input 'input'.
@@ -549,7 +557,7 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
                 for s_order in s_orders:
                     tem_name.append(s_order.name)
                 rev_M1_names.append(tem_name)
-            if False: #count == 0:
+            if True: #count == 0:
                 #belonged_cts로 만든 번들을 추가해 보자
                 belonged_subset = list(itertools.combinations(belonged_cts, s - 1))
                 added_subset = []
@@ -567,6 +575,10 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
                 pass
             print('rev_M1',rev_M1)
             for info in rev_M1:
+                if len(info) != len(list(set(info))):
+                    print('복제 고객 발생2', info)
+                    # input('복제 고객 발생1')
+                    continue
                 #info = 이전의 M1[count]
                 #if label >= thres_label:
                     #print('라벨',label)
@@ -631,6 +643,9 @@ def XGBoost_Bundle_Construct(target_order, orders, s, p2, XGBmodel, now_t = 0, s
     except:
         input('확인')
     add_info = [success_DD, success_OO]
+    if s ==  2 and len(constructed_bundles) > 0:
+        print('B2 Try2', len(constructed_bundles))
+        input('B2 Try2')
     return constructed_bundles, np.array(labels), add_info
 
 
@@ -1277,7 +1292,7 @@ def DynamicBundleConstruct(t_customer, customers, rider_names, riders, platform,
 def OrdergeneratorByCSVForStressTestDynamic(env, orders, stores, lamda, platform = None, customer_p2 = 1, platform_p2 = 1,rider_speed = 1, unit_fee = 110, fee_type = 'linear',
                                      output_data = None, cooktime_detail = None, cook_first = False, dynamic_infos = None, riders = None, pr_off = True, end_t = 90,
                                             dynamic_para = False, customer_pend = False, search_range_index = 15, stopping_range = 15, manual_cook_time = 7, M = 10000,
-                                            XGBmodel3=None, XGBmodel2=None, cut_info3=[100,100], cut_info2=[100,100], cal_type= 'enumerate'):
+                                            XGBmodel3=None, XGBmodel2=None, cut_info3=[100,100], cut_info2=[100,100], cal_type= 'enumerate', p2_option = False):
     """
     Generate customer order
     :param env: Simpy Env
@@ -1321,13 +1336,19 @@ def OrdergeneratorByCSVForStressTestDynamic(env, orders, stores, lamda, platform
             cook_time = manual_cook_time
             p2_ratio2 = customer_p2
         OD_dist = distance(store_loc[0],store_loc[1], customer_loc[0],customer_loc[1])
-        this_p2 = (OD_dist / rider_speed) * p2_ratio2 # todo : 221101실험을 현실적으로 변경.
+        #this_p2 = (OD_dist / rider_speed) * p2_ratio2 # todo : 221101실험을 현실적으로 변경.
+        this_p2 = (OD_dist / rider_speed)
+        #if p2_option == True:
+        #    this_p2 = copy.deepcopy(stores[store_name].p2)
         cook_time_type = 0
         cooking_time = [7,1]
         #order = A1_Class.Customer(env, name, input_location, store=store_num, store_loc=store_loc, p2=p2,
         #                       cooking_time=cook_time, cook_info=[cook_time_type, cooking_time])
         order = re_A1_class.Customer(env, name, customer_loc, store=store_name, store_loc=store_loc, p2=this_p2,
                                cooking_time=cook_time, cook_info=[cook_time_type, cooking_time], platform = platform, unit_fee = unit_fee, fee_type = fee_type, cancel_input= customer_pend)
+        if p2_option == True:
+            order.p2_type1 = 'test1'
+            order.manual_p2 = stores[store_name].p2
         #order.actual_cook_time = random.choice(stores[store_name].FRT)
         order.actual_cook_time = cook_time
         order.dp_cook_time = cook_time

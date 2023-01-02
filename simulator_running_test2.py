@@ -33,7 +33,7 @@ customer_pend_options = [False]
 dir = "C:/users/박태준/PycharmProjects/BundleSimple/"
 basic_infos = [[False,False,'simple_max_s'],[False,True,'simple_max_s'],[True,False,'simple_max_s'],[True,True,'simple_max_s'],[True,False,'value+selective'],[True,True,'value+selective']] #P2P,Dynamic,Static,Hybrid,
 basic_infos = [[False,True,'simple_max_s','Dynamic'],[True,False,'simple_max_s','Static'],[True,True,'simple_max_s','Hybrid'],[False,False,'simple_max_s','P2P']]
-basic_infos = [[False,True,'simple_max_s','Dynamic'],[True,False,'simple_max_s','Static']]
+basic_infos = [[True,False,'simple_max_s','Static'],[False,True,'simple_max_s','Dynamic']]
 #basic_infos = [[False,False,'simple_max_s','P2P']]
 #basic_infos = [[False,True,'simple_max_s'],[True,False,'simple_max_s'],[True,True,'simple_max_s']]
 infos = []
@@ -45,7 +45,7 @@ for customer_pend in customer_pend_options:
 #input('test')
 print(infos)
 #input('info 확인')
-exp_range = range(5,35) # [0]
+exp_range = range(5,20) # [0]
 for instance_type in ['Instance_random','Instance_cluster']: #Instance_random , Instance_cluster
     for ite in range(1):
         for info in infos:
@@ -81,3 +81,4 @@ for instance_type in ['Instance_random','Instance_cluster']: #Instance_random , 
             e_t = time.time()
             f.write('RunTime;{}; \n'.format(e_t - s_t))
             f.close()
+            #input('확인')

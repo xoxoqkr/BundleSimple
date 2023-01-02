@@ -669,6 +669,9 @@ class Rider(object):
                 customer.who_picked[-1][3] = 'bundle'
                 customer.bundle_size = len(names)
                 customer.bundle_route = route
+                if len(names) != len(list(set(names))):
+                    print('names',names)
+                    #input('복제 고객 발생')
             #print('주문 {}의 고객 {} 가게 위치{} 고객 위치{}'.format(order.index, name, customers[name].store_loc, customers[name].location))
         #print('선택된 주문의 고객들 {} / 추가 경로{}'.format(names, route))
         if route[0][1] != 0:
@@ -862,7 +865,7 @@ class Store(object):
 
 class Customer(object):
     def __init__(self, env, name, input_location, store = 0, store_loc = (25, 25),end_time = 60, ready_time = 1, service_time = 2,
-                 fee = 2500, p2 = 15, cooking_time = (2,5), cook_info = (None, None), platform = None, unit_fee = 110, fee_type = 'linear', cancel_input = False):
+                 fee = 3200, p2 = 15, cooking_time = (2,5), cook_info = (None, None), platform = None, unit_fee = 110, fee_type = 'linear', cancel_input = False):
         self.name = name  # 각 고객에게 unique한 이름을 부여할 수 있어야 함. dict의 key와 같이
         self.time_info = [round(env.now, 2), None, None, None, None, end_time, ready_time, service_time, None]
         # [0 :발생시간, 1: 차량에 할당 시간, 2:차량에 실린 시간, 3:목적지 도착 시간,
@@ -872,15 +875,25 @@ class Customer(object):
         self.store = store
         self.type = 'single_order'
         self.min_FLT = p2 #Basic.distance(input_location[0],input_location[1], store_loc[0],store_loc[1]) #todo: 고객이 기대하는 FLT 시간.
-        self.fee = fee + 110*Basic.distance(input_location[0],input_location[1], store_loc[0],store_loc[1]) #원래 150원
-        if fee_type == 'linear':
-            self.fee = fee + unit_fee * max(0 , Basic.distance(input_location[0],input_location[1], store_loc[0],store_loc[1])-10)  # 원래 150원
-        else:
-            self.fee = fee + unit_fee * Basic.distance(input_location[0],input_location[1], store_loc[0],store_loc[1])
         self.ready_time = None #가게에서 음식이 조리 완료된 시점
         self.who_serve = []
         self.distance = Basic.distance(input_location[0],input_location[1], store_loc[0],store_loc[1])
+        #self.fee = fee + 150*Basic.distance(input_location[0],input_location[1], store_loc[0],store_loc[1]) #원래 150원
+        if fee_type == 'linear':
+            self.fee = fee + unit_fee * max(0 , Basic.distance(input_location[0],input_location[1], store_loc[0],store_loc[1])-10)  # 원래 150원
+        else:
+            # self.fee = fee + unit_fee * Basic.distance(input_location[0],input_location[1], store_loc[0],store_loc[1])
+            # 새롭게 개편된 수수료. 네비게이션 거리에 따라 : 0~675 : 3000, 675~1900 : 3500,1900~ : 100m당 80원 추가
+            weigted_dist = 1.4 * Basic.distance(input_location[0],input_location[1], store_loc[0],store_loc[1])
+            if weigted_dist <= 6.75: #일반적으로 피크 시간대에는 1000원 정도의 추가 차지가 붙는다고 가정.
+                self.fee = 3000
+            elif weigted_dist <= 19:
+                self.fee = 3500
+            else:
+                self.fee = 3500 + 80*int((weigted_dist - 19))
         self.p2 = p2
+        self.manual_p2 = 5
+        self.p2_type1 = 'None'
         self.cook_time = cooking_time
         self.inbundle = False
         self.rider_wait = 0

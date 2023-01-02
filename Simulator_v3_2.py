@@ -10,14 +10,14 @@ import random
 
 from re_A1_class import scenario, Platform_pool
 from A1_BasicFunc import ResultSave, RiderGeneratorByCSV, OrdergeneratorByCSV, distance, counter, check_list, t_counter, \
-    GenerateStoreByCSVStressTest, RiderGenerator, counter2, SaveScenario
+    GenerateStoreByCSVStressTest, RiderGenerator, counter2, SaveScenario, store_p2_reader
 from A2_Func import ResultPrint
 from A3_two_sided import OrdergeneratorByCSVForStressTestDynamic
 from re_platform import Platform_process5, Rider_Bundle_plt, DefreezeCustomers
 from datetime import datetime
 import os
 
-os.environ["OMP_NUM_THREADS"] = '2'
+os.environ["OMP_NUM_THREADS"] = '4'
 
 from onnxmltools.convert.xgboost.operator_converters.XGBoost import convert_xgboost  # noqa
 import onnxruntime as rt
@@ -72,8 +72,8 @@ heuristic_type = 'XGBoost'  # 'XGBoost'#'enumerate'
 rider_num = 1  # 8
 mix_ratios = None
 #exp_range = [2,3]  # list(range(10))#[0,1] [0,1,2,3,4,5,6,7,8,9]
-unit_fee = 110
-fee_type = 'linear'
+unit_fee = 150
+fee_type = 'real' #'linear'
 service_time_diff = True
 thres_label = 25
 considered_customer_type = 'all'  # 'all' 'new'
@@ -87,7 +87,8 @@ if save_data == True:
 manual_cook_time = 7  # 음식 조리 시간
 if instance_type == 'Instance_random':
     cut_info3 = [9, 15]  # [12,24] [15,25] [7.5,10]#[7.5,10] #B3의 거리를 줄이는 함수
-    cut_info2 = [8, 13]  # [10,10]#[10,10]
+    #cut_info2 = [8, 13]  # [10,10]#[10,10]
+    cut_info2 = [100, 100]
 elif instance_type == 'Instance_cluster':
     cut_info3 = [11, 15]  # [12,24] [15,25] [7.5,10]#[7.5,10] #B3의 거리를 줄이는 함수
     cut_info2 = [9, 13]  # [10,10]#[10,10]
@@ -103,7 +104,7 @@ search_type2 = 'XGBoost'  # 'XGBoost'#'enumerate' -> 실제로 XGBoost냐 Enumer
 
 setting = 'stresstest'
 stress_lamda = 40  # 분당 주문 발생 수 # (2400/60)/5 #기준은 한 구에 분당 3750/60 #원래 40
-stress_rider_num = 320  # 기준은 한 구에 400명
+stress_rider_num = 400  # 기준은 한 구에 400명
 # Parameter define
 interval = 5
 
@@ -295,10 +296,12 @@ for ite in exp_range:  # range(0, 1):
     #store_file = 'C:/Users/박태준/PycharmProjects/BundleSimple/' + instance_type + '/가게_coord_정보' + str(ite) + '_' + instance_type + '.txt'
     if instance_type == 'Instance_random':
         store_file = 'C:/Users/박태준/jupyter_notebook_base/data/송파구/R_1206_NOR'+str(ite)+'.txt' #todo 1219 : 가게 파일 변경
-        rider_speed = 1.95
+        rider_speed = 2.5 # 1.95
+        store_names = store_p2_reader('C:/Users/박태준/jupyter_notebook_base/data/송파구/store_p2_송파.txt', ite = ite)
     elif instance_type == 'Instance_cluster':
         store_file = 'C:/Users/박태준/jupyter_notebook_base/data/동작구/R_1206_NOR'+str(ite)+'.txt' #todo 1219 : 가게 파일 변경
-        rider_speed = 2.1
+        rider_speed = 2.7  # 2.15
+        store_names = store_p2_reader('C:/Users/박태준/jupyter_notebook_base/data/동작구/store_p2_동작.txt', ite = ite)
     else:
         input('error')
     StoreCoord = []
@@ -384,6 +387,8 @@ for ite in exp_range:  # range(0, 1):
         sc.customer_dir = instance_type + '/Instancecustomer_infos' + str(
             ite)  # Instance_random_store/Instancecustomer_infos
         sc.rider_dir = 'Instance_random/Instancerider_infos0'  # +str(ite) #Instance_random_store/Instancerider_infos
+
+        store_detail_pr = [store_names[:24], 5 , 15]
         Rider_dict = {}
         Orders = {}
         Platform2 = Platform_pool()
@@ -392,7 +397,7 @@ for ite in exp_range:  # range(0, 1):
         env = simpy.Environment()
         if setting == 'stresstest':
             GenerateStoreByCSVStressTest(env, len(StoreCoord), Platform2, Store_dict, store_type=instance_type, ITE=ite,
-                                         output_data=StoreCoord, customer_pend=customer_pend)
+                                         output_data=StoreCoord, customer_pend=customer_pend,detail_pr= store_detail_pr)
             env.process(
                 OrdergeneratorByCSVForStressTestDynamic(env, Orders, Store_dict, stress_lamda, platform=Platform2,
                                                         customer_p2=customer_p2, platform_p2=platform_p2,
@@ -408,7 +413,7 @@ for ite in exp_range:  # range(0, 1):
                                                         XGBmodel2=XGBmodel2,
                                                         cut_info3=cut_info3,
                                                         cut_info2=cut_info2,
-                                                        cal_type='XGBoost'))
+                                                        cal_type='XGBoost', p2_option = True))
             """
             if dynamic_env == True:
                 env.process(OrdergeneratorByCSVForStressTestDynamic(env, Orders, Store_dict, stress_lamda, platform=Platform2,
@@ -674,10 +679,10 @@ for ite in exp_range:  # range(0, 1):
             else:
                 if customer.cancel == True and customer.time_info[0] < run_time - interval * 2:
                     canceled_ct += 1
-            print('문제 발생 고객 시작')
+            #print('문제 발생 고객 시작')
             if len(customer.who_picked) > 1:
                 print(customer.name, customer.who_picked)
-            print('문제 발생 고객 종료')
+            #print('문제 발생 고객 종료')
         lead_time_stroage.append(tem)
         foodlead_time_stroage.append(tem2)
         foodlead_time_ratio_stroage.append(tem3)

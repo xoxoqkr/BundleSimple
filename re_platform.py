@@ -83,6 +83,9 @@ def Platform_process5(env, platform, orders, riders, p2,thres_p,interval, end_t 
                 m_r = ExpValueCalculator(platform.active_rider_names, riders, considered_customers_name2, orders, rider_check_index = 12)
                 #print('m_r',m_r)
                 y_b = BundleExpValueCalculator(feasible_bundle_set, platform.active_rider_names, riders, orders, m_r = m_r, output_type = 'vector')
+                if len(y_b) > 0:
+                    print('길이',len(y_b))
+                    #input('발생')
                 unique_bundle_indexs, num_const = Bundle_selection_problem4(phi_b, D, s_b, lt_matrix, D_rev, min_pr = 1, obj_type= obj_type, pr_para=pr_para, y_datas = y_b) #todo : 0317_수정본. min_pr을 무의미한 제약식으로 설정
                 mip_end = time.time()
                 mip_duration = mip_end - mip_s
@@ -554,6 +557,8 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
                                                       bundle_search_variant=unserved_bundle_order_break,
                                                       d_thres_option=True, speed=speed, stopping=stopping_index, cut_info = cut_infoC, revise_type= revise_type) #todo : 확인 할 것
             considered_customers = enumerate_C_T
+        else:
+            input('에러!!')
         thres = 100
         #start_time_sec = datetime.now()
         end_test8 = time.time()
@@ -567,17 +572,22 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
         consider_ct_search_num += len(considered_customers)
         if search_type2 == 'XGBoost':
             print('XGBoost 시작')
+
             size3bundle, label3data, test_b33 = XGBoost_Bundle_Construct(target_order, considered_customers, 3, p2, XGBmodel3, now_t = now_t,
                                                                          speed = speed , bundle_permutation_option = bundle_permutation_option,
                                                                          thres = thres,thres_label=thres_label, label_check=check_label, feasible_return= False,
                                                                          fix_start = fix_start, cut_info= cut_info3, belonged_cts = belonged_cts, onnx_reverse_para = onnx_reverse_para)
+
 
             #size3bundle = []
             #label3data = []
             size2bundle, label2data, test_b22 = XGBoost_Bundle_Construct(target_order, considered_customers, 2, p2, XGBmodel2, now_t = now_t,
                                                                          speed = speed , bundle_permutation_option = bundle_permutation_option, thres = thres,
                                                                          thres_label=thres_label, label_check=check_label, feasible_return= False,
-                                                                         fix_start = fix_start, cut_info= cut_info2, onnx_reverse_para = onnx_reverse_para)
+                                                                         fix_start = fix_start, cut_info= cut_info2, belonged_cts = belonged_cts, onnx_reverse_para = onnx_reverse_para)
+            if len(size2bundle) > 0 :
+                print(len(size2bundle), len(size3bundle))
+                input('B2 생성')
             try:
                 sucess_info_b3_DD += test_b33[0]
                 sucess_info_b3_OO += test_b33[1]
@@ -813,6 +823,10 @@ def Bundle_Ready_Processs2(now_t, platform_set, orders, riders, p2,interval, bun
     end_test6 = time.time()
     t_counter('test6', end_test6 - start_test6)
     add_info_return = [consider_ct_num , consider_ct_search_num, sucess_info_b3_DD, sucess_info_b3_OO]
+    try:
+        print(considered_customers[0])
+    except:
+        considered_customers = []
     return Feasible_bundle_set, phi_b, d_matrix, s_matrix, D, lt_vector, len(check_considered_customers), res_label_count, D_rev, add_info_return, BundleCloseRider, considered_customers
 
 
@@ -878,9 +892,9 @@ def BundleInfoHandle1(riders, orders, now_t, considered_customer_type, search_ra
         except:
             continue
         if now_t - interval <= rider.pick_loc_history[-1][0]:
-            print('라이더 {} ; 위치 {} 에서 주문 선택; 시간 {};'.format(rider.name, rider.pick_loc_history[-1][1],
-                                                           rider.pick_loc_history[-1][0]))
-
+            #print('라이더 {} ; 위치 {} 에서 주문 선택; 시간 {};'.format(rider.name, rider.pick_loc_history[-1][1],
+            #                                               rider.pick_loc_history[-1][0]))
+            pass
     print(see_bundle_infos[:min(5, len(see_bundle_infos))], len(see_bundle_infos))
     # input('정보확인 T::'+ str(int(env.now)))
     f = open("loop시간정보.txt", 'a')
