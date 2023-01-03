@@ -1328,6 +1328,8 @@ def OrdergeneratorByCSVForStressTestDynamic(env, orders, stores, lamda, platform
             store_name = output_data[count][3]
             store_loc = [output_data[count][4], output_data[count][5]]
             customer_loc = [output_data[count][1], output_data[count][2]]
+            print(store_loc,customer_loc)
+            #input('check')
         name = count
         if cooktime_detail != None:
             cook_time = np.random.choice(cooktime_detail[0], p = cooktime_detail[1]) # todo : 221101실험을 현실적으로 변경.

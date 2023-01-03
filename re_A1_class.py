@@ -878,6 +878,8 @@ class Customer(object):
         self.ready_time = None #가게에서 음식이 조리 완료된 시점
         self.who_serve = []
         self.distance = Basic.distance(input_location[0],input_location[1], store_loc[0],store_loc[1])
+        print(self.distance)
+        #input('check')
         #self.fee = fee + 150*Basic.distance(input_location[0],input_location[1], store_loc[0],store_loc[1]) #원래 150원
         if fee_type == 'linear':
             self.fee = fee + unit_fee * max(0 , Basic.distance(input_location[0],input_location[1], store_loc[0],store_loc[1])-10)  # 원래 150원

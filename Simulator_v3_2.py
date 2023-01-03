@@ -87,8 +87,8 @@ if save_data == True:
 manual_cook_time = 7  # 음식 조리 시간
 if instance_type == 'Instance_random':
     cut_info3 = [9, 15]  # [12,24] [15,25] [7.5,10]#[7.5,10] #B3의 거리를 줄이는 함수
-    #cut_info2 = [8, 13]  # [10,10]#[10,10]
-    cut_info2 = [100, 100]
+    cut_info2 = [8, 13]  # [10,10]#[10,10]
+    #cut_info2 = [100, 100]
 elif instance_type == 'Instance_cluster':
     cut_info3 = [11, 15]  # [12,24] [15,25] [7.5,10]#[7.5,10] #B3의 거리를 줄이는 함수
     cut_info2 = [9, 13]  # [10,10]#[10,10]
@@ -388,7 +388,7 @@ for ite in exp_range:  # range(0, 1):
             ite)  # Instance_random_store/Instancecustomer_infos
         sc.rider_dir = 'Instance_random/Instancerider_infos0'  # +str(ite) #Instance_random_store/Instancerider_infos
 
-        store_detail_pr = [store_names[:24], 5 , 15]
+        store_detail_pr = [store_names[:24], 4 , 15]
         Rider_dict = {}
         Orders = {}
         Platform2 = Platform_pool()

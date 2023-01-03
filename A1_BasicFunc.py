@@ -953,6 +953,7 @@ def ResultSave(Riders, Customers, title = 'Test', sub_info = 'None', type_name =
         info += customer.rider_bundle
         info += [customer.cook_start_time, customer.actual_cook_time, customer.time_info[6], customer.time_info[7], customer.rider_wait3, customer.food_wait3]
         info += [customer.who_picked, customer.bundle_size, customer.bundle_route, customer.who_serve, customer.bundle_type, customer.dynamic_type, customer.inbundle_order[0],customer.inbundle_order[1], customer.bundle_len, customer.manual_p2]
+        info += [customer.location[0], customer.location[1], customer.store_loc[0], customer.store_loc[1]]
         customer_infos.append(info)
     if add_dir == None:
         f = open(title  + "riders_" + save_key + ".txt", 'a')
