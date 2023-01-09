@@ -68,7 +68,12 @@ global sc_type
 ellipse_w = 10
 heuristic_theta = 10
 heuristic_r1 = 10
-heuristic_type = 'XGBoost'  # 'XGBoost'#'enumerate'
+if sc_type == 'enumerate':
+    heuristic_type = 'enumerate'  # 'XGBoost'#'enumerate'
+    search_type2 = 'enumerate'
+else:
+    heuristic_type = 'XGBoost'  # 'XGBoost'#'enumerate'
+    search_type2 = 'XGBoost'  # 'XGBoost'#'enumerate' -> 실제로 XGBoost냐 Enumerate냐를 결정
 rider_num = 1  # 8
 mix_ratios = None
 #exp_range = [2,3]  # list(range(10))#[0,1] [0,1,2,3,4,5,6,7,8,9]
@@ -100,7 +105,7 @@ stopping_index = 15  # 40
 clustering_para = True
 revise_type_para = 'stopping'  # 'stopping' ; 'cut_info';'cut_info2';
 cut_infoC = [100, 100]  # [8,16] #ConsideredCustomers 에서 잘리는 값 revise_type_para가 'cut_info';'cut_info2'; 경우에 작동
-search_type2 = 'XGBoost'  # 'XGBoost'#'enumerate' -> 실제로 XGBoost냐 Enumerate냐를 결정
+#search_type2 = 'XGBoost'  # 'XGBoost'#'enumerate' -> 실제로 XGBoost냐 Enumerate냐를 결정
 
 setting = 'stresstest'
 stress_lamda = 40  # 분당 주문 발생 수 # (2400/60)/5 #기준은 한 구에 분당 3750/60 #원래 40
@@ -220,6 +225,7 @@ for sc3 in scenarios:
     sc3.platform_recommend = platform_recommend_input
     sc3.rider_bundle_construct = False
     print(sc3.platform_recommend, sc3.rider_bundle_construct, sc3.obj_type, sc3.search_type)
+#input('확인')
 scenarios = scenarios[:1]
 scenarios[0].obj_type = obj_type  # 'simple_max_s' #todo : simple_max_s Vs value+selective
 
@@ -298,10 +304,14 @@ for ite in exp_range:  # range(0, 1):
         store_file = 'C:/Users/박태준/jupyter_notebook_base/data/송파구/R_1206_NOR'+str(ite)+'.txt' #todo 1219 : 가게 파일 변경
         rider_speed = 2.5 # 1.95
         store_names = store_p2_reader('C:/Users/박태준/jupyter_notebook_base/data/송파구/store_p2_송파.txt', ite = ite)
+        rider_loc_dir = 'C:/Users/박태준/jupyter_notebook_base/data/송파구/rider_start_loc_gen.txt'
+        rider_loc_dir = None
     elif instance_type == 'Instance_cluster':
         store_file = 'C:/Users/박태준/jupyter_notebook_base/data/동작구/R_1206_NOR'+str(ite)+'.txt' #todo 1219 : 가게 파일 변경
         rider_speed = 2.7  # 2.15
         store_names = store_p2_reader('C:/Users/박태준/jupyter_notebook_base/data/동작구/store_p2_동작.txt', ite = ite)
+        rider_loc_dir = 'C:/Users/박태준/jupyter_notebook_base/data/동작구/rider_start_loc_gen.txt'
+        rider_loc_dir = None
     else:
         input('error')
     StoreCoord = []
@@ -387,8 +397,11 @@ for ite in exp_range:  # range(0, 1):
         sc.customer_dir = instance_type + '/Instancecustomer_infos' + str(
             ite)  # Instance_random_store/Instancecustomer_infos
         sc.rider_dir = 'Instance_random/Instancerider_infos0'  # +str(ite) #Instance_random_store/Instancerider_infos
-
-        store_detail_pr = [store_names[:24], 4 , 15]
+        if dynamic_env == True:
+            noodle = 4
+        else:
+            noodle = 4
+        store_detail_pr = [store_names[:24], noodle, 15]
         Rider_dict = {}
         Orders = {}
         Platform2 = Platform_pool()
@@ -413,7 +426,7 @@ for ite in exp_range:  # range(0, 1):
                                                         XGBmodel2=XGBmodel2,
                                                         cut_info3=cut_info3,
                                                         cut_info2=cut_info2,
-                                                        cal_type='XGBoost', p2_option = True))
+                                                        cal_type= 'enumerate', p2_option = True)) # heuristic_type
             """
             if dynamic_env == True:
                 env.process(OrdergeneratorByCSVForStressTestDynamic(env, Orders, Store_dict, stress_lamda, platform=Platform2,
@@ -433,7 +446,7 @@ for ite in exp_range:  # range(0, 1):
                                        gen_num=stress_rider_num, wait_para=wait_para,
                                        platform_recommend=sc.platform_recommend,
                                        input_order_select_type=order_select_type,
-                                       bundle_construct=sc.rider_bundle_construct))
+                                       bundle_construct=sc.rider_bundle_construct, dir = rider_loc_dir))
         else:
             GenerateStoreByCSVStressTest(env, 200, Platform2, Store_dict, store_type=instance_type, ITE=ite,
                                          output_data=StoreCoord, customer_pend=customer_pend, csv_dir=sc.store_dir)

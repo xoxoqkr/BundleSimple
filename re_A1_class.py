@@ -31,12 +31,12 @@ class Order(object):
 class Rider(object):
     def __init__(self, env, i, platform, customers, stores, start_time = 0, speed = 1, capacity = 3, max_order_num = 4,end_t = 120, p2= 2, bound = 5, freedom = True,
                  order_select_type = 'simple', wait_para = False, uncertainty = False, exp_error = 1, platform_recommend = False, p_ij = [0.5,0.3,0.2],
-                 bundle_construct = False, lamda = 5, ite = 1):
+                 bundle_construct = False, lamda = 5, ite = 1, loc = [25,25]):
         self.name = i
         self.env = env
         self.gen_time = int(env.now)
         self.resource = simpy.Resource(env, capacity=1)
-        self.visited_route = [[-1, -1, [25, 25], int(env.now)]]
+        self.visited_route = [[-1, -1, loc, int(env.now)]] # [[-1, -1, [25, 25], int(env.now)]]
         self.speed = speed
         self.route = []
         self.bundles_infos = []
@@ -45,7 +45,7 @@ class Rider(object):
         self.onhand = []
         self.picked_orders = []
         self.end_t = env.now + end_t
-        self.last_departure_loc = [25, 25]
+        self.last_departure_loc = loc # [25, 25]
         self.container = []
         self.served = []
         self.p2 = p2
@@ -90,7 +90,7 @@ class Rider(object):
         self.searched_info = [] #탐색한 고객 중 번들이 있었는가?
         self.pick_loc_history = []
         self.exp_end_time = 0
-        self.exp_end_location = [25, 25]
+        self.exp_end_location = loc # [25, 25]
         self.count_info = [0,0]
         env.process(self.RunProcess(env, platform, customers, stores, self.p2, freedom= freedom, order_select_type = order_select_type, uncertainty = uncertainty))
         #env.process(self.TaskSearch(env, platform, customers, p2=self.p2, order_select_type=order_select_type, uncertainty=uncertainty))

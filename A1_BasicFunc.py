@@ -291,8 +291,7 @@ def FLT_Calculate(customer_in_order, customers, route, p2, except_names , M = 10
 
 def RiderGenerator(env, Rider_dict, Platform, Store_dict, Customer_dict, capacity = 3, speed = 1, working_duration = 120, interval = 1, runtime = 1000,
                    gen_num = 10, history = None, freedom = True, score_type = 'simple', wait_para = False, uncertainty = False, exp_error = 1, exp_WagePerHr = 9000,
-                   platform_recommend = False, input_order_select_type = None, bundle_construct = False,  p2 = 1.5, ite = 1,
-                   ):
+                   platform_recommend = False, input_order_select_type = None, bundle_construct = False,  p2 = 1.5, ite = 1, dir = None ):
     """
     Generate the rider until t <= runtime and rider_num<= gen_num
     :param env: simpy environment
@@ -307,6 +306,20 @@ def RiderGenerator(env, Rider_dict, Platform, Store_dict, Customer_dict, capacit
     :param gen_num: 생성 라이더 수
     """
     rider_num = 0
+    if dir != None:
+        locs = []
+        f = open(dir, 'r')
+        tem = f.readlines()
+        tem = tem[ite]
+        tem = tem.split(';')
+        tem = tem[1:]
+        print(len(tem), tem[1:4])
+        for i in range(0, len(tem) - 1, 2):
+            try:
+                locs.append([int(tem[i]), int(tem[i + 1])])
+            except:
+                print(i, 'error 발생')
+        f.close()
     while env.now <= runtime and rider_num <= gen_num:
         #single_rider = A1_Class.Rider(env,rider_num,Platform, Customer_dict,  Store_dict, start_time = env.now ,speed = speed, end_t = working_duration, capacity = capacity, freedom=freedom, order_select_type = score_type, wait_para =wait_para, uncertainty = uncertainty, exp_error = exp_error)
         """
@@ -314,10 +327,14 @@ def RiderGenerator(env, Rider_dict, Platform, Store_dict, Customer_dict, capacit
                                          end_t = working_duration, capacity = capacity, freedom=freedom, order_select_type = score_type,
                                          wait_para =wait_para, uncertainty = uncertainty, exp_error = exp_error)
         """
+        try:
+            this_loc = locs[rider_num]
+        except:
+            this_loc = [25,25]
         single_rider = re_A1_class.Rider(env,rider_num,Platform, Customer_dict,  Store_dict, start_time = env.now ,speed = speed, end_t = working_duration, \
                                    capacity = capacity, freedom=freedom, order_select_type = input_order_select_type, wait_para =wait_para, \
                                       uncertainty = uncertainty, exp_error = exp_error, platform_recommend = platform_recommend,
-                                         bundle_construct= bundle_construct)
+                                         bundle_construct= bundle_construct, loc = this_loc)
 
         single_rider.exp_wage = exp_WagePerHr
         Rider_dict[rider_num] = single_rider
